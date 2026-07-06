@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Death Dice V2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/v2.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ MAIN MENU -->
+<div id="screen-menu" class="screen active">
+  <div class="menu-content">
+    <div class="menu-logo">DEATH DICE <span style="font-size:.4em;color:#9b72ef;vertical-align:super;">V2</span></div>
+    <div class="menu-tagline">Roll. React. Betray. Laugh. Repeat.</div>
+    <div class="menu-buttons">
+      <button id="btn-play" class="menu-btn primary"><span>💀</span> Play (2–8 players)</button>
+    </div>
+    <div class="menu-note">Every roll can trigger DEATH ROW — rig it, fear it, defuse it.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PLAYER SETUP -->
+<div id="screen-setup" class="screen">
+  <div class="setup-box">
+    <h2>💀 Who's at the table?</h2>
+    <div id="setup-list"></div>
+    <div class="setup-actions">
+      <button id="btn-setup-add" class="menu-btn secondary">＋ Add player</button>
+      <span id="setup-count" class="muted">2 players</span>
+    </div>
+    <div class="howto">
+      <div class="howto-line">🎲 <b>Your roll = your mana.</b> Beat the last roll or bleed the difference.</div>
+      <div class="howto-line">💣 <b>Cards have two lives:</b> CAST now, or RIG face-down onto a number — when <i>anyone</i> rolls it, it FIRES (stronger).</div>
+      <div class="howto-line">💀 <b>Last one alive wins.</b> Rolled 1s feed the Reaper. He hunts the leader.</div>
+    </div>
+    <button id="btn-setup-start" class="menu-btn primary">⚔ Start the Massacre</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ GAME -->
+<div id="screen-game" class="screen">
+
+  <!-- Seat row: every player, party-style -->
+  <div id="v2-seats"></div>
+
+  <!-- Center: DEATH ROW rail + side info -->
+  <div id="v2-mid">
+    <div id="v2-rowwrap">
+      <div id="v2-rowtitle">💀 DEATH ROW <span>any roll fires its slot</span></div>
+      <div id="v2-deathrow"></div>
+    </div>
+    <div id="v2-side">
+      <div id="v2-turnlabel" class="side-chip turn"></div>
+      <div id="v2-req"    class="side-chip"></div>
+      <div id="v2-mana"   class="side-chip mana"></div>
+      <div id="v2-kitty"  class="side-chip kitty"></div>
+      <div id="v2-reaper" class="side-chip reaper"></div>
+      <div id="v2-rail">
+        <button id="btn-v2-roll"   class="gd-btn roll-btn">🎲 Roll Now</button>
+        <button id="btn-v2-call"   class="gd-btn shop-btn">🎯 Call It</button>
+        <button id="btn-v2-insure" class="gd-btn shop-btn">🛡 Insure −2◆</button>
+        <button id="btn-v2-end"    class="gd-btn end-btn">End Turn ▶</button>
+        <button id="btn-v2-mute"   class="gd-btn shop-btn" style="opacity:.8;">🔊 Sound</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Targeting banner -->
+  <div id="v2-banner"></div>
+
+  <!-- Active player's hand -->
+  <div id="v2-hand"></div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════ SCRIPTS -->
+<script src="js/v2fx.js"></script>
+<script src="js/v2cards.js"></script>
+<script src="js/v2core.js"></script>
+<script src="js/v2dice.js"></script>
+<script src="js/v2ui.js"></script>
+</body>
+</html>

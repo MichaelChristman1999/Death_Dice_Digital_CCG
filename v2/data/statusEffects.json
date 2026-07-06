@@ -1,0 +1,62 @@
+[
+  {
+    "id": "status_example_timed",
+    "name": "Burning",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "stack",
+    "trigger": null,
+    "symbol": "🔥",
+    "description": "Takes 1 damage at the start of each turn for 2 turns."
+  },
+  {
+    "id": "status_example_conditional",
+    "name": "Retort",
+    "type": "conditional",
+    "duration": null,
+    "stackBehavior": "replace",
+    "trigger": "on_attacked",
+    "symbol": "⚡",
+    "description": "When this character is attacked, deal 2 damage back to the attacker."
+  },
+  {
+    "id": "status_example_permanent",
+    "name": "Cursed",
+    "type": "permanent",
+    "duration": null,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "💀",
+    "description": "This character cannot benefit from healing."
+  },
+  {
+    "id": "status_edible",
+    "name": "Edible",
+    "type": "conditional",
+    "duration": null,
+    "stackBehavior": "replace",
+    "trigger": "targeted_by_shish_ke_bob",
+    "symbol": "🍖",
+    "description": "This character can be consumed by Shish-Ke-Bob's ability."
+  },
+  {
+    "id": "status_accelerated",
+    "name": "Accelerated",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "⚡",
+    "description": "This character may use one additional action this turn."
+  },
+  {
+    "id": "status_tapped",
+    "name": "Tapped",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "↻",
+    "description": "This character has acted this turn and cannot act again until untapped."
+  }
+]

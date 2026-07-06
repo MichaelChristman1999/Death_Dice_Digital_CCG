@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Death Dice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ MAIN MENU -->
+<div id="screen-menu" class="screen">
+  <div class="menu-content">
+    <div class="menu-logo">DEATH DICE</div>
+    <div class="menu-tagline">Two Players. One Survives.</div>
+    <div class="menu-buttons">
+      <button id="btn-play"  class="menu-btn primary">  <span>⚔</span> Play Hot-Seat</button>
+      <button id="btn-rules" class="menu-btn secondary"><span>📖</span> Rules</button>
+      <button id="btn-admin" class="menu-btn secondary"><span>⚙</span>  Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ GAME BOARD -->
+<div id="screen-game" class="screen">
+  <!-- PixiJS canvas goes here — fills entire game screen -->
+  <div id="pixi-container"></div>
+
+  <!-- HTML action buttons — centered overlay strip -->
+  <div id="game-actions">
+    <button id="btn-roll"     class="gd-btn roll-btn">🎲 Roll Now</button>
+    <button id="btn-shop"     class="gd-btn shop-btn">🛒 Shop</button>
+    <button id="btn-resolve"  class="gd-btn resolve-btn hidden">⚔ Resolve</button>
+    <button id="btn-end-turn" class="gd-btn end-btn">End Turn ▶</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ ADMIN -->
+<div id="screen-admin" class="screen">
+  <div class="admin-tabs">
+    <button class="admin-tab-btn active" data-tab="tab-override">Live Override</button>
+    <button class="admin-tab-btn" data-tab="tab-cards">Cards <small>(Phase 3)</small></button>
+    <button class="admin-tab-btn" data-tab="tab-status">Status <small>(Phase 3)</small></button>
+    <button class="admin-tab-btn" data-tab="tab-rules-editor">Rules <small>(Phase 3)</small></button>
+  </div>
+  <div class="admin-body">
+    <div id="tab-override"     class="admin-tab-content active"></div>
+    <div id="tab-cards"        class="admin-tab-content"><h2>Card Editor</h2><p class="muted">Coming in Phase 3.</p></div>
+    <div id="tab-status"       class="admin-tab-content"><h2>Status Editor</h2><p class="muted">Coming in Phase 3.</p></div>
+    <div id="tab-rules-editor" class="admin-tab-content"><h2>Rules Editor</h2><p class="muted">Coming in Phase 3.</p></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ RULES -->
+<div id="screen-rules" class="screen rules-screen">
+  <div class="rules-inner">
+    <h1>Rules Reference</h1>
+    <h2>Setup</h2>
+    <ul>
+      <li>Each player starts with <strong>20 HP</strong>.</li>
+      <li>Each player draws <strong>3 hero cards</strong> and <strong>4 action cards</strong>.</li>
+      <li>Both players roll. Highest roll goes first. Ties re-roll.</li>
+    </ul>
+    <h2>Phases</h2>
+    <ul>
+      <li><strong>Etiquette Phase</strong> — One round. Deploy and shop only. No attacks.</li>
+      <li><strong>Combat Phase</strong> — Repeat turns until one player reaches 0 HP.</li>
+    </ul>
+    <h2>Roll Phase</h2>
+    <ul>
+      <li>Your turn starts with an <strong>automatic dice roll</strong> after a short countdown (press Roll Now to skip the wait).</li>
+      <li>Your roll = mana for this turn.</li>
+      <li>If your roll is <em>lower</em> than the previous roll, you take damage equal to the difference.</li>
+      <li>Rolling a 6 resets the requirement for the next player.</li>
+    </ul>
+    <h2>Your Turn</h2>
+    <ul>
+      <li><strong>Drag</strong> a hero from your hand into your zone to deploy it.</li>
+      <li>Each hero may perform <strong>one action per turn</strong> — attack OR ability.</li>
+      <li>Play <strong>one paid action card</strong> per turn. Free cards are unlimited.</li>
+      <li>Buy <strong>one card</strong> from the shop per turn (hero: 2◆, action: 1◆).</li>
+      <li><strong>Right-click</strong> a hand card to discard it for its mana value (1 hero + 1 action per turn).</li>
+    </ul>
+    <h2>Combat</h2>
+    <ul>
+      <li><strong>Drag</strong> your character onto an enemy card — or their HP icon — to attack.</li>
+      <li><strong>Click</strong> your character to open its ability panel, then pick a target.</li>
+      <li><strong>Click</strong> an action card to play it — the game tells you what to target.</li>
+      <li>Statuses are shown on cards with turns remaining (☠ poison ticks every turn!).</li>
+      <li>Attacking or using an ability taps the character (turns sideways) until your next turn.</li>
+      <li>0 HP → graveyard. Reduce the enemy player to 0 HP to win!</li>
+    </ul>
+    <button id="btn-rules-back" class="menu-btn secondary" style="margin-top:28px;width:auto;">← Back</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ OVERLAYS -->
+
+<!-- Card detail -->
+<div id="modal-card" class="overlay-bg hidden">
+  <div class="modal-card-box">
+    <div id="modal-card-content"></div>
+    <button class="modal-close-btn" id="btn-modal-card-close">✕ Close</button>
+  </div>
+</div>
+
+<!-- Discard -->
+<div id="modal-discard" class="overlay-bg hidden">
+  <div class="modal-box">
+    <h2>Hand Full — Discard a Card</h2>
+    <p class="muted">Choose one card to discard down to the hand limit.</p>
+    <div class="discard-list" id="discard-list"></div>
+  </div>
+</div>
+
+<!-- Duel -->
+<div id="modal-duel" class="overlay-bg hidden">
+  <div class="modal-box">
+    <h2>⚔ Duel!</h2>
+    <div class="duel-grid">
+      <div class="duel-side">
+        <div class="duel-name duel-p1-name">Character 1</div>
+        <div class="duel-roll duel-p1-roll">?</div>
+      </div>
+      <div class="duel-vs">VS</div>
+      <div class="duel-side">
+        <div class="duel-name duel-p2-name">Character 2</div>
+        <div class="duel-roll duel-p2-roll">?</div>
+      </div>
+    </div>
+    <div class="duel-result"></div>
+    <div class="modal-actions">
+      <button id="btn-duel-roll"  class="menu-btn primary">Roll!</button>
+      <button id="btn-duel-close" class="menu-btn secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Player Names (optional, shown before the game starts) -->
+<div id="overlay-names" class="overlay-bg hidden">
+  <div class="modal-box names-box">
+    <h2>💀 Who's Playing?</h2>
+    <p class="muted">Names are optional — leave blank to stay anonymous. (Up to 8 players soon!)</p>
+    <div class="names-grid">
+      <label class="name-field">
+        <span>Player 1</span>
+        <input id="input-name-p1" type="text" maxlength="16" placeholder="Player 1" autocomplete="off">
+      </label>
+      <label class="name-field">
+        <span>Player 2</span>
+        <input id="input-name-p2" type="text" maxlength="16" placeholder="Player 2" autocomplete="off">
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-names-start" class="menu-btn primary">⚔ Start Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- Roll-Off -->
+<div id="overlay-rolloff" class="overlay-bg hidden">
+  <div class="modal-box rolloff-box">
+    <h2>🎲 Roll-Off — Who Goes First?</h2>
+    <p class="muted">Each player rolls. Highest roll goes first. Ties re-roll.</p>
+    <div class="rolloff-grid">
+      <div class="rolloff-side">
+        <div class="rolloff-pname" id="rolloff-name-p1">Player 1</div>
+        <div class="rolloff-num" id="rolloff-p1-roll">?</div>
+        <button id="btn-rolloff-p1" class="menu-btn primary">🎲 Roll</button>
+      </div>
+      <div class="rolloff-vs">VS</div>
+      <div class="rolloff-side">
+        <div class="rolloff-pname" id="rolloff-name-p2">Player 2</div>
+        <div class="rolloff-num" id="rolloff-p2-roll">?</div>
+        <button id="btn-rolloff-p2" class="menu-btn primary">🎲 Roll</button>
+      </div>
+    </div>
+    <div id="rolloff-result" class="rolloff-winner"></div>
+  </div>
+</div>
+
+<!-- Dice — auto-closes, NO close button -->
+<div id="dice-overlay" class="overlay-bg hidden">
+  <div class="dice-modal">
+    <div id="dice-roll-label" class="dice-label">Rolling…</div>
+    <div class="dice-scene">
+      <div class="dice">
+        <div class="dice-face face-1"><div class="pip"></div></div>
+        <div class="dice-face face-2"><div class="pip"></div><div class="pip"></div></div>
+        <div class="dice-face face-3"><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+        <div class="dice-face face-4"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+        <div class="dice-face face-5"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+        <div class="dice-face face-6"><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div></div>
+      </div>
+    </div>
+    <div id="dice-result-text" class="dice-result"></div>
+  </div>
+</div>
+
+<!-- Shop -->
+<div id="overlay-shop" class="overlay-bg hidden">
+  <div class="shop-panel">
+    <div class="shop-header">
+      <div>
+        <h2>🛒 Card Shop</h2>
+        <div class="shop-mana-line">Available: <strong id="shop-mana-val">0</strong> ◆ mana</div>
+      </div>
+      <button id="btn-shop-close" class="menu-btn secondary" style="width:auto;">✕ Close</button>
+    </div>
+    <div class="shop-section-label">Heroes — 2 ◆ each</div>
+    <div class="shop-grid" id="shop-heroes"></div>
+    <div class="shop-section-label" style="margin-top:20px;">Actions — 1 ◆ each</div>
+    <div class="shop-grid" id="shop-actions"></div>
+  </div>
+</div>
+
+<!-- Win -->
+<div id="overlay-win" class="overlay-bg hidden">
+  <div class="win-box">
+    <div class="win-crown">👑</div>
+    <div class="win-message" id="win-message">Player 1 Wins!</div>
+    <div class="win-sub">Game Over</div>
+    <div class="win-actions">
+      <button class="menu-btn primary"   onclick="location.reload()" style="width:auto;">Play Again</button>
+      <button class="menu-btn secondary" id="btn-win-menu"           style="width:auto;">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════ SCRIPTS -->
+<script src="data/gameData.js"></script>
+<script src="data/characterAbilities.js"></script>
+<script src="js/heroAbilities.js"></script>
+<script src="js/gameState.js"></script>
+<script src="js/rollEngine.js"></script>
+<script src="js/statusEngine.js"></script>
+<script src="js/handManager.js"></script>
+<script src="js/shopSystem.js"></script>
+<script src="js/duelSystem.js"></script>
+<script src="js/abilityDispatcher.js"></script>
+<script src="js/combatEngine.js"></script>
+<script src="js/phaseManager.js"></script>
+<script src="js/adminPanel.js"></script>
+<script src="js/diceAnimation.js"></script>
+<script src="js/actionUI.js"></script>
+<script src="js/pixiBoard.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

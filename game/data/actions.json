@@ -1,0 +1,26 @@
+[
+  {
+    "id": "action_example_001",
+    "name": "Example Free Action",
+    "manaCost": 0,
+    "type": "free",
+    "effect": "heal",
+    "effectValue": 2,
+    "stackable": false,
+    "targetType": "single_ally",
+    "statusApplied": [],
+    "description": "Heal a friendly character for 2 HP."
+  },
+  {
+    "id": "action_example_002",
+    "name": "Example Paid Action",
+    "manaCost": 1,
+    "type": "paid",
+    "effect": "deal_damage",
+    "effectValue": 3,
+    "stackable": false,
+    "targetType": "single_enemy",
+    "statusApplied": [],
+    "description": "Deal 3 damage to an enemy character."
+  }
+]

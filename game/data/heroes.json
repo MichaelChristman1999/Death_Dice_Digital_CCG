@@ -1,0 +1,31 @@
+[
+  {
+    "id": "hero_example_001",
+    "name": "Example Hero",
+    "stage": "S1",
+    "manaCost": 2,
+    "hp": 10,
+    "baseAttack": 3,
+    "role": "Fighter",
+    "passives": [
+      {
+        "name": "Example Passive",
+        "description": "Describe the passive effect here."
+      }
+    ],
+    "abilities": [
+      {
+        "abilityName": "Example Ability",
+        "manaCost": 1,
+        "effect": "deal_damage",
+        "targetType": "single_enemy",
+        "statusApplied": [],
+        "statusRemoved": [],
+        "damageFormula": "baseAttack",
+        "conditions": []
+      }
+    ],
+    "flavorText": "Flavor text goes here.",
+    "imageAsset": ""
+  }
+]

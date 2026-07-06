@@ -1,0 +1,51 @@
+{
+  "startingPlayerHP": 20,
+  "startingHand": {
+    "hero": 3,
+    "action": 4
+  },
+  "handLimits": {
+    "hero": 5,
+    "action": 5
+  },
+  "shopCosts": {
+    "hero": 2,
+    "action": 1
+  },
+  "shopLimits": {
+    "purchasesPerTurn": 1
+  },
+  "dice": {
+    "sides": 6,
+    "damageRule": "difference",
+    "roll6ResetsRequired": true,
+    "roll6ManaValue": 6
+  },
+  "mana": {
+    "sourceIsRoll": true,
+    "discardForMana": {
+      "enabled": true,
+      "maxHeroPerTurn": 1,
+      "maxActionPerTurn": 1,
+      "refundFullCost": true
+    }
+  },
+  "combat": {
+    "actionsPerTurn": 1,
+    "baseAttackCountsAsAction": true,
+    "abilityCountsAsAction": true,
+    "acceleratedActionsAllowed": 2,
+    "canUseAbilityOnDeployTurn": true,
+    "actionCardsPerTurn": 1,
+    "freeActionCardsUnlimited": true,
+    "freeActionsAllowedOnOpponentTurn": true
+  },
+  "phases": ["rolloff", "etiquette", "combat"],
+  "etiquetteRules": {
+    "abilitiesAllowed": false,
+    "actionCardsAllowed": false,
+    "attacksAllowed": false,
+    "shopAllowed": true,
+    "deployAllowed": true
+  }
+}
