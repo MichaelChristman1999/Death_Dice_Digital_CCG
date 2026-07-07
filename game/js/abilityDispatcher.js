@@ -9,6 +9,38 @@ const AbilityDispatcher = (() => {
 
   const _statusName = (sid) => StatusEngine.getDef(sid)?.name ?? sid;
   const _statusSym  = (sid) => StatusEngine.getDef(sid)?.symbol ?? '';
+  const NEGATIVE_IDS = new Set([
+    'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
+    'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
+    'status_frozen', 'status_example_timed', 'status_example_permanent',
+  ]);
+
+  const _hasNegative = (char) => (char?.statuses ?? []).some(s => NEGATIVE_IDS.has(s.id));
+  const _isDamaged = (char) => !!char && char.currentHp < char.maxHp;
+  const _playerIsDamaged = (pid) => {
+    const p = GameState.getPlayerState(pid);
+    const maxHp = GameData?.rules?.startingPlayerHP ?? 20;
+    return !!p && p.hp < maxHp;
+  };
+
+  function _alreadyHasStatus(statusId) {
+    return (char) => !statusId || !(char?.statuses ?? []).some(s => s.id === statusId);
+  }
+
+  function _cardTargetFilter(card) {
+    if (card.effect === 'remove_status') return _hasNegative;
+    if (card.effect === 'heal') return _isDamaged;
+    if (card.effect === 'apply_status') return _alreadyHasStatus(card.statusApplied?.[0]);
+    return null;
+  }
+
+  function _abilityTargetFilter(ability) {
+    if (ability.effect === 'heal') return _isDamaged;
+    if (ability.effect === 'apply_status') {
+      return _alreadyHasStatus(ability.statusApplied?.[0]);
+    }
+    return null;
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // ACTION CARDS — full play flow (validate → target → commit → resolve)
@@ -38,6 +70,8 @@ const AbilityDispatcher = (() => {
 
     // Resolve targeting requirements per card
     const commit = (target) => {
+      const targetGate = _canResolveActionTarget(card, ownerId, oppId, target);
+      if (!targetGate.ok) { showToast(targetGate.reason, 'warn'); return; }
       const r = GameState.commitPlayAction(ownerId, card.id);
       if (!r.ok) { showToast(r.error, 'warn'); return; }
       executeActionEffect(card, ownerId, target);
@@ -47,15 +81,17 @@ const AbilityDispatcher = (() => {
 
     switch (card.targetType) {
       case 'single_enemy': {
-        if (enemyChars.length === 0) {
+        const filter = _cardTargetFilter(card);
+        const validEnemies = filter ? enemyChars.filter(filter) : enemyChars;
+        if (validEnemies.length === 0) {
           // Damage cards fall through to the enemy player; status cards need a body
-          if (card.effect === 'deal_damage') {
+          if (card.effect === 'deal_damage' && !filter) {
             return _pickTarget(ownerId, 'enemy_any', null,
               `${card.name}: choose a target`, commit);
           }
-          showToast('No enemy characters to target.', 'warn'); return;
+          showToast(filter ? `No valid enemy characters for ${card.name}.` : 'No enemy characters to target.', 'warn'); return;
         }
-        return _pickTarget(ownerId, 'enemy_chars', null,
+        return _pickTarget(ownerId, 'enemy_chars', filter,
           `${card.name}: click an enemy character`, commit);
       }
 
@@ -67,18 +103,75 @@ const AbilityDispatcher = (() => {
       }
 
       case 'single_ally': {
+        const filter = _cardTargetFilter(card);
+        const validAllies = filter ? allyChars.filter(filter) : allyChars;
         const allowSelfPlayer = card.effect === 'heal'; // e.g. Vitalize: "or yourself"
-        if (allyChars.length === 0 && !allowSelfPlayer) {
-          showToast('You have no characters on the board.', 'warn'); return;
+        const selfIsValid = allowSelfPlayer && _playerIsDamaged(ownerId);
+        if (validAllies.length === 0 && !selfIsValid) {
+          showToast(filter ? `No valid friendly targets for ${card.name}.` : 'You have no characters on the board.', 'warn'); return;
         }
-        return _pickTarget(ownerId, allowSelfPlayer ? 'ally_or_self' : 'ally_chars', null,
+        return _pickTarget(ownerId, allowSelfPlayer ? 'ally_or_self' : 'ally_chars', filter,
           `${card.name}: click a friendly ${allowSelfPlayer ? 'character (or your own HP icon)' : 'character'}`, commit);
       }
 
       // Everything else resolves immediately, no target click needed
-      default:
+      default: {
+        const ready = _canResolveImmediateAction(card, ownerId, oppId);
+        if (!ready.ok) { showToast(ready.reason, 'warn'); return; }
         return commit(null);
+      }
     }
+  }
+
+  function _canResolveImmediateAction(card, ownerId, oppId) {
+    if (card.id === 'action_blood_mana' || card.id === 'action_reveal') return { ok: true };
+    if (card.targetType === 'all_enemies' || card.effect === 'cascade_damage') {
+      if (GameState.getPlayerState(oppId).board.length === 0) {
+        return { ok: false, reason: `${card.name} needs at least one enemy character on the board.` };
+      }
+    }
+    if (card.effect === 'draw_cards') {
+      const p = GameState.getPlayerState(ownerId);
+      const limit = GameData?.rules?.handLimits?.action ?? 5;
+      if ((p?.hand?.actions?.length ?? 0) >= limit) {
+        return { ok: false, reason: 'Your action hand is full.' };
+      }
+    }
+    return { ok: true };
+  }
+
+  function _canResolveActionTarget(card, ownerId, oppId, target) {
+    if (card.id === 'action_blood_mana' || card.id === 'action_reveal') return { ok: true };
+    if (card.effect === 'cascade_damage') return _canResolveImmediateAction(card, ownerId, oppId);
+
+    if (card.effect === 'remove_status') {
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      return _hasNegative(t)
+        ? { ok: true }
+        : { ok: false, reason: `${card.name} needs a friendly character with a negative status.` };
+    }
+
+    if (card.effect === 'heal') {
+      if (target?.type === 'player') {
+        return _playerIsDamaged(target.id)
+          ? { ok: true }
+          : { ok: false, reason: `${GameState.getPlayerLabel(target.id)} is already at full HP.` };
+      }
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      return _isDamaged(t)
+        ? { ok: true }
+        : { ok: false, reason: `${t?.name ?? 'That target'} is already at full HP.` };
+    }
+
+    if (card.effect === 'apply_status') {
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      const statusId = card.statusApplied?.[0];
+      return t && _alreadyHasStatus(statusId)(t)
+        ? { ok: true }
+        : { ok: false, reason: `${card.name} needs an enemy that does not already have that status.` };
+    }
+
+    return { ok: true };
   }
 
   // Enter PixiBoard target mode; onPick(null) = cancelled (no cost)
@@ -114,7 +207,15 @@ const AbilityDispatcher = (() => {
 
     switch (card.effect) {
       case 'deal_damage': {
-        if (target?.type === 'character') {
+        /*
+        if (false) {
+          const enemies = [...GameState.getPlayerState(oppId).board];
+          enemies.forEach(enemy => {
+            GameState.damageCharacter(enemy.instanceId, value);
+            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+          });
+          showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage to all enemies!`, 'combat');
+        } else */ if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
           GameState.damageCharacter(target.id, value);
           PixiBoard?.showHitEffect?.('character', target.id, value);
@@ -127,6 +228,28 @@ const AbilityDispatcher = (() => {
         break;
       }
 
+      /*
+      case '__unused_action_damage_status': {
+        const sid = ability.statusApplied?.[0];
+        if (ability.targetType === 'all_enemies') {
+          const enemies = [...GameState.getPlayerState(oppId).board];
+          enemies.forEach(enemy => {
+            GameState.damageCharacter(enemy.instanceId, value);
+            if (sid) StatusEngine.apply(enemy.instanceId, sid);
+            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+          });
+          showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to all enemies!`, 'combat');
+        } else if (target?.type === 'character') {
+          const t = GameState.getCharacter(target.id);
+          GameState.damageCharacter(target.id, value);
+          if (sid) StatusEngine.apply(target.id, sid);
+          PixiBoard?.showHitEffect?.('character', target.id, value);
+          showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to ${t?.name}!`, 'combat');
+        }
+        break;
+      }
+
+      */
       case 'heal': {
         if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
@@ -255,6 +378,65 @@ const AbilityDispatcher = (() => {
   // ══════════════════════════════════════════════════════════════════════════
   // CHARACTER ABILITIES — full use flow
   // ══════════════════════════════════════════════════════════════════════════
+  function _canResolveAbilityTarget(ability, ownerId, oppId, target) {
+    if (ability.targetType === 'all_enemies') {
+      const enemies = GameState.getPlayerState(oppId).board;
+      const filter = _abilityTargetFilter(ability);
+      const valid = filter ? enemies.filter(filter) : enemies;
+      return valid.length > 0
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs at least one valid enemy character.` };
+    }
+
+    if (ability.targetType === 'all_allies' && ability.effect === 'heal') {
+      const wounded = GameState.getPlayerState(ownerId).board.filter(_isDamaged);
+      return wounded.length > 0
+        ? { ok: true }
+        : { ok: false, reason: 'No allies need healing.' };
+    }
+
+    if (ability.effect === 'draw_cards') {
+      const p = GameState.getPlayerState(ownerId);
+      const limit = GameData?.rules?.handLimits?.action ?? 5;
+      return (p?.hand?.actions?.length ?? 0) < limit
+        ? { ok: true }
+        : { ok: false, reason: 'Your action hand is full.' };
+    }
+
+    if (ability.effect === 'gain_mana') return { ok: true };
+
+    if (ability.effect === 'heal') {
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      return _isDamaged(t)
+        ? { ok: true }
+        : { ok: false, reason: `${t?.name ?? 'That target'} is already at full HP.` };
+    }
+
+    if (ability.effect === 'deal_damage_apply_status') {
+      if (ability.targetType === 'all_enemies') return { ok: true };
+      return target?.type === 'character'
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs an enemy character.` };
+    }
+
+    if (ability.effect === 'apply_status') {
+      if (ability.targetType === 'self') return { ok: true };
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      const statusId = ability.statusApplied?.[0];
+      return t && _alreadyHasStatus(statusId)(t)
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs a valid target without that status.` };
+    }
+
+    if ((ability.effect === 'deal_damage' || ability.effect === 'duel') && ability.targetType === 'single_enemy') {
+      return target?.type === 'character'
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs an enemy character.` };
+    }
+
+    return { ok: true };
+  }
+
   function useAbility(instanceId, abilityIndex = 0) {
     if (!PhaseManager.canUseAbilities()) {
       showToast('Abilities can only be used in the Combat phase, after rolling.', 'warn'); return;
@@ -279,6 +461,8 @@ const AbilityDispatcher = (() => {
 
     // Resolve — mana is spent and the character taps ONLY on confirm
     const confirm = (target) => {
+      const targetGate = _canResolveAbilityTarget(ability, ownerId, oppId, target);
+      if (!targetGate.ok) { showToast(targetGate.reason, 'warn'); return; }
       if (!GameState.spendMana(ability.manaCost)) { showToast('Not enough mana.', 'warn'); return; }
       char.hasUsedAbilityThisTurn = true;
       GameState.tapCharacter(instanceId); // ability = the character's action
@@ -292,13 +476,24 @@ const AbilityDispatcher = (() => {
         return confirm({ type: 'character', id: instanceId });
       case 'all_allies':
         return confirm(null); // handled in resolution
+      case 'all_enemies': {
+        const ready = _canResolveAbilityTarget(ability, ownerId, oppId, null);
+        if (!ready.ok) { showToast(ready.reason, 'warn'); return; }
+        return confirm(null);
+      }
       case 'single_ally': {
-        if (GameState.getPlayerState(ownerId).board.length === 0) { showToast('No friendly characters.', 'warn'); return; }
-        return _pickTarget(ownerId, 'ally_chars', null, `${ability.abilityName}: click a friendly character`, confirm);
+        const filter = _abilityTargetFilter(ability);
+        const allies = GameState.getPlayerState(ownerId).board;
+        const valid = filter ? allies.filter(filter) : allies;
+        if (valid.length === 0) { showToast(filter ? `No valid friendly targets for ${ability.abilityName}.` : 'No friendly characters.', 'warn'); return; }
+        return _pickTarget(ownerId, 'ally_chars', filter, `${ability.abilityName}: click a friendly character`, confirm);
       }
       case 'single_enemy': {
-        if (GameState.getPlayerState(oppId).board.length === 0) { showToast('No enemy characters to target.', 'warn'); return; }
-        return _pickTarget(ownerId, 'enemy_chars', null, `${ability.abilityName}: click an enemy character`, confirm);
+        const filter = _abilityTargetFilter(ability);
+        const enemies = GameState.getPlayerState(oppId).board;
+        const valid = filter ? enemies.filter(filter) : enemies;
+        if (valid.length === 0) { showToast(filter ? `No valid enemy targets for ${ability.abilityName}.` : 'No enemy characters to target.', 'warn'); return; }
+        return _pickTarget(ownerId, 'enemy_chars', filter, `${ability.abilityName}: click an enemy character`, confirm);
       }
       case 'enemy_any':
         return _pickTarget(ownerId, 'enemy_any', null, `${ability.abilityName}: click an enemy character or their HP icon`, confirm);
@@ -312,7 +507,14 @@ const AbilityDispatcher = (() => {
 
     switch (ability.effect) {
       case 'deal_damage': {
-        if (target?.type === 'character') {
+        if (ability.targetType === 'all_enemies') {
+          const enemies = [...GameState.getPlayerState(oppId).board];
+          enemies.forEach(enemy => {
+            GameState.damageCharacter(enemy.instanceId, value);
+            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+          });
+          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage to all enemies!`, 'combat');
+        } else if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
           GameState.damageCharacter(target.id, value);
           PixiBoard?.showHitEffect?.('character', target.id, value);
@@ -321,6 +523,26 @@ const AbilityDispatcher = (() => {
           GameState.damagePlayer(target.id, value);
           PixiBoard?.showHitEffect?.('player', target.id, value);
           showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage to ${GameState.getPlayerLabel(target.id)}!`, 'combat');
+        }
+        break;
+      }
+
+      case 'deal_damage_apply_status': {
+        const sid = ability.statusApplied?.[0];
+        if (ability.targetType === 'all_enemies') {
+          const enemies = [...GameState.getPlayerState(oppId).board];
+          enemies.forEach(enemy => {
+            GameState.damageCharacter(enemy.instanceId, value);
+            if (sid) StatusEngine.apply(enemy.instanceId, sid);
+            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+          });
+          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to all enemies!`, 'combat');
+        } else if (target?.type === 'character') {
+          const t = GameState.getCharacter(target.id);
+          GameState.damageCharacter(target.id, value);
+          if (sid) StatusEngine.apply(target.id, sid);
+          PixiBoard?.showHitEffect?.('character', target.id, value);
+          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to ${t?.name}!`, 'combat');
         }
         break;
       }
@@ -340,11 +562,30 @@ const AbilityDispatcher = (() => {
 
       case 'apply_status': {
         const sid = ability.statusApplied?.[0];
-        if (sid && target?.type === 'character') {
+        if (sid && ability.targetType === 'all_enemies') {
+          const enemies = [...GameState.getPlayerState(oppId).board].filter(_alreadyHasStatus(sid));
+          enemies.forEach(enemy => StatusEngine.apply(enemy.instanceId, sid));
+          showToast(`${_statusSym(sid)} ${char.name}: ${enemies.length} enemy character${enemies.length === 1 ? '' : 's'} now ${_statusName(sid)}!`, 'combat');
+        } else if (sid && target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
           StatusEngine.apply(target.id, sid);
           showToast(`${_statusSym(sid)} ${char.name}: ${t?.name} is now ${_statusName(sid)}!`, 'combat');
         }
+        break;
+      }
+
+      case 'draw_cards': {
+        const n = Math.max(1, value || 1);
+        let drawn = 0;
+        for (let i = 0; i < n; i++) if (HandManager.drawAction(ownerId).ok) drawn++;
+        showToast(drawn > 0 ? `${char.name} uses ${ability.abilityName} — drew ${drawn} action card${drawn === 1 ? '' : 's'}!` : 'Hand is full — no card drawn.', 'info');
+        break;
+      }
+
+      case 'gain_mana': {
+        const n = Math.max(1, value || 1);
+        GameState.gainMana(n);
+        showToast(`${char.name} uses ${ability.abilityName} — gained ${n} mana!`, 'info');
         break;
       }
 
@@ -356,6 +597,8 @@ const AbilityDispatcher = (() => {
             if (loserId) {
               const loser = GameState.getCharacter(loserId);
               GameState.damageCharacter(loserId, value);
+              const sid = ability.statusApplied?.[0];
+              if (sid) StatusEngine.apply(loserId, sid);
               PixiBoard?.showHitEffect?.('character', loserId, value);
               showToast(`⚔ ${loser?.name ?? 'The loser'} takes ${value} duel damage!`, 'combat');
             }

@@ -6,7 +6,7 @@
     "duration": 2,
     "stackBehavior": "stack",
     "trigger": null,
-    "symbol": "🔥",
+    "symbol": "BRN",
     "description": "Takes 1 damage at the start of each turn for 2 turns."
   },
   {
@@ -16,7 +16,7 @@
     "duration": null,
     "stackBehavior": "replace",
     "trigger": "on_attacked",
-    "symbol": "⚡",
+    "symbol": "RET",
     "description": "When this character is attacked, deal 2 damage back to the attacker."
   },
   {
@@ -26,7 +26,7 @@
     "duration": null,
     "stackBehavior": "replace",
     "trigger": null,
-    "symbol": "💀",
+    "symbol": "CRS",
     "description": "This character cannot benefit from healing."
   },
   {
@@ -36,7 +36,7 @@
     "duration": null,
     "stackBehavior": "replace",
     "trigger": "targeted_by_shish_ke_bob",
-    "symbol": "🍖",
+    "symbol": "EDB",
     "description": "This character can be consumed by Shish-Ke-Bob's ability."
   },
   {
@@ -46,7 +46,7 @@
     "duration": 1,
     "stackBehavior": "replace",
     "trigger": null,
-    "symbol": "⚡",
+    "symbol": "SPD",
     "description": "This character may use one additional action this turn."
   },
   {
@@ -56,7 +56,97 @@
     "duration": 1,
     "stackBehavior": "replace",
     "trigger": null,
-    "symbol": "↻",
+    "symbol": "TAP",
     "description": "This character has acted this turn and cannot act again until untapped."
+  },
+  {
+    "id": "status_anemic",
+    "name": "Anemic",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "-ATK",
+    "description": "Base attack is reduced by 2."
+  },
+  {
+    "id": "status_augmented",
+    "name": "Augmented",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "+ATK",
+    "description": "Base attack is increased by 2."
+  },
+  {
+    "id": "status_crippled",
+    "name": "Crippled",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "CRP",
+    "description": "Cannot attack during its next turn."
+  },
+  {
+    "id": "status_drunk",
+    "name": "Drunk",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": "on_attack",
+    "symbol": "DRK",
+    "description": "Attacks a random target instead of the declared one."
+  },
+  {
+    "id": "status_poisoned",
+    "name": "Poisoned",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "stack",
+    "trigger": "start_of_turn",
+    "symbol": "PSN",
+    "description": "Takes 1 damage at the start of each of its turns."
+  },
+  {
+    "id": "status_impaired",
+    "name": "Impaired",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "IMP",
+    "description": "Cannot use abilities."
+  },
+  {
+    "id": "status_impeded",
+    "name": "Impeded",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "STOP",
+    "description": "Cannot attack or use abilities during its next turn."
+  },
+  {
+    "id": "status_charmed",
+    "name": "Charmed",
+    "type": "timed",
+    "duration": 1,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "LOVE",
+    "description": "Temporarily turned against its own team."
+  },
+  {
+    "id": "status_taunt",
+    "name": "Taunting",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "TNT",
+    "description": "Enemies must attack this character while it is active."
   }
 ]

@@ -67,7 +67,11 @@ function bindMenuButtons() {
 
 function promptAdmin() {
   const pw = prompt('Enter admin password:');
-  if (pw === AdminPanel.PASSWORD) { AdminPanel.open(); showScreen(SCREENS.ADMIN); }
+  if (pw === AdminPanel.PASSWORD) {
+    const currentScreen = document.querySelector('.screen.active')?.id ?? SCREENS.MENU;
+    AdminPanel.open(currentScreen);
+    showScreen(SCREENS.ADMIN);
+  }
   else if (pw !== null) alert('Incorrect password.');
 }
 

@@ -4,11 +4,13 @@ const ShopSystem = (() => {
   let _rules   = {};
   let _heroes  = [];
   let _actions = [];
+  let _offers  = { turnNumber: null, heroes: [], actions: [] };
 
   function init(rules, heroes, actions) {
     _rules   = rules;
     _heroes  = heroes;
     _actions = actions;
+    _offers  = { turnNumber: null, heroes: [], actions: [] };
   }
 
   function open() {
@@ -45,8 +47,7 @@ const ShopSystem = (() => {
     const heroFull    = p.hand.heroes.length  >= heroLimit;
     const actionFull  = p.hand.actions.length >= actionLimit;
 
-    const shopHeroes  = _shuffle(_heroes).slice(0, 4);
-    const shopActions = _shuffle(_actions).slice(0, 4);
+    const { heroes: shopHeroes, actions: shopActions } = _getOffersForTurn();
 
     // Mana display in header
     const manaVal = document.getElementById('shop-mana-val');
@@ -75,6 +76,18 @@ const ShopSystem = (() => {
     if (closeBtn) {
       closeBtn.onclick = close;
     }
+  }
+
+  function _getOffersForTurn() {
+    const turnNumber = GameState.getTurnNumber?.() ?? 1;
+    if (_offers.turnNumber !== turnNumber) {
+      _offers = {
+        turnNumber,
+        heroes: _shuffle(_heroes).slice(0, 4),
+        actions: _shuffle(_actions).slice(0, 4),
+      };
+    }
+    return _offers;
   }
 
   function _buildShopItem(card, type, cost, mana, handFull, playerId) {

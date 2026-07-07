@@ -168,6 +168,11 @@ const PixiBoard = (() => {
     _app.stage.on('pointerup',        _onGlobalUp);
     _app.stage.on('pointerupoutside', _onGlobalUp);
     _app.stage.on('pointerdown',      _onStagePointerDown);
+    window.addEventListener('pointerup', () => {
+      if (_drag) setTimeout(() => { if (_drag) _cancelDrag(); }, 0);
+    });
+    window.addEventListener('pointercancel', _cancelDrag);
+    window.addEventListener('blur', _cancelDrag);
 
     // Right-click = discard-for-mana on hand cards; suppress browser menu
     _app.view.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1645,6 +1650,19 @@ const PixiBoard = (() => {
     }
   }
 
+  function _cancelDrag() {
+    if (!_drag) return;
+    const { ct } = _drag;
+    _drag = null;
+    if (ct) {
+      ct.alpha = 1;
+      ct.scale.set(1);
+    }
+    _L.drag.removeChildren();
+    _L.zones.children.forEach(z => z.alpha = 0.55);
+    render();
+  }
+
   function _onGlobalUp(event) {
     if (!_drag) return;
     const { ct, isChar, t0, px0, py0 } = _drag;
@@ -1680,7 +1698,7 @@ const PixiBoard = (() => {
       });
       if (!targetHit && _hitTestIcon(pos, oppPid)) {
         // Check for taunt — if any enemy has taunt, must target them
-        const hasTaunt = _board[oppPid].some(c => c._charData?.statuses?.some?.(s => s.id === 'taunt'));
+        const hasTaunt = _board[oppPid].some(c => c._charData?.statuses?.some?.(s => s.id === 'status_taunt'));
         if (hasTaunt) {
           showToast('Must attack the taunting character!', 'warn');
         } else {
@@ -1689,7 +1707,7 @@ const PixiBoard = (() => {
       }
       // Drop anywhere in the opponent zone also counts as a direct player attack
       if (!targetHit && _inOpponentZone(pos)) {
-        const hasTaunt = _board[oppPid].some(c => c._charData?.statuses?.some?.(s => s.id === 'taunt'));
+        const hasTaunt = _board[oppPid].some(c => c._charData?.statuses?.some?.(s => s.id === 'status_taunt'));
         if (hasTaunt) {
           showToast('Must attack the taunting character!', 'warn');
         } else {

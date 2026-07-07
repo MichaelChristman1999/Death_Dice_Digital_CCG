@@ -13,6 +13,7 @@ const GameState = (() => {
   let _lastRoll = null;
   let _actionStack = [];  // for response resolution (LIFO)
   let _instanceCounter = 0;
+  let _turnNumber = 1;
   // Per-turn trackers (reset in advanceTurn)
   let _actionCardsPlayedThisTurn = 0;
   let _shopPurchasesThisTurn = 0;
@@ -33,6 +34,7 @@ const GameState = (() => {
     _lastRoll     = null;
     _actionStack  = [];
     _instanceCounter = 0;
+    _turnNumber = 1;
     _actionCardsPlayedThisTurn = 0;
     _shopPurchasesThisTurn = 0;
 
@@ -101,12 +103,19 @@ const GameState = (() => {
   }
 
   function advanceTurn() {
+    const endingTurn = _currentTurn;
+    _tickEvents = [];
+
+    // End-of-turn expiry happens for the player who just acted. This keeps
+    // Cripple/Impede active during the affected player's actual turn.
+    [...(_players[endingTurn]?.board ?? [])].forEach(char => expireTurnStatuses(char));
+
     _currentTurn = getOpponentId(_currentTurn);
+    _turnNumber++;
     _mana = 0;
     _lastRoll = null;
     _actionCardsPlayedThisTurn = 0;
     _shopPurchasesThisTurn = 0;
-    _tickEvents = [];
 
     // Reset per-turn state for new active player
     const p = _players[_currentTurn];
@@ -117,7 +126,7 @@ const GameState = (() => {
 
     // Tick timed statuses for the new player's board.
     // Iterate over a COPY — poison deaths splice the live board array.
-    [...p.board].forEach(char => tickStatuses(char));
+    [...p.board].forEach(char => applyTurnStartStatuses(char));
 
     _saveToStorage();
   }
@@ -343,8 +352,8 @@ const GameState = (() => {
   // Damage-over-time statuses: id → damage per stack per tick
   const _DOT_STATUSES = { status_poisoned: 1, status_example_timed: 1 };
 
-  function tickStatuses(char) {
-    // 1) Apply damage-over-time effects FIRST (poison, burning)
+  function applyTurnStartStatuses(char) {
+    // Apply damage-over-time effects at the start of the affected player's turn.
     for (const s of char.statuses) {
       const dot = _DOT_STATUSES[s.id];
       if (!dot) continue;
@@ -357,8 +366,9 @@ const GameState = (() => {
       });
       if (died) { _killCharacter(char.instanceId); return; } // dead — stop ticking
     }
+  }
 
-    // 2) Count down timed statuses, expire at 0
+  function expireTurnStatuses(char) {
     const toRemove = [];
     char.statuses.forEach(s => {
       if (s.type === 'timed' && s.remainingDuration != null) {
@@ -424,6 +434,7 @@ const GameState = (() => {
 
   function getShopPurchasesThisTurn() { return _shopPurchasesThisTurn; }
   function getActionCardsPlayedThisTurn() { return _actionCardsPlayedThisTurn; }
+  function getTurnNumber() { return _turnNumber; }
 
   // ── Roll-Off ──────────────────────────────────────────────────────────────
   function setRolloffRoll(playerId, roll) {
@@ -474,6 +485,9 @@ const GameState = (() => {
         mana: _mana,
         lastRoll: _lastRoll,
         instanceCounter: _instanceCounter,
+        turnNumber: _turnNumber,
+        actionCardsPlayedThisTurn: _actionCardsPlayedThisTurn,
+        shopPurchasesThisTurn: _shopPurchasesThisTurn,
       }));
     } catch (_) { /* storage unavailable — non-fatal */ }
   }
@@ -489,6 +503,9 @@ const GameState = (() => {
       _mana = saved.mana;
       _lastRoll = saved.lastRoll;
       _instanceCounter = saved.instanceCounter ?? 0;
+      _turnNumber = saved.turnNumber ?? 1;
+      _actionCardsPlayedThisTurn = saved.actionCardsPlayedThisTurn ?? 0;
+      _shopPurchasesThisTurn = saved.shopPurchasesThisTurn ?? 0;
       return true;
     } catch (_) { return false; }
   }
@@ -535,6 +552,7 @@ const GameState = (() => {
     recordShopPurchase,
     getShopPurchasesThisTurn,
     getActionCardsPlayedThisTurn,
+    getTurnNumber,
     setRolloffRoll,
     getRolloffRolls,
     setFirstPlayer,
