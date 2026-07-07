@@ -21,8 +21,8 @@ const PixiBoard = (() => {
   const _T = (str, style) => { const t = new _PixiText(str, style); t.resolution = TXT_RES; return t; };
 
   // ── Card dimensions ──────────────────────────────────────────────────────────
-  const HC_BASE = { w: 138, h: 197 }; // hero hand card, readable laptop baseline
-  const AC_BASE = { w: 120, h: 171 }; // action hand card, same card ratio
+  const HC_BASE = { w: 150, h: 214 }; // hero hand card, readable laptop baseline
+  const AC_BASE = { w: 130, h: 185 }; // action hand card, same card ratio
   const CC_BASE = { w: 158, h: 219 }; // board character card
   const HC = { ...HC_BASE };
   const AC = { ...AC_BASE };
@@ -93,12 +93,23 @@ const PixiBoard = (() => {
     CC.h = Math.round(CC_BASE.h * s);
   }
 
+  const ACTIVE_BAR_H = 54;
+  const RIGHT_RAIL_W = () => _isNarrow() ? 0 : 190;
+
   function _bottomHudClearance() {
-    return (H() <= 680 ? 56 : 68);
+    return (H() <= 680 ? 72 : 84);
   }
 
   function _isCompact() {
     return W() <= 760 || H() <= 680;
+  }
+
+  function _isNarrow() {
+    return W() <= 760;
+  }
+
+  function _isShortWide() {
+    return W() > 760 && H() <= 680;
   }
 
   function _handBaseY() {
@@ -118,7 +129,7 @@ const PixiBoard = (() => {
   const SAFE = 18;
 
   // Shared HUD anchor points
-  const HUD_DIE      = () => ({ x: W() - 90, y: H() * 0.30 });      // LAST ROLL die
+  const HUD_DIE      = () => ({ x: W() - (_isNarrow() ? 62 : 74), y: H() * (_isCompact() ? 0.30 : 0.27) });      // LAST ROLL die
   const HUD_CENTER_Y = () => (ZONE.p2Y() + ZONE.hOpp() + ZONE.p1Y()) / 2; // mana strip
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -268,11 +279,11 @@ const PixiBoard = (() => {
   // while the active player's own area keeps full-size cards.
   const OPP_CARD_SCALE = 0.74; // opponent board characters render compactly
   const ZONE = {
-    w:    () => Math.min(W() - SAFE * 2 - (_isCompact() ? 0 : 140), W() * (_isCompact() ? 0.88 : 0.76)),
-    hOpp: () => Math.min(H() * (_isCompact() ? 0.18 : 0.22), CC.h * OPP_CARD_SCALE + 22),
-    hOwn: () => Math.min(H() * (_isCompact() ? 0.27 : 0.31), CC.h + 28),
-    p2Y:  () => SAFE + (_isCompact() ? 52 : 64),        // below the opponent seat panel
-    p1Y:  () => H() * (_isCompact() ? 0.40 : 0.405),
+    w:    () => Math.min(W() - SAFE * 2 - RIGHT_RAIL_W(), W() * (_isNarrow() ? 0.90 : _isShortWide() ? 0.76 : 0.70)),
+    hOpp: () => Math.min(H() * (_isCompact() ? 0.19 : 0.24), CC.h * OPP_CARD_SCALE + 36),
+    hOwn: () => Math.min(H() * (_isCompact() ? 0.28 : 0.30), CC.h + 36),
+    p2Y:  () => SAFE + SEAT_H() + (_isNarrow() ? 12 : _isShortWide() ? 28 : 30),        // below the opponent seat panel
+    p1Y:  () => H() * (_isNarrow() ? 0.41 : _isShortWide() ? 0.43 : 0.415),
     // Back-compat alias (own zone) for any remaining callers
     h:    () => ZONE.hOwn(),
   };
@@ -317,7 +328,8 @@ const PixiBoard = (() => {
   }
 
   // Opponent seat panel width — compact so 2–8 player seats can sit in a row
-  const SEAT_W = 320, SEAT_H = 50;
+  const SEAT_W = () => Math.min(_isCompact() ? W() - SAFE * 2 : 420, W() - SAFE * 2);
+  const SEAT_H = () => _isCompact() ? 54 : 58;
 
   function _makeInfoBar(pid) {
     const ct   = new PIXI.Container();
@@ -325,41 +337,43 @@ const PixiBoard = (() => {
     const col  = isP1 ? 0xcc2200 : 0x9900aa; // blood red / death purple
 
     if (!isP1) {
+      const seatW = SEAT_W();
+      const seatH = SEAT_H();
       // ── OPPONENT SEAT — compact rounded panel (repeatable for 2–8 players) ──
       const bg = new PIXI.Graphics();
       bg.lineStyle(1.5, 0x440044, 0.7);
       bg.beginFill(0x0a0210, 0.94);
-      bg.drawRoundedRect(0, 0, SEAT_W, SEAT_H, 12);
+      bg.drawRoundedRect(0, 0, seatW, seatH, 12);
       bg.endFill();
       ct.addChild(bg); ct._bg = bg;
 
       const pip = new PIXI.Graphics();
       pip.lineStyle(2, col, 0.9);
       pip.beginFill(0x080618, 0.96);
-      pip.drawCircle(25, SEAT_H / 2, 15);
+      pip.drawCircle(28, seatH / 2, 16);
       pip.endFill();
       const pipN = _T('2', {
-        fontFamily: "'Exo 2', sans-serif", fontSize: 12, fontWeight: '900', fill: col,
+        fontFamily: "'Exo 2', sans-serif", fontSize: 13, fontWeight: '900', fill: col,
       });
-      pipN.anchor.set(0.5); pipN.position.set(25, SEAT_H / 2);
+      pipN.anchor.set(0.5); pipN.position.set(28, seatH / 2);
       pip.addChild(pipN);
       ct.addChild(pip); ct._pipNum = pipN;
 
       const lbl = _T('OPPONENT', {
-        fontFamily: "'Rajdhani', sans-serif", fontSize: 11, fontWeight: '700',
+        fontFamily: "'Rajdhani', sans-serif", fontSize: 12, fontWeight: '800',
         fill: 0xa088bb, letterSpacing: 1,
       });
-      lbl.position.set(48, 6);
+      lbl.position.set(58, 7);
       ct.addChild(lbl); ct._lbl = lbl;
 
       const hpNum = _T('20', {
-        fontFamily: "'Exo 2', sans-serif", fontSize: 17, fontWeight: '900', fill: 0xff3300,
+        fontFamily: "'Exo 2', sans-serif", fontSize: 20, fontWeight: '900', fill: 0xff3300,
       });
-      hpNum.position.set(48, 21);
+      hpNum.position.set(58, 25);
       ct.addChild(hpNum); ct._hpNum = hpNum;
 
       // HP bar
-      const BX = 96, BY = 27, BW = SEAT_W - 96 - 78, BH = 8;
+      const BX = 108, BY = 34, BW = Math.max(96, seatW - 238), BH = 9;
       const barBg = new PIXI.Graphics();
       barBg.beginFill(0x180818); barBg.drawRoundedRect(BX, BY, BW, BH, 4); barBg.endFill();
       ct.addChild(barBg);
@@ -371,10 +385,10 @@ const PixiBoard = (() => {
 
       // Hand + board counts (replaces the old row of face-down cards —
       // an opponent's hidden hand doesn't deserve board real estate)
-      const stats = _T('HAND 0 · FIELD 0', {
-        fontFamily: "'Rajdhani', sans-serif", fontSize: 12, fontWeight: '700', fill: 0x8877aa,
+      const stats = _T('HAND 0 / FIELD 0', {
+        fontFamily: "'Rajdhani', sans-serif", fontSize: 13, fontWeight: '800', fill: 0xa695c8,
       });
-      stats.anchor.set(1, 0.5); stats.position.set(SEAT_W - 12, SEAT_H / 2);
+      stats.anchor.set(1, 0.5); stats.position.set(seatW - 16, 35);
       ct.addChild(stats); ct._stats = stats;
       return ct;
     }
@@ -384,37 +398,37 @@ const PixiBoard = (() => {
     const bg = new PIXI.Graphics();
     bg.lineStyle(1.5, 0x550000, 0.55);
     bg.beginFill(0x020002, 0.94);
-    bg.drawRoundedRect(0, 0, barW, 42, 10);
+    bg.drawRoundedRect(0, 0, barW, ACTIVE_BAR_H, 10);
     bg.endFill();
     ct.addChild(bg); ct._bg = bg;
 
     const pip = new PIXI.Graphics();
     pip.lineStyle(2, col, 0.9);
     pip.beginFill(0x080618, 0.96);
-    pip.drawCircle(21, 21, 17);
+    pip.drawCircle(25, ACTIVE_BAR_H / 2, 19);
     pip.endFill();
     const pipN = _T('1', {
-      fontFamily: "'Exo 2', sans-serif", fontSize: 13, fontWeight: '900', fill: col,
+      fontFamily: "'Exo 2', sans-serif", fontSize: 14, fontWeight: '900', fill: col,
     });
-    pipN.anchor.set(0.5); pipN.position.set(21, 21);
+    pipN.anchor.set(0.5); pipN.position.set(25, ACTIVE_BAR_H / 2);
     pip.addChild(pipN);
     ct.addChild(pip); ct._pipNum = pipN;
 
     const lbl = _T('YOU', {
-      fontFamily: "'Rajdhani', sans-serif", fontSize: 10, fontWeight: '700',
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 12, fontWeight: '800',
       fill: 0x8888aa, letterSpacing: 1,
     });
-    lbl.position.set(48, 4);
+    lbl.position.set(58, 7);
     ct.addChild(lbl); ct._lbl = lbl;
 
     const hpNum = _T('20', {
-      fontFamily: "'Exo 2', sans-serif", fontSize: 20, fontWeight: '900', fill: 0xff3300,
+      fontFamily: "'Exo 2', sans-serif", fontSize: 24, fontWeight: '900', fill: 0xff3300,
     });
-    hpNum.position.set(48, 16);
+    hpNum.position.set(58, 25);
     ct.addChild(hpNum); ct._hpNum = hpNum;
 
     // HP bar track + fill
-    const BX = 130, BY = 17, BW = Math.min(380, W() * 0.35), BH = 9;
+    const BX = 116, BY = 31, BW = Math.min(430, W() * 0.36), BH = 11;
     const barBg = new PIXI.Graphics();
     barBg.beginFill(0x180808); barBg.drawRoundedRect(BX, BY, BW, BH, 5); barBg.endFill();
     ct.addChild(barBg);
@@ -427,16 +441,16 @@ const PixiBoard = (() => {
     // Right side: phase + turn labels
     {
       const phaseTxt = _T('', {
-        fontFamily: "'Exo 2', sans-serif", fontSize: 11, fontWeight: '900',
+        fontFamily: "'Exo 2', sans-serif", fontSize: 13, fontWeight: '900',
         fill: 0x9b72ef, letterSpacing: 1,
       });
-      phaseTxt.anchor.set(1, 0); phaseTxt.position.set(barW - 14, 6);
+      phaseTxt.anchor.set(1, 0); phaseTxt.position.set(barW - 16, 9);
       ct.addChild(phaseTxt); ct._phaseTxt = phaseTxt;
 
       const turnTxt = _T('', {
-        fontFamily: "'Rajdhani', sans-serif", fontSize: 10, fill: 0x8888aa,
+        fontFamily: "'Rajdhani', sans-serif", fontSize: 12, fill: 0xaaa0be,
       });
-      turnTxt.anchor.set(1, 0); turnTxt.position.set(barW - 14, 23);
+      turnTxt.anchor.set(1, 0); turnTxt.position.set(barW - 16, 30);
       ct.addChild(turnTxt); ct._turnTxt = turnTxt;
 
       ct._stats = { text: '' }; // stub so _updateHUD doesn't crash
@@ -609,8 +623,8 @@ const PixiBoard = (() => {
   }
 
   function _repositionHUD() {
-    if (_hud.p1bar)  _hud.p1bar.position.set(SAFE, H() - 42 - SAFE);
-    if (_hud.p2bar)  _hud.p2bar.position.set(W() / 2 - SEAT_W / 2, SAFE); // seat: top-center
+    if (_hud.p1bar)  _hud.p1bar.position.set(SAFE, H() - ACTIVE_BAR_H - SAFE);
+    if (_hud.p2bar)  _hud.p2bar.position.set(W() / 2 - SEAT_W() / 2, SAFE); // seat: top-center
     if (_hud.center) _hud.center.y = HUD_CENTER_Y(); // mana strip in the board gap
   }
 
@@ -651,7 +665,7 @@ const PixiBoard = (() => {
       bar._barFg.endFill();
       if (bar._stats?.text !== undefined) {
         const hc = (st.hand.heroes?.length ?? 0) + (st.hand.actions?.length ?? 0);
-        bar._stats.text = `HAND ${hc} · FIELD ${st.board?.length ?? 0}`;
+        bar._stats.text = `HAND ${hc} / FIELD ${st.board?.length ?? 0}`;
       }
     };
     _applyBar(_hud.p1bar, activePid);
@@ -2095,7 +2109,10 @@ const PixiBoard = (() => {
       const isActive = pid === activePid;
       // Active player's icon at BOTTOM zone; inactive (opponent) icon at TOP zone
       const zCY = isActive ? ZONE.p1Y() + ZONE.hOwn() / 2 : ZONE.p2Y() + ZONE.hOpp() / 2;
-      const ix  = W() * 0.04;
+      const zoneLeft = W() / 2 - ZONE.w() / 2;
+      const ix  = _isNarrow()
+        ? Math.max(SAFE + 30, zoneLeft - 34)
+        : Math.max(SAFE + 44, zoneLeft / 2);
       const iy  = zCY;
 
       const ct = new PIXI.Container();
@@ -2162,7 +2179,11 @@ const PixiBoard = (() => {
 
     // HTML buttons are CSS-positioned (right side) — just clear any inline transform
     const ga = document.getElementById('game-actions');
-    if (ga) { ga.style.transition = ''; ga.style.transform = 'translateY(-50%)'; }
+    if (ga) {
+      const bottomDock = window.matchMedia?.('(max-width: 900px), (pointer: coarse)')?.matches;
+      ga.style.transition = '';
+      ga.style.transform = bottomDock ? 'translateX(-50%)' : 'translateY(-50%)';
+    }
 
     // CSS flip: instantly collapse canvas to a flat line, then expand to reveal new layout
     const el = _app?.view?.parentElement;
