@@ -299,7 +299,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 .modal-card-box {
   background: linear-gradient(160deg, #160404 0%, #0a0202 100%);
   border: 1px solid var(--border-hi); border-radius: var(--r-lg);
-  padding: 28px; max-width: 580px; width: 92vw;
+  padding: clamp(18px, 3vw, 28px); max-width: 720px; width: 92vw;
   max-height: 88vh; overflow-y: auto;
   box-shadow: var(--shadow);
 }
@@ -311,9 +311,11 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 .modal-close-btn:hover { border-color: var(--accent); color: var(--accent-hi); }
 
 /* card detail layout */
-.card-detail-layout { display: flex; gap: 22px; }
+.card-detail-layout { display: flex; align-items: flex-start; gap: 22px; }
 .card-detail-art {
-  width: 144px; height: 216px; flex-shrink: 0; border-radius: 12px;
+  width: clamp(180px, 28vw, 260px);
+  aspect-ratio: 2 / 3;
+  flex-shrink: 0; border-radius: 12px;
   overflow: hidden; border: 1px solid var(--border-hi);
   box-shadow: 0 0 24px rgba(124,92,191,.3);
 }
@@ -864,3 +866,63 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   box-shadow: 0 0 14px rgba(204,34,0,.35);
 }
 .name-field input::placeholder { color: #665555; font-weight: 400; }
+
+@media (max-width: 900px), (pointer: coarse) {
+  #game-actions {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    flex-direction: row;
+    justify-content: center;
+    width: min(96vw, 440px);
+    gap: 6px;
+  }
+
+  .gd-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 44px;
+    padding: 0 10px;
+    justify-content: center;
+    font-size: .76rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .modal-card-box {
+    width: min(94vw, 480px);
+    max-height: 92vh;
+  }
+
+  .card-detail-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card-detail-art {
+    width: min(72vw, 260px);
+  }
+
+  .card-detail-info {
+    width: 100%;
+  }
+
+  .card-detail-name,
+  .card-detail-section h3 {
+    text-align: center;
+  }
+
+  .card-detail-meta {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .gd-btn {
+    height: 42px;
+    padding: 0 7px;
+    font-size: .68rem;
+  }
+}

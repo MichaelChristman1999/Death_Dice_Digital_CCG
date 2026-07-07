@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Development server with no-cache headers so edits are always picked up."""
+from functools import partial
 import http.server
 import socketserver
+from pathlib import Path
 
 PORT = 5501  # V2 runs alongside V1 (5500)
+HOST = '127.0.0.1'
+ROOT = Path(__file__).resolve().parent
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -22,6 +26,8 @@ class ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-with ThreadingServer(('', PORT), NoCacheHandler) as httpd:
-    print(f'Serving on http://localhost:{PORT}')
+Handler = partial(NoCacheHandler, directory=str(ROOT))
+
+with ThreadingServer((HOST, PORT), Handler) as httpd:
+    print(f'Serving {ROOT} on http://localhost:{PORT}', flush=True)
     httpd.serve_forever()

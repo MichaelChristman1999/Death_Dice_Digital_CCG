@@ -21,9 +21,12 @@ const PixiBoard = (() => {
   const _T = (str, style) => { const t = new _PixiText(str, style); t.resolution = TXT_RES; return t; };
 
   // ── Card dimensions ──────────────────────────────────────────────────────────
-  const HC = { w: 112, h: 160 }; // hero hand card
-  const AC = { w: 94,  h: 134 }; // action hand card
-  const CC = { w: 130, h: 180 }; // board character card
+  const HC_BASE = { w: 138, h: 197 }; // hero hand card, readable laptop baseline
+  const AC_BASE = { w: 120, h: 171 }; // action hand card, same card ratio
+  const CC_BASE = { w: 158, h: 219 }; // board character card
+  const HC = { ...HC_BASE };
+  const AC = { ...AC_BASE };
+  const CC = { ...CC_BASE };
   const CB = { w: 68,  h: 96  }; // opponent card back
 
   // ── Colour palette — Death Dice (dark demonic) ───────────────────────────────
@@ -68,6 +71,47 @@ const PixiBoard = (() => {
   // ── Dimensions helpers ───────────────────────────────────────────────────────
   const W = () => _app?.screen.width  ?? 1280;
   const H = () => _app?.screen.height ?? 800;
+  const _clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  function _layoutScale() {
+    const width = W();
+    const height = H();
+    if (width <= 520) return _clamp(width / 440, 0.74, 0.88);
+    if (width <= 760) return _clamp(Math.min(width / 720, height / 760), 0.78, 0.94);
+    if (height <= 680) return 0.86;
+    if (width >= 1600 && height >= 900) return 1.12;
+    return 1;
+  }
+
+  function _syncLayoutMetrics() {
+    const s = _layoutScale();
+    HC.w = Math.round(HC_BASE.w * s);
+    HC.h = Math.round(HC_BASE.h * s);
+    AC.w = Math.round(AC_BASE.w * s);
+    AC.h = Math.round(AC_BASE.h * s);
+    CC.w = Math.round(CC_BASE.w * s);
+    CC.h = Math.round(CC_BASE.h * s);
+  }
+
+  function _bottomHudClearance() {
+    return (H() <= 680 ? 56 : 68);
+  }
+
+  function _isCompact() {
+    return W() <= 760 || H() <= 680;
+  }
+
+  function _handBaseY() {
+    const bottomLimit = H() - HC.h - _bottomHudClearance();
+    const zoneY = ZONE.p1Y() + ZONE.hOwn() + 10;
+    return Math.max(SAFE + 80, Math.min(zoneY, bottomLimit));
+  }
+
+  function _handHoverScale(cardHeight) {
+    const usableHeight = H() - _bottomHudClearance() - SAFE;
+    const target = (usableHeight / Math.max(1, cardHeight)) * 0.82;
+    return _clamp(target, 1.45, _isCompact() ? 1.9 : 2.1);
+  }
 
   // Safe inset — keeps every HUD element away from screen edges (TVs/odd windows
   // crop the outermost pixels, and edge-hugging UI reads as clutter).
@@ -103,6 +147,7 @@ const PixiBoard = (() => {
       autoDensity:     true,
     });
     container.appendChild(_app.view);
+    _syncLayoutMetrics();
 
     // Build layer stack (painter's order: bg → zones → oppHand → cards → hand → hud → fx → effects → drag)
     // oppHand: opponent face-down cards, sits BELOW cards so deployed chars always render on top
@@ -130,6 +175,7 @@ const PixiBoard = (() => {
     window.addEventListener('resize', () => {
       requestAnimationFrame(() => {
         // Invalidate all size-dependent caches
+        _syncLayoutMetrics();
         _zonesBuiltSize = { w: 0, h: 0 };
         _iconsBuiltTurn = null;
         _L.hud.removeChildren();
@@ -215,13 +261,13 @@ const PixiBoard = (() => {
   // The opponent strip is deliberately COMPACT (smaller cards, shorter zone):
   // with 2–8 players, opponents only need a seat panel + a slim board row,
   // while the active player's own area keeps full-size cards.
-  const OPP_CARD_SCALE = 0.78; // opponent board characters render at 78 %
+  const OPP_CARD_SCALE = 0.74; // opponent board characters render compactly
   const ZONE = {
-    w:    () => W() * 0.72,
-    hOpp: () => Math.min(H() * 0.20, CC.h * OPP_CARD_SCALE + 16),
-    hOwn: () => Math.min(H() * 0.26, CC.h + 20),
-    p2Y:  () => SAFE + 64,        // below the opponent seat panel
-    p1Y:  () => H() * 0.445,
+    w:    () => Math.min(W() - SAFE * 2 - (_isCompact() ? 0 : 140), W() * (_isCompact() ? 0.88 : 0.76)),
+    hOpp: () => Math.min(H() * (_isCompact() ? 0.18 : 0.22), CC.h * OPP_CARD_SCALE + 22),
+    hOwn: () => Math.min(H() * (_isCompact() ? 0.27 : 0.31), CC.h + 28),
+    p2Y:  () => SAFE + (_isCompact() ? 52 : 64),        // below the opponent seat panel
+    p1Y:  () => H() * (_isCompact() ? 0.40 : 0.405),
     // Back-compat alias (own zone) for any remaining callers
     h:    () => ZONE.hOwn(),
   };
@@ -400,8 +446,8 @@ const PixiBoard = (() => {
     ct._dots = [];
 
     const MAX_MANA = 6;
-    const gCX      = W() * 0.22;   // gauge centred here
-    const spc      = 27;
+    const gCX      = W() * (_isCompact() ? 0.50 : 0.22);   // gauge centred here
+    const spc      = _isCompact() ? 23 : 27;
     const gStartX  = gCX - (MAX_MANA - 1) * spc / 2;
 
     for (let i = 0; i < MAX_MANA; i++) {
@@ -1274,13 +1320,12 @@ const PixiBoard = (() => {
 
     // Fan arc — big radius keeps cards nearly flat at the bottom.
     // Cap the fan angle so the outermost cards NEVER spill past the screen edges.
-    const arcR   = 1400;
+    const arcR   = Math.max(900, 1400 * _layoutScale());
     const availW = Math.max(200, W() - SAFE * 2 - HC.w - 30);
     const maxDeg = 2 * Math.asin(Math.min(0.45, availW / (2 * arcR))) * 180 / Math.PI;
-    const fanDeg = Math.min(22, n * 3.4, maxDeg);
+    const fanDeg = Math.min(_isCompact() ? 12 : 22, n * (_isCompact() ? 2.4 : 3.4), maxDeg);
     const bCX    = W() * 0.5;
-    const p1ZoneBottom = ZONE.p1Y() + ZONE.hOwn();
-    const p1CardCY     = p1ZoneBottom + 12 + HC.h / 2;
+    const p1CardCY     = _handBaseY() + HC.h / 2;
     const bCY          = p1CardCY + arcR;
 
     cards.forEach(({ card, type }, i) => {
@@ -1330,7 +1375,7 @@ const PixiBoard = (() => {
     // Opponent's board renders COMPACT (party layout: your cards get the space)
     const scale = isActive ? 1 : OPP_CARD_SCALE;
     const cw = CC.w * scale, ch = CC.h * scale;
-    const gap   = Math.min(cw + 16, (W() * 0.68) / n);
+    const gap   = Math.min(cw + (_isCompact() ? 8 : 18), (W() * (_isCompact() ? 0.82 : 0.70)) / n);
     const startX = W() / 2 - (gap * (n - 1)) / 2;
     const zH    = isActive ? ZONE.hOwn() : ZONE.hOpp();
     const zoneY = (isActive ? ZONE.p1Y() : ZONE.p2Y()) + zH / 2 - ch / 2;
@@ -1449,7 +1494,7 @@ const PixiBoard = (() => {
     if (on) {
       if (ct.parent !== _L.fx) _L.fx.addChild(ct);
       _hoveredCard = ct;
-      const scale  = 2.4; // zoom to make text readable on board chars
+      const scale  = _isCompact() ? 1.85 : 2.25; // zoom to make text readable on board chars
       const scaledW = CC.w * scale, scaledH = CC.h * scale;
       // Clamp so the ENTIRE zoomed card stays on screen (incl. the text box)
       const targetX = Math.max(8, Math.min(W() - scaledW - 8,  ct._baseX - (scaledW - CC.w) / 2));
@@ -1484,10 +1529,10 @@ const PixiBoard = (() => {
         if (n === 0) return;
         // Spacing: wide enough to show each card; clamp so they all fit
         const cw = HC.w; // use hero card width as base (widest)
-        const spacing = Math.min(cw + 18, (W() * 0.78) / n);
+        const spacing = Math.min(cw + (_isCompact() ? 8 : 18), (W() * (_isCompact() ? 0.92 : 0.82)) / n);
         const totalW  = spacing * (n - 1) + cw;
         const startX  = W() / 2 - totalW / 2;
-        const flatY   = H() - HC.h - 42 - SAFE - 10; // clear the bottom HUD bar
+        const flatY   = Math.max(SAFE + 80, Math.min(_handBaseY(), H() - HC.h - _bottomHudClearance()));
 
         cards.forEach((c, idx) => {
           const tx = startX + idx * spacing;
@@ -1502,12 +1547,12 @@ const PixiBoard = (() => {
       // Raise & scale the individual hovered card.
       // Scale grows from the top-left, so position the card such that the WHOLE
       // zoomed card — including the bottom text box — stays on screen.
-      const hs = 1.8;
       const cw = ct._cardType === 'action' ? AC.w : HC.w;
       const chh = ct._cardType === 'action' ? AC.h : HC.h;
+      const hs = _handHoverScale(chh);
       const expandX = ct._expandX ?? ct._baseX;
       const hx = Math.max(8, Math.min(W() - cw * hs - 8, expandX - (cw * (hs - 1)) / 2));
-      const hy = H() - chh * hs - 42 - SAFE - 8; // fully visible above the bottom bar
+      const hy = Math.max(SAFE + 70, H() - chh * hs - _bottomHudClearance()); // fully visible above the bottom bar
       // Bring to top of hand layer
       if (ct.parent === _L.hand) { _L.hand.removeChild(ct); _L.hand.addChild(ct); }
       gsap.killTweensOf(ct); gsap.killTweensOf(ct.scale);
@@ -1519,7 +1564,7 @@ const PixiBoard = (() => {
       // Return hovered card to flat row position (not back to arc yet)
       if (_hoveredCard === ct) {
         const expandX = ct._expandX ?? ct._baseX;
-        const expandY = ct._expandY ?? (H() - HC.h - 42 - SAFE - 10);
+        const expandY = ct._expandY ?? _handBaseY();
         gsap.killTweensOf(ct); gsap.killTweensOf(ct.scale);
         gsap.to(ct, { x: expandX, y: expandY, rotation: 0, duration: 0.12, ease: 'power2.out' });
         gsap.to(ct.scale, { x: 1, y: 1, duration: 0.12, ease: 'power2.out' });
@@ -2168,6 +2213,7 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   function render() {
     if (!_app) return;
+    _syncLayoutMetrics();
 
     // A re-render means game state changed under the target picker — cancel it
     // (stale highlights/callbacks would reference destroyed card containers)
