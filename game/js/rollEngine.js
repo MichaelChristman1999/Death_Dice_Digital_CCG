@@ -10,8 +10,8 @@ const RollEngine = (() => {
   }
 
   // ── Roll ───────────────────────────────────────────────────────────────────
-  function rollDie() {
-    const sides = _rules.dice?.sides ?? 6;
+  function rollDie(maxSides = null) {
+    const sides = Math.max(1, Math.min(maxSides ?? (_rules.dice?.sides ?? 6), _rules.dice?.sides ?? 6));
     return Math.floor(Math.random() * sides) + 1;
   }
 

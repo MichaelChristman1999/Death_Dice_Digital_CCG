@@ -877,14 +877,14 @@ actions: [
     "id": "action_abstain",
     "name": "Abstain",
     "imageAsset": "Action Card_Abstain.jpg",
-    "manaCost": 0,
-    "type": "free",
+    "manaCost": 1,
+    "type": "paid",
     "effect": "draw_cards",
-    "effectValue": 1,
+    "effectValue": 2,
     "stackable": false,
     "targetType": "self",
-    "statusApplied": [],
-    "description": "Pass your action this turn to draw 1 card. Can be played any time."
+    "statusApplied": ["status_abstaining"],
+    "description": "Draw 2 action cards and become immune to Charmed/Love Potion until your next turn."
   },
   {
     "id": "action_anemic_potion",
@@ -897,7 +897,7 @@ actions: [
     "stackable": false,
     "targetType": "single_enemy",
     "statusApplied": ["status_anemic"],
-    "description": "Drain an enemy's strength — reduce their base attack by 2 for 2 turns."
+    "description": "Inflict Anti-Heal — prevent this enemy from receiving healing for 2 turns."
   },
   {
     "id": "action_augment",
@@ -936,7 +936,7 @@ actions: [
     "stackable": false,
     "targetType": "all_enemies",
     "statusApplied": [],
-    "description": "Deal 2 damage to all enemy characters on the board."
+    "description": "Deal 2 damage to all enemy characters and the enemy player."
   },
   {
     "id": "action_cheese_potion",
@@ -949,7 +949,7 @@ actions: [
     "stackable": false,
     "targetType": "random",
     "statusApplied": [],
-    "description": "Something chaotic happens. Could be wonderful. Could be terrible. Who knows."
+    "description": "Roll for a random cheese effect. Enemy-damage results also hit the enemy player; self-damage cannot trigger if it would defeat you."
   },
   {
     "id": "action_cleanse",
@@ -973,9 +973,9 @@ actions: [
     "effect": "apply_status",
     "effectValue": 0,
     "stackable": false,
-    "targetType": "single_enemy",
+    "targetType": "enemy_any",
     "statusApplied": ["status_crippled"],
-    "description": "Prevent an enemy character from attacking for 1 turn."
+    "description": "Cripple an enemy hero or player; they take double damage while Crippled."
   },
   {
     "id": "action_damage_potion",
@@ -999,9 +999,9 @@ actions: [
     "effect": "apply_status",
     "effectValue": 0,
     "stackable": false,
-    "targetType": "single_enemy",
+    "targetType": "enemy_player",
     "statusApplied": ["status_drunk"],
-    "description": "Enemy character attacks a random target (ally or enemy) next turn."
+    "description": "Inflict Drunk on the enemy player for their next 2 turns; their die can only roll 1-3."
   },
   {
     "id": "action_exploit",
@@ -1040,7 +1040,7 @@ actions: [
     "stackable": false,
     "targetType": "single_enemy",
     "statusApplied": ["status_impaired"],
-    "description": "A mischievous imp tampers with an enemy — they cannot use abilities for 2 turns."
+    "description": "A mischievous imp weakens an enemy hero's base attack by 2, or by 1 if their base attack is 2. Cannot affect heroes already at 1 base attack."
   },
   {
     "id": "action_impede",
@@ -1156,7 +1156,7 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "🩸",
-    "description": "Base attack reduced by 2."
+    "description": "Healing is prevented while this status is active."
   },
   {
     "id": "status_augmented",
@@ -1176,17 +1176,17 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "🦵",
-    "description": "Cannot attack this turn."
+    "description": "Takes double damage."
   },
   {
     "id": "status_drunk",
     "name": "Drunk",
     "type": "timed",
-    "duration": 1,
+    "duration": 2,
     "stackBehavior": "replace",
-    "trigger": "on_attack",
+    "trigger": "on_roll",
     "symbol": "🍺",
-    "description": "Attacks a random target instead of the declared one."
+    "description": "Player die rolls are capped at 3."
   },
   {
     "id": "status_poisoned",
@@ -1206,7 +1206,7 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "🚫",
-    "description": "Cannot use abilities."
+    "description": "Base attack is reduced by 2, or by 1 if base attack is 2."
   },
   {
     "id": "status_impeded",
@@ -1227,6 +1227,16 @@ statusEffects: [
     "trigger": null,
     "symbol": "💕",
     "description": "Under opponent's control for 1 turn."
+  },
+  {
+    "id": "status_abstaining",
+    "name": "Abstaining",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "✋",
+    "description": "Immune to Charmed/Love Potion."
   },
   {
     "id": "status_taunt",

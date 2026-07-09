@@ -13,15 +13,39 @@ const PhaseManager = (() => {
   let _rolloffDone = { p1: false, p2: false };
   let _etiquetteRoundDone = { p1: false, p2: false };
 
+  function _setStep(step) {
+    _step = step;
+    GameState.setPhaseStep?.(step);
+  }
+
   // ── Start ──────────────────────────────────────────────────────────────────
   function start() {
-    _step = STEPS.ROLLOFF;
+    _setStep(STEPS.ROLLOFF);
     _rolloffDone = { p1: false, p2: false };
     _etiquetteRoundDone = { p1: false, p2: false };
     GameState.setPhase('rolloff');
     RollEngine.setRequired(null);
     _showRolloffOverlay();
     _updateUI();
+  }
+
+  function resumeFromState() {
+    const savedStep = GameState.getPhaseStep?.() ?? STEPS.AWAIT_ROLL;
+    const isKnownStep = Object.values(STEPS).includes(savedStep);
+    _setStep(isKnownStep ? savedStep : STEPS.AWAIT_ROLL);
+
+    const rolls = GameState.getRolloffRolls();
+    _rolloffDone = { p1: rolls.p1 != null, p2: rolls.p2 != null };
+    _etiquetteRoundDone = { p1: false, p2: false };
+
+    if (_step === STEPS.ROLLOFF) {
+      _showRolloffOverlay();
+    } else {
+      document.getElementById('overlay-rolloff')?.classList.add('hidden');
+      _updateUI();
+      if (_step === STEPS.AWAIT_ROLL) _startAutoRoll();
+      if (_step === STEPS.ENDED) _checkWinCondition();
+    }
   }
 
   // ── Roll-Off ───────────────────────────────────────────────────────────────
@@ -93,7 +117,7 @@ const PhaseManager = (() => {
   // ── Begin Etiquette ────────────────────────────────────────────────────────
   function _beginEtiquette() {
     GameState.setPhase('etiquette');
-    _step = STEPS.AWAIT_ROLL;
+    _setStep(STEPS.AWAIT_ROLL);
     _etiquetteRoundDone = { p1: false, p2: false };
     showToast('Etiquette Phase begins. Deploy characters and use the shop.', 'phase');
     _updateUI();
@@ -134,7 +158,9 @@ const PhaseManager = (() => {
 
     const activePlayer = GameState.currentTurn;
     const forced = AdminPanel.consumeForcedRoll?.();
-    const roll   = forced ?? RollEngine.rollDie();
+    const drunkCap = GameState.hasPlayerStatus?.(activePlayer, 'status_drunk') ? 3 : null;
+    const rawRoll  = forced ?? RollEngine.rollDie(drunkCap);
+    const roll     = drunkCap ? Math.min(rawRoll, drunkCap) : rawRoll;
 
     GameState.setLastRoll(roll);
 
@@ -142,8 +168,9 @@ const PhaseManager = (() => {
     let damage = 0;
 
     if (required !== null && roll < required) {
-      damage = required - roll;
-      GameState.damagePlayer(activePlayer, damage);
+      const baseDamage = required - roll;
+      damage = GameState.previewPlayerDamage?.(activePlayer, baseDamage) ?? baseDamage;
+      GameState.damagePlayer(activePlayer, baseDamage);
     }
 
     // Mana = roll value regardless of damage
@@ -153,7 +180,7 @@ const PhaseManager = (() => {
       ? null : roll;
     RollEngine.setRequired(nextRequired);
 
-    _step = STEPS.MAIN;
+    _setStep(STEPS.MAIN);
 
     // Structured info → dice overlay renders a punchy result readout
     const info = { name: GameState.getPlayerLabel(activePlayer).toUpperCase(), roll, mana: roll, damage };
@@ -181,7 +208,7 @@ const PhaseManager = (() => {
     }
 
     GameState.advanceTurn();
-    _step = STEPS.AWAIT_ROLL;
+    _setStep(STEPS.AWAIT_ROLL);
     _updateUI();
     renderBoard();
     _startAutoRoll();
@@ -233,6 +260,11 @@ const PhaseManager = (() => {
     return canAct();
   }
 
+  function pause() {
+    _cancelAutoRoll();
+    _updateUI();
+  }
+
   // ── Win Condition ─────────────────────────────────────────────────────────
   // Public: call after ANY damage source (combat, abilities, cards, poison)
   function checkWin() { return _checkWinCondition(); }
@@ -243,7 +275,7 @@ const PhaseManager = (() => {
         const winner = GameState.getOpponentId(pid);
         _cancelAutoRoll(); // no countdown over the victory screen
         _showWinScreen(GameState.getPlayerLabel(winner));
-        _step = STEPS.ENDED;
+        _setStep(STEPS.ENDED);
         return true;
       }
     }
@@ -271,10 +303,12 @@ const PhaseManager = (() => {
 
   return {
     start,
+    resumeFromState,
     handleRoll,
     handleEndTurn,
     handleRolloffRoll,
     checkWin,
+    pause,
     canRoll,
     canEndTurn,
     canAct,

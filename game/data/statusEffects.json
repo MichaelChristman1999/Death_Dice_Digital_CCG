@@ -66,8 +66,8 @@
     "duration": 2,
     "stackBehavior": "replace",
     "trigger": null,
-    "symbol": "-ATK",
-    "description": "Base attack is reduced by 2."
+    "symbol": "NOHEAL",
+    "description": "Healing is prevented while this status is active."
   },
   {
     "id": "status_augmented",
@@ -87,17 +87,17 @@
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "CRP",
-    "description": "Cannot attack during its next turn."
+    "description": "Takes double damage."
   },
   {
     "id": "status_drunk",
     "name": "Drunk",
     "type": "timed",
-    "duration": 1,
+    "duration": 2,
     "stackBehavior": "replace",
-    "trigger": "on_attack",
+    "trigger": "on_roll",
     "symbol": "DRK",
-    "description": "Attacks a random target instead of the declared one."
+    "description": "Player die rolls are capped at 3."
   },
   {
     "id": "status_poisoned",
@@ -117,7 +117,7 @@
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "IMP",
-    "description": "Cannot use abilities."
+    "description": "Base attack is reduced by 2, or by 1 if base attack is 2."
   },
   {
     "id": "status_impeded",
@@ -138,6 +138,16 @@
     "trigger": null,
     "symbol": "LOVE",
     "description": "Temporarily turned against its own team."
+  },
+  {
+    "id": "status_abstaining",
+    "name": "Abstaining",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "NOLOVE",
+    "description": "Immune to Charmed/Love Potion."
   },
   {
     "id": "status_taunt",

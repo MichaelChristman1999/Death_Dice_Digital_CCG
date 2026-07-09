@@ -72,14 +72,20 @@ const ActionUI = (() => {
     const inCombat = PhaseManager.canUseAbilities();
     const gate    = GameState.canCharacterUseAbility(char);
     const atk     = GameState.getEffectiveAttack(char);
+    const passives = (char.passives?.length ? char.passives : char._sourceCard?.passives) ?? [];
+    const passiveHtml = passives.map(p => `
+      <div class="cp-ability passive">
+        <div class="cp-ability-name">${p.name ?? 'Passive'}</div>
+        <div class="cp-ability-desc">${p.description ?? ''}</div>
+      </div>`).join('');
 
     const canUse = ability && !acted && inCombat && gate.ok && mana >= ability.manaCost;
     let hint = '';
-    if (!ability)                       hint = 'No ability.';
+    if (!ability && !passives.length)   hint = 'No active ability.';
     else if (acted)                     hint = 'Already acted this turn.';
     else if (!inCombat)                 hint = 'Abilities unlock in the Combat phase (after rolling).';
     else if (!gate.ok)                  hint = gate.reason;
-    else if (mana < ability.manaCost)   hint = `Need ${ability.manaCost} ◆ (you have ${mana}).`;
+    else if (ability && mana < ability.manaCost) hint = `Need ${ability.manaCost} ◆ (you have ${mana}).`;
 
     const panel = document.createElement('div');
     panel.id = 'char-panel';
@@ -92,7 +98,8 @@ const ActionUI = (() => {
       <div class="cp-ability">
         <div class="cp-ability-name">◆${ability.manaCost} — ${ability.abilityName}</div>
         <div class="cp-ability-desc">${ability.description}</div>
-      </div>` : '<div class="cp-ability-desc">This character has no special ability.</div>'}
+      </div>` : ''}
+      ${passiveHtml || (!ability ? '<div class="cp-ability-desc">This character has no active ability.</div>' : '')}
       ${hint ? `<div class="cp-hint">${hint}</div>` : ''}
       <div class="cp-actions">
         ${ability ? `<button id="cp-use" class="menu-btn primary" ${canUse ? '' : 'disabled'}>⚡ Use Ability</button>` : ''}

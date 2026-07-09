@@ -112,6 +112,11 @@ const PixiBoard = (() => {
     return W() > 760 && H() <= 680;
   }
 
+  function _rightLaneCenterX() {
+    const zoneRight = W() / 2 + ZONE.w() / 2;
+    return _clamp((zoneRight + W() - SAFE) / 2, zoneRight + 54, W() - 70);
+  }
+
   function _handBaseY() {
     const bottomLimit = H() - HC.h - _bottomHudClearance();
     const zoneY = ZONE.p1Y() + ZONE.hOwn() + 10;
@@ -129,7 +134,10 @@ const PixiBoard = (() => {
   const SAFE = 18;
 
   // Shared HUD anchor points
-  const HUD_DIE      = () => ({ x: W() - (_isNarrow() ? 62 : 74), y: H() * (_isCompact() ? 0.30 : 0.27) });      // LAST ROLL die
+  const HUD_DIE      = () => ({
+    x: _isNarrow() ? W() - 62 : _rightLaneCenterX(),
+    y: _isNarrow() ? H() * 0.30 : ZONE.p2Y() + ZONE.hOpp() / 2,
+  });      // LAST ROLL die
   const HUD_CENTER_Y = () => (ZONE.p2Y() + ZONE.hOpp() + ZONE.p1Y()) / 2; // mana strip
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -238,10 +246,17 @@ const PixiBoard = (() => {
 
     _hexGrid(g);
 
-    // Blood-red center crack
+    // Blood-red lane crack. Keep it inside the board bounds so it does not
+    // read as a broken border or run into the action rail.
+    const crackPad = _isNarrow() ? 8 : 2;
+    const crackLeft = W() / 2 - ZONE.w() / 2 + crackPad;
+    const crackRight = W() / 2 + ZONE.w() / 2 - crackPad;
+    const crackY = _isNarrow()
+      ? H() * 0.5
+      : Math.min(H() * 0.5, ZONE.p1Y() + ZONE.hOwn() * 0.28);
     g.lineStyle(1, 0x440000, 0.65);
-    g.moveTo(W() * 0.1, H() * 0.5);
-    g.lineTo(W() * 0.9, H() * 0.5);
+    g.moveTo(crackLeft, crackY);
+    g.lineTo(crackRight, crackY);
 
     _L.bg.addChild(g);
     // Flatten the entire static background (incl. the ~1500-segment hex grid) into a
@@ -282,8 +297,8 @@ const PixiBoard = (() => {
     w:    () => Math.min(W() - SAFE * 2 - RIGHT_RAIL_W(), W() * (_isNarrow() ? 0.90 : _isShortWide() ? 0.76 : 0.70)),
     hOpp: () => Math.min(H() * (_isCompact() ? 0.19 : 0.24), CC.h * OPP_CARD_SCALE + 36),
     hOwn: () => Math.min(H() * (_isCompact() ? 0.28 : 0.30), CC.h + 36),
-    p2Y:  () => SAFE + SEAT_H() + (_isNarrow() ? 12 : _isShortWide() ? 28 : 30),        // below the opponent seat panel
-    p1Y:  () => H() * (_isNarrow() ? 0.41 : _isShortWide() ? 0.43 : 0.415),
+    p2Y:  () => SAFE + SEAT_H() + (_isNarrow() ? 12 : _isShortWide() ? 34 : 36),        // below the opponent seat panel
+    p1Y:  () => H() * (_isNarrow() ? 0.41 : _isShortWide() ? 0.455 : 0.43),
     // Back-compat alias (own zone) for any remaining callers
     h:    () => ZONE.hOwn(),
   };
@@ -690,6 +705,18 @@ const PixiBoard = (() => {
     }
     if ($('btn-end-turn')) $('btn-end-turn').disabled = !(PhaseManager?.canEndTurn?.() ?? false);
     if ($('btn-shop'))     $('btn-shop').disabled     = !(PhaseManager?.canShop?.()    ?? false);
+
+    const actions = document.getElementById('game-actions');
+    if (actions) {
+      const bottomDock = window.matchMedia?.('(max-width: 900px), (pointer: coarse)')?.matches;
+      if (bottomDock) {
+        actions.style.top = '';
+        actions.style.transform = 'translateX(-50%)';
+      } else {
+        actions.style.top = `${ZONE.p1Y() + ZONE.hOwn() / 2}px`;
+        actions.style.transform = 'translateY(-50%)';
+      }
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -2236,14 +2263,22 @@ const PixiBoard = (() => {
   /** Look up passive + ability names for a card from CHARACTER_ABILITIES or card data */
   function _getCardAbilities(card) {
     if (!card) return {};
+    const passiveOnly = /^(Passive|Durability)$/i.test(card.classType ?? '');
     const key = (card.name ?? '').toLowerCase().trim();
     const lookup = (typeof CHARACTER_ABILITIES !== 'undefined') ? CHARACTER_ABILITIES[key] : null;
-    if (lookup) return lookup;
+    if (lookup) {
+      return {
+        ...lookup,
+        ability1: passiveOnly ? null : lookup.ability1,
+        ability2: passiveOnly ? null : lookup.ability2,
+        passive: lookup.passive ?? card.passives?.[0]?.name ?? null,
+      };
+    }
     // Fallback to inline card data
     return {
       passive:  card.passives?.[0]?.name   ?? null,
-      ability1: card.abilities?.[0]?.abilityName ?? null,
-      ability2: card.abilities?.[1]?.abilityName ?? null,
+      ability1: passiveOnly ? null : (card.abilities?.[0]?.abilityName ?? null),
+      ability2: passiveOnly ? null : (card.abilities?.[1]?.abilityName ?? null),
     };
   }
 

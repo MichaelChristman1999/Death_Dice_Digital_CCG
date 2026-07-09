@@ -6,6 +6,7 @@ import socketserver
 from pathlib import Path
 
 PORT = 5500
+MAX_PORT = 5510
 HOST = '127.0.0.1'
 ROOT = Path(__file__).resolve().parent
 
@@ -28,6 +29,27 @@ class ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 Handler = partial(NoCacheHandler, directory=str(ROOT))
 
-with ThreadingServer((HOST, PORT), Handler) as httpd:
-    print(f'Serving {ROOT} on http://localhost:{PORT}', flush=True)
-    httpd.serve_forever()
+def main():
+    last_error = None
+
+    for port in range(PORT, MAX_PORT + 1):
+        try:
+            httpd = ThreadingServer((HOST, port), Handler)
+        except OSError as exc:
+            last_error = exc
+            print(f'Port {port} unavailable; trying next port...', flush=True)
+            continue
+
+        with httpd:
+            if port != PORT:
+                print(f'Port {PORT} was blocked, so the server switched ports.', flush=True)
+            print(f'Serving {ROOT} on http://localhost:{port}', flush=True)
+            httpd.serve_forever()
+            return
+
+    raise SystemExit(
+        f'Could not start the server on ports {PORT}-{MAX_PORT}. Last error: {last_error}'
+    )
+
+if __name__ == '__main__':
+    main()

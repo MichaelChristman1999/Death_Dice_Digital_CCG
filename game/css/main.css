@@ -210,6 +210,34 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   pointer-events: all;
 }
 
+#btn-options {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(112px, calc(env(safe-area-inset-bottom) + 112px));
+  z-index: 105;
+  width: 136px;
+}
+
+.options-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(204,34,0,.45);
+  background: rgba(5,2,4,.78);
+  color: #f0e0d0;
+  font-family: 'Exo 2', sans-serif;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: 0 0 18px rgba(0,0,0,.42), inset 0 0 14px rgba(204,34,0,.08);
+  backdrop-filter: blur(8px);
+}
+.options-btn:hover:not(:disabled) {
+  filter: brightness(1.18);
+  box-shadow: 0 0 22px rgba(204,34,0,.36);
+}
+
 /* Button styles (mirrors the old gd-btn family) */
 .gd-btn {
   height: 42px; padding: 0 12px;
@@ -302,6 +330,40 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   font-family: 'Rajdhani', sans-serif; letter-spacing: .06em;
 }
 .muted { color: var(--text-dim); font-size: .84rem; line-height: 1.65; margin-bottom: 14px; }
+
+.options-panel {
+  width: min(92vw, 360px);
+  padding: 22px;
+  border: 2px solid rgba(204,34,0,.72);
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(18,4,6,.98), rgba(5,2,4,.98));
+  box-shadow: 0 0 44px rgba(204,34,0,.24), inset 0 0 28px rgba(204,34,0,.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.options-panel h2 {
+  color: var(--accent-hi);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.18rem;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.confirm-panel .modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.menu-btn.danger {
+  border-color: rgba(255,40,40,.7);
+  color: #ffb0a0;
+}
+.menu-btn.primary.danger {
+  background: linear-gradient(135deg, #9a0808, #d12a0b);
+  color: #fff;
+}
 
 /* ── Card Detail Modal ──────────────────────────────────── */
 .modal-card-box {
@@ -887,6 +949,14 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
     width: min(96vw, 520px);
     padding: 6px;
     gap: 6px;
+  }
+
+  #btn-options {
+    right: auto;
+    left: 50%;
+    bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px));
+    transform: translateX(-50%);
+    width: min(46vw, 160px);
   }
 
   .gd-btn {

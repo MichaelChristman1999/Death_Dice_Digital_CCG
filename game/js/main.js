@@ -43,16 +43,70 @@ function showScreen(id) {
   document.getElementById(id)?.classList.add('active');
 }
 
+function readSavedGame() {
+  try {
+    const raw = localStorage.getItem('gameState');
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isSavedGameFinished(saved) {
+  if (!saved) return false;
+  if (saved.currentPhase === 'ended' || saved.phaseStep === 'ended') return true;
+  return Object.values(saved.players ?? {}).some(p => (p?.hp ?? 1) <= 0);
+}
+
+function hasResumableSavedGame() {
+  const saved = readSavedGame();
+  return !!saved && !isSavedGameFinished(saved);
+}
+
+function openNamePrompt() {
+  document.getElementById('overlay-names')?.classList.remove('hidden');
+  document.getElementById('input-name-p1')?.focus();
+}
+
+function hideGameOverlays() {
+  PhaseManager?.pause?.();
+  [
+    'overlay-options',
+    'overlay-exit-confirm',
+    'overlay-save-choice',
+    'overlay-shop',
+    'modal-card',
+    'modal-discard',
+    'modal-duel',
+    'dice-overlay',
+    'overlay-rolloff',
+    'overlay-win',
+  ].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  ActionUI?.closeCharPanel?.();
+}
+
 // â”€â”€â”€ Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function bindMenuButtons() {
   // Play â†’ optional name entry â†’ start
   document.getElementById('btn-play')?.addEventListener('click', () => {
-    document.getElementById('overlay-names')?.classList.remove('hidden');
-    document.getElementById('input-name-p1')?.focus();
+    if (hasResumableSavedGame()) {
+      document.getElementById('overlay-save-choice')?.classList.remove('hidden');
+    } else {
+      openNamePrompt();
+    }
   });
   document.getElementById('btn-names-start')?.addEventListener('click', () => {
     document.getElementById('overlay-names')?.classList.add('hidden');
     startGame();
+  });
+  document.getElementById('btn-save-choice-continue')?.addEventListener('click', () => {
+    document.getElementById('overlay-save-choice')?.classList.add('hidden');
+    startGame({ resume: true });
+  });
+  document.getElementById('btn-save-choice-new')?.addEventListener('click', () => {
+    document.getElementById('overlay-save-choice')?.classList.add('hidden');
+    try { localStorage.removeItem('gameState'); } catch (_) {}
+    openNamePrompt();
   });
   // Enter key in either name field also starts the game
   ['input-name-p1', 'input-name-p2'].forEach(id => {
@@ -76,16 +130,23 @@ function promptAdmin() {
 }
 
 // â”€â”€â”€ Start game â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function startGame() {
+function startGame(options = {}) {
   const data = window.GameData ?? GAME_DATA_INLINE;
+  let resumeMode = !!options.resume;
 
-  GameState.init(data);
+  GameState.init(data, { skipSave: resumeMode });
+  if (resumeMode) {
+    resumeMode = GameState.loadFromStorage();
+    if (!resumeMode) GameState.init(data);
+  }
 
   // Optional player names from the pre-game prompt
-  const n1 = document.getElementById('input-name-p1')?.value;
-  const n2 = document.getElementById('input-name-p2')?.value;
-  if (n1) GameState.setPlayerLabel('p1', n1);
-  if (n2) GameState.setPlayerLabel('p2', n2);
+  if (!resumeMode) {
+    const n1 = document.getElementById('input-name-p1')?.value;
+    const n2 = document.getElementById('input-name-p2')?.value;
+    if (n1) GameState.setPlayerLabel('p1', n1);
+    if (n2) GameState.setPlayerLabel('p2', n2);
+  }
   const l1 = document.getElementById('rolloff-name-p1');
   const l2 = document.getElementById('rolloff-name-p2');
   if (l1) l1.textContent = GameState.getPlayerLabel('p1');
@@ -97,11 +158,13 @@ function startGame() {
   StatusEngine.init(data.statusEffects);
 
   // Deal starting hands
-  const sh = data.rules.startingHand?.hero   ?? 3;
-  const sa = data.rules.startingHand?.action ?? 4;
-  for (const pid of ['p1', 'p2']) {
-    for (let i = 0; i < sh; i++) HandManager.drawHero(pid);
-    for (let i = 0; i < sa; i++) HandManager.drawAction(pid);
+  if (!resumeMode) {
+    const sh = data.rules.startingHand?.hero   ?? 3;
+    const sa = data.rules.startingHand?.action ?? 4;
+    for (const pid of ['p1', 'p2']) {
+      for (let i = 0; i < sh; i++) HandManager.drawHero(pid);
+      for (let i = 0; i < sa; i++) HandManager.drawAction(pid);
+    }
   }
 
   // â”€â”€ CRITICAL: show screen FIRST so the pixi container has real dimensions â”€â”€
@@ -146,8 +209,8 @@ function startGame() {
       },
     });
 
-    // Start phase engine (shows rolloff overlay)
-    PhaseManager.start();
+    if (resumeMode) PhaseManager.resumeFromState?.();
+    else PhaseManager.start();
     renderBoard();
   }
 }
@@ -163,6 +226,30 @@ function bindGameButtons() {
     renderBoard();
   });
   document.getElementById('btn-shop')?.addEventListener('click', () => ShopSystem.open());
+  document.getElementById('btn-options')?.addEventListener('click', () => {
+    document.getElementById('overlay-options')?.classList.remove('hidden');
+  });
+  document.getElementById('btn-options-resume')?.addEventListener('click', () => {
+    document.getElementById('overlay-options')?.classList.add('hidden');
+    document.getElementById('overlay-exit-confirm')?.classList.add('hidden');
+  });
+  document.getElementById('btn-options-save-exit')?.addEventListener('click', () => {
+    hideGameOverlays();
+    showScreen(SCREENS.MENU);
+  });
+  document.getElementById('btn-options-exit-nosave')?.addEventListener('click', () => {
+    document.getElementById('overlay-options')?.classList.add('hidden');
+    document.getElementById('overlay-exit-confirm')?.classList.remove('hidden');
+  });
+  document.getElementById('btn-exit-confirm-no')?.addEventListener('click', () => {
+    document.getElementById('overlay-exit-confirm')?.classList.add('hidden');
+    document.getElementById('overlay-options')?.classList.remove('hidden');
+  });
+  document.getElementById('btn-exit-confirm-yes')?.addEventListener('click', () => {
+    try { localStorage.removeItem('gameState'); } catch (_) {}
+    hideGameOverlays();
+    showScreen(SCREENS.MENU);
+  });
 
   document.getElementById('btn-rolloff-p1')?.addEventListener('click', () => PhaseManager.handleRolloffRoll('p1'));
   document.getElementById('btn-rolloff-p2')?.addEventListener('click', () => PhaseManager.handleRolloffRoll('p2'));
@@ -212,6 +299,17 @@ function expandCard(card, type) {
   if (type === 'hero') {
     const ip   = card.imageAsset ? `assets/cards/DD Character V7/${card.imageAsset}` : null;
     const name = card.name || card.imageAsset?.replace(/^DD_/,'').replace(/\.png$/i,'') || 'Hero';
+    const passiveOnly = /^(Passive|Durability)$/i.test(card.classType ?? '');
+    const passiveRows = [...(card.passives ?? [])];
+    if (passiveOnly && card.docAbility && passiveRows.length === 0) {
+      passiveRows.push({ name: 'Passive', description: card.docAbility });
+    }
+    const docAbilityHtml = card.docAbility && !passiveOnly ? `<div class="card-detail-section"><h3>Card Ability</h3>
+            <div class="ability-desc">${card.docAbility}</div>
+          </div>` : '';
+    const passiveHtml = passiveRows.length ? `<div class="card-detail-section"><h3>Passives</h3>
+            ${passiveRows.map(p => `<div class="passive-row"><div class="passive-name">- ${p.name}</div><div class="passive-desc">${p.description}</div></div>`).join('')}
+          </div>` : '';
     content.innerHTML = `
       <div class="card-detail-layout">
         <div class="card-detail-art">
@@ -228,12 +326,8 @@ function expandCard(card, type) {
             ${card.archetype ? `<span class="meta-badge role">${card.archetype}</span>` : ''}
             ${card.role   ? `<span class="meta-badge role">${card.role}</span>`    : ''}
           </div>
-          ${card.docAbility ? `<div class="card-detail-section"><h3>Card Ability</h3>
-            <div class="ability-desc">${card.docAbility}</div>
-          </div>` : ''}
-          ${card.passives?.length ? `<div class="card-detail-section"><h3>Passives</h3>
-            ${card.passives.map(p => `<div class="passive-row"><div class="passive-name">â¬¡ ${p.name}</div><div class="passive-desc">${p.description}</div></div>`).join('')}
-          </div>` : ''}
+          ${docAbilityHtml}
+          ${passiveHtml}
           ${card.abilities?.length ? `<div class="card-detail-section"><h3>Abilities</h3>
             ${card.abilities.map(a => `<div class="ability-row">
               <div class="ability-row-header">

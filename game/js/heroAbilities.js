@@ -73,10 +73,41 @@ const HeroAbilities = (() => {
   ];
 
   function getFor(card) {
+    const special = _specialFor(card);
+    if (special) return [special];
+
     const fallback = _fallbackFor(card);
     const doc = _sourceText(card);
     const parsed = doc ? _fromDocText(doc, fallback) : null;
     return [parsed ?? fallback];
+  }
+
+  function _specialFor(card) {
+    if (card.id === 'hero_mob_barley') {
+      return {
+        abilityName: 'Wasted',
+        manaCost: 5,
+        effect: 'apply_player_status',
+        effectValue: 0,
+        targetType: 'enemy_player',
+        statusApplied: ['status_drunk'],
+        description: 'Inflict Drunk on the enemy player for their next 2 turns; their die can only roll 1-3.',
+      };
+    }
+
+    if (card.id === 'hero_copy_cat') {
+      return {
+        abilityName: 'Paw Print',
+        manaCost: 1,
+        effect: 'copy_enemy_ability',
+        effectValue: 0,
+        targetType: 'single_enemy',
+        statusApplied: [],
+        description: card.docAbility || 'Copy an enemy character ability and turn it back on them.',
+      };
+    }
+
+    return null;
   }
 
   function _fallbackFor(card) {

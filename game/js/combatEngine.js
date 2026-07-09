@@ -200,33 +200,38 @@ const CombatEngine = (() => {
       const blocker = GameState.getCharacter(blockerId);
       if (blocker) {
         const blockDamage = GameState.getEffectiveAttack?.(blocker) ?? blocker.baseAttack;
+        const blockerActual = GameState.previewCharacterDamage?.(blockerId, attackDamage) ?? attackDamage;
+        const attackerActual = GameState.previewCharacterDamage?.(attackerId, blockDamage) ?? blockDamage;
         GameState.damageCharacter(blockerId,  attackDamage);
         GameState.damageCharacter(attackerId, blockDamage);
-        PixiBoard?.showHitEffect?.('character', blockerId,  attackDamage);
-        PixiBoard?.showHitEffect?.('character', attackerId, blockDamage);
+        PixiBoard?.showHitEffect?.('character', blockerId,  blockerActual);
+        PixiBoard?.showHitEffect?.('character', attackerId, attackerActual);
         showToast(
-          `${attacker.name} attacks ${blocker.name}! ${attackDamage} vs ${blockDamage} damage.`,
+          `${attacker.name} attacks ${blocker.name}! ${blockerActual} vs ${attackerActual} damage.`,
           'combat'
         );
       }
     } else if (targetType === 'player') {
       // ── Unblocked direct attack ───────────────────────────────────────────
+      const actualDamage = GameState.previewPlayerDamage?.(targetId, attackDamage) ?? attackDamage;
       const newHp = GameState.damagePlayer(targetId, attackDamage);
-      PixiBoard?.showHitEffect?.('player', targetId, attackDamage);
-      showToast(`${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${attackDamage}! HP → ${newHp}`, 'combat');
+      PixiBoard?.showHitEffect?.('player', targetId, actualDamage);
+      showToast(`${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${actualDamage}! HP → ${newHp}`, 'combat');
     } else if (targetType === 'character') {
       // ── Unblocked character attack ────────────────────────────────────────
       const target = GameState.getCharacter(targetId);
       if (target) {
         // Retort-style statuses reflect damage back at the attacker
         const retort = target.statuses?.find(s => s.trigger === 'on_attacked');
+        const actualDamage = GameState.previewCharacterDamage?.(targetId, attackDamage) ?? attackDamage;
         GameState.damageCharacter(targetId, attackDamage);
-        PixiBoard?.showHitEffect?.('character', targetId, attackDamage);
-        showToast(`${attacker.name} attacks ${target.name} for ${attackDamage}!`, 'combat');
+        PixiBoard?.showHitEffect?.('character', targetId, actualDamage);
+        showToast(`${attacker.name} attacks ${target.name} for ${actualDamage}!`, 'combat');
         if (retort) {
+          const retortDamage = GameState.previewCharacterDamage?.(attackerId, 2) ?? 2;
           GameState.damageCharacter(attackerId, 2);
-          PixiBoard?.showHitEffect?.('character', attackerId, 2);
-          showToast(`⚡ ${target.name}'s ${retort.name} strikes back for 2!`, 'combat');
+          PixiBoard?.showHitEffect?.('character', attackerId, retortDamage);
+          showToast(`⚡ ${target.name}'s ${retort.name} strikes back for ${retortDamage}!`, 'combat');
         }
       }
     }

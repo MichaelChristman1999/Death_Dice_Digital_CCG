@@ -9,6 +9,7 @@ const GameState = (() => {
   let _players = {};      // keyed by 'p1' | 'p2'
   let _currentTurn = 'p1';
   let _currentPhase = 'rolloff'; // 'rolloff' | 'etiquette' | 'combat'
+  let _phaseStep = 'rolloff';
   let _mana = 0;
   let _lastRoll = null;
   let _actionStack = [];  // for response resolution (LIFO)
@@ -17,9 +18,14 @@ const GameState = (() => {
   // Per-turn trackers (reset in advanceTurn)
   let _actionCardsPlayedThisTurn = 0;
   let _shopPurchasesThisTurn = 0;
+  const _NEGATIVE_STATUS_IDS = new Set([
+    'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
+    'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
+    'status_frozen', 'status_example_timed', 'status_example_permanent',
+  ]);
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  function init(gameData) {
+  function init(gameData, options = {}) {
     _data  = gameData;
     _rules = gameData.rules;
 
@@ -30,6 +36,7 @@ const GameState = (() => {
 
     _currentTurn  = 'p1';
     _currentPhase = 'rolloff';
+    _phaseStep    = 'rolloff';
     _mana         = 0;
     _lastRoll     = null;
     _actionStack  = [];
@@ -38,7 +45,7 @@ const GameState = (() => {
     _actionCardsPlayedThisTurn = 0;
     _shopPurchasesThisTurn = 0;
 
-    _saveToStorage();
+    if (!options.skipSave) _saveToStorage();
   }
 
   function _createPlayerState(id, label) {
@@ -46,6 +53,7 @@ const GameState = (() => {
       id,
       label,
       hp: _rules.startingPlayerHP ?? 20,
+      statuses: [],
       hand: { heroes: [], actions: [] },
       board: [],
       graveyard: [],
@@ -102,6 +110,13 @@ const GameState = (() => {
     _saveToStorage();
   }
 
+  function setPhaseStep(step) {
+    _phaseStep = step;
+    _saveToStorage();
+  }
+
+  function getPhaseStep() { return _phaseStep; }
+
   function advanceTurn() {
     const endingTurn = _currentTurn;
     _tickEvents = [];
@@ -109,6 +124,7 @@ const GameState = (() => {
     // End-of-turn expiry happens for the player who just acted. This keeps
     // Cripple/Impede active during the affected player's actual turn.
     [...(_players[endingTurn]?.board ?? [])].forEach(char => expireTurnStatuses(char));
+    expirePlayerStatuses(endingTurn);
 
     _currentTurn = getOpponentId(_currentTurn);
     _turnNumber++;
@@ -147,7 +163,7 @@ const GameState = (() => {
   // ── Character Instances ────────────────────────────────────────────────────
   function _createCharacterInstance(heroData) {
     _instanceCounter++;
-    return {
+    const instance = {
       instanceId: `char_${_instanceCounter}`,
       id: heroData.id,
       name: heroData.name,
@@ -162,6 +178,38 @@ const GameState = (() => {
       statuses: [],
       damageTokens: 0,
     };
+    _applyInnatePassives(instance, heroData);
+    return instance;
+  }
+
+  function _applyInnatePassives(instance, heroData) {
+    const passiveText = [
+      ...(heroData.passives ?? []).map(p => `${p.name ?? ''} ${p.description ?? ''}`),
+      heroData.docAbility ?? '',
+    ].join(' ');
+
+    if (/Mr\.?\s*Immutable/i.test(heroData.name ?? '')) {
+      instance._statusImmune = true;
+    }
+
+    if (/Durability/i.test(heroData.classType ?? '')) {
+      const overhealth = passiveText.match(/(\d+)\s*overhealth/i);
+      if (overhealth) {
+        const amount = Number(overhealth[1]);
+        instance.maxHp += amount;
+        instance.currentHp += amount;
+      }
+
+      const revive = passiveText.match(/respawn with\s*(\d+)\s*HP/i);
+      if (revive) {
+        instance._reviveHp = Number(revive[1]);
+        instance._reviveUsed = false;
+      }
+    }
+  }
+
+  function _shouldAutoAssignAbility(heroData) {
+    return !/^(Passive|Durability)$/i.test(heroData.classType ?? '');
   }
 
   // ── Deploy / Play ──────────────────────────────────────────────────────────
@@ -180,7 +228,7 @@ const GameState = (() => {
     // Preserve full hero data on the instance for ability lookups
     instance._sourceCard = card;
     // Attach a playable ability (role-based, flavored) — heroes in data have none
-    if (!instance.abilities?.length && typeof HeroAbilities !== 'undefined') {
+    if (!instance.abilities?.length && typeof HeroAbilities !== 'undefined' && _shouldAutoAssignAbility(card)) {
       instance.abilities = HeroAbilities.getFor(card);
     }
     p.board.push(instance);
@@ -197,10 +245,13 @@ const GameState = (() => {
     if (!card) return { ok: false, error: 'Card not in hand' };
 
     const isFree = card.manaCost === 0 || card.type === 'free';
+    if (_actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
+      return { ok: false, error: 'Only one action card per turn' };
+    }
+    if (card.id === 'action_blood_mana' && p.hp <= 3) {
+      return { ok: false, error: 'Blood Mana cannot be played at 3 HP or lower' };
+    }
     if (!isFree) {
-      if (_actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
-        return { ok: false, error: 'Only one paid action card per turn' };
-      }
       if (_mana < card.manaCost) return { ok: false, error: 'Not enough mana' };
     }
     return { ok: true, card, isFree };
@@ -218,8 +269,8 @@ const GameState = (() => {
 
     if (!check.isFree) {
       if (!spendMana(card.manaCost)) return { ok: false, error: 'Mana spend failed' };
-      _actionCardsPlayedThisTurn++;
     }
+    _actionCardsPlayedThisTurn++;
     p.hand.actions.splice(idx, 1);
     p.graveyard.push(card);
     _saveToStorage();
@@ -258,7 +309,8 @@ const GameState = (() => {
   // ── HP Manipulation ────────────────────────────────────────────────────────
   function damagePlayer(playerId, amount) {
     const p = _players[playerId];
-    p.hp = Math.max(0, p.hp - amount);
+    const dmg = previewPlayerDamage(playerId, amount);
+    p.hp = Math.max(0, p.hp - dmg);
     _saveToStorage();
     return p.hp;
   }
@@ -273,7 +325,8 @@ const GameState = (() => {
   function damageCharacter(instanceId, amount) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
-    char.currentHp -= amount;
+    const dmg = previewCharacterDamage(instanceId, amount);
+    char.currentHp -= dmg;
     if (char.currentHp <= 0) _killCharacter(instanceId);
     _saveToStorage();
     return char.currentHp;
@@ -282,15 +335,36 @@ const GameState = (() => {
   function healCharacter(instanceId, amount) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
+    if ((char.statuses ?? []).some(s => s.id === 'status_anemic')) return char.currentHp;
     char.currentHp = Math.min(char.maxHp, char.currentHp + amount);
     _saveToStorage();
     return char.currentHp;
+  }
+
+  function previewPlayerDamage(playerId, amount) {
+    const mult = hasPlayerStatus(playerId, 'status_crippled') ? 2 : 1;
+    return Math.max(0, amount * mult);
+  }
+
+  function previewCharacterDamage(instanceId, amount) {
+    const { char } = _findChar(instanceId);
+    const mult = (char?.statuses ?? []).some(s => s.id === 'status_crippled') ? 2 : 1;
+    return Math.max(0, amount * mult);
   }
 
   function _killCharacter(instanceId) {
     for (const p of Object.values(_players)) {
       const idx = p.board.findIndex(c => c.instanceId === instanceId);
       if (idx !== -1) {
+        const char = p.board[idx];
+        if (char._reviveHp && !char._reviveUsed) {
+          char._reviveUsed = true;
+          char.maxHp = Math.max(char.maxHp, char._reviveHp);
+          char.currentHp = char._reviveHp;
+          char.statuses = [];
+          _saveToStorage();
+          return;
+        }
         const [dead] = p.board.splice(idx, 1);
         p.graveyard.push(dead._sourceCard ?? { id: dead.id, name: dead.name });
         return;
@@ -322,6 +396,10 @@ const GameState = (() => {
 
     const def = _data.statusEffects.find(s => s.id === statusId);
     if (!def) return false;
+    if (char._statusImmune && _NEGATIVE_STATUS_IDS.has(statusId)) return false;
+    const ownerId = getCharacterOwner(instanceId);
+    if (isPlayerImmuneToStatus(ownerId, statusId)) return false;
+    if (statusId === 'status_impaired' && (char.baseAttack ?? 0) <= 1) return false;
 
     const existing = char.statuses.findIndex(s => s.id === statusId);
 
@@ -349,6 +427,43 @@ const GameState = (() => {
     return true;
   }
 
+  function applyPlayerStatus(playerId, statusId) {
+    const p = _players[playerId];
+    if (!p) return false;
+    if (isPlayerImmuneToStatus(playerId, statusId)) return false;
+    const def = _data.statusEffects.find(s => s.id === statusId);
+    if (!def) return false;
+    p.statuses ??= [];
+    const existing = p.statuses.findIndex(s => s.id === statusId);
+    if (existing !== -1) {
+      if (def.stackBehavior === 'stack') {
+        p.statuses[existing].stacks = (p.statuses[existing].stacks ?? 1) + 1;
+      } else if (def.stackBehavior === 'replace') {
+        p.statuses[existing] = { ...def, remainingDuration: def.duration };
+      } else if (def.stackBehavior === 'cancel') {
+        p.statuses.splice(existing, 1);
+      }
+    } else {
+      p.statuses.push({ ...def, remainingDuration: def.duration, stacks: 1 });
+    }
+    _saveToStorage();
+    return true;
+  }
+
+  function hasPlayerStatus(playerId, statusId) {
+    return _players[playerId]?.statuses?.some(s => s.id === statusId) ?? false;
+  }
+
+  function canPlayerReceiveStatus(playerId, statusId) {
+    if (!_players[playerId] || !statusId) return false;
+    if (isPlayerImmuneToStatus(playerId, statusId)) return false;
+    return !hasPlayerStatus(playerId, statusId);
+  }
+
+  function isPlayerImmuneToStatus(playerId, statusId) {
+    return !!playerId && statusId === 'status_charmed' && hasPlayerStatus(playerId, 'status_abstaining');
+  }
+
   // Damage-over-time statuses: id → damage per stack per tick
   const _DOT_STATUSES = { status_poisoned: 1, status_example_timed: 1 };
 
@@ -357,7 +472,7 @@ const GameState = (() => {
     for (const s of char.statuses) {
       const dot = _DOT_STATUSES[s.id];
       if (!dot) continue;
-      const dmg = dot * (s.stacks ?? 1);
+      const dmg = previewCharacterDamage(char.instanceId, dot * (s.stacks ?? 1));
       char.currentHp -= dmg;
       const died = char.currentHp <= 0;
       _tickEvents.push({
@@ -379,6 +494,19 @@ const GameState = (() => {
     char.statuses = char.statuses.filter(s => !toRemove.includes(s.id));
   }
 
+  function expirePlayerStatuses(playerId) {
+    const p = _players[playerId];
+    if (!p?.statuses) return;
+    const toRemove = [];
+    p.statuses.forEach(s => {
+      if (s.type === 'timed' && s.remainingDuration != null) {
+        s.remainingDuration--;
+        if (s.remainingDuration <= 0) toRemove.push(s.id);
+      }
+    });
+    p.statuses = p.statuses.filter(s => !toRemove.includes(s.id));
+  }
+
   // ── Effective Attack — base attack modified by statuses ───────────────────
   function getEffectiveAttack(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
@@ -386,14 +514,14 @@ const GameState = (() => {
     let atk = char.baseAttack ?? 0;
     for (const s of char.statuses ?? []) {
       if (s.id === 'status_augmented') atk += 2 * (s.stacks ?? 1);
-      if (s.id === 'status_anemic')    atk -= 2 * (s.stacks ?? 1);
+      if (s.id === 'status_impaired') atk -= (char.baseAttack ?? 0) === 2 ? 1 : 2;
     }
-    return Math.max(0, atk);
+    return Math.max(1, atk);
   }
 
   // Statuses that prevent a character from attacking / using abilities
-  const _NO_ATTACK  = ['status_crippled', 'status_impeded', 'status_frozen'];
-  const _NO_ABILITY = ['status_impaired', 'status_impeded', 'status_frozen'];
+  const _NO_ATTACK  = ['status_impeded', 'status_frozen'];
+  const _NO_ABILITY = ['status_impeded', 'status_frozen'];
 
   function canCharacterAttack(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
@@ -482,6 +610,7 @@ const GameState = (() => {
         players: _players,
         currentTurn: _currentTurn,
         currentPhase: _currentPhase,
+        phaseStep: _phaseStep,
         mana: _mana,
         lastRoll: _lastRoll,
         instanceCounter: _instanceCounter,
@@ -498,8 +627,10 @@ const GameState = (() => {
       if (!raw) return false;
       const saved = JSON.parse(raw);
       _players = saved.players;
+      Object.values(_players ?? {}).forEach(p => { p.statuses ??= []; });
       _currentTurn = saved.currentTurn;
       _currentPhase = saved.currentPhase;
+      _phaseStep = saved.phaseStep ?? (saved.currentPhase === 'rolloff' ? 'rolloff' : 'await_roll');
       _mana = saved.mana;
       _lastRoll = saved.lastRoll;
       _instanceCounter = saved.instanceCounter ?? 0;
@@ -524,6 +655,8 @@ const GameState = (() => {
     get currentTurn() { return _currentTurn; },
     get currentPhase() { return _currentPhase; },
     setPhase,
+    setPhaseStep,
+    getPhaseStep,
     advanceTurn,
     setLastRoll,
     getLastRoll,
@@ -537,14 +670,20 @@ const GameState = (() => {
     canCharacterUseAbility,
     discardForMana,
     damagePlayer,
+    previewPlayerDamage,
     healPlayer,
     damageCharacter,
+    previewCharacterDamage,
     healCharacter,
     tapCharacter,
     untapCharacter,
     applyStatus,
+    applyPlayerStatus,
     removeStatus,
     hasStatus,
+    hasPlayerStatus,
+    canPlayerReceiveStatus,
+    isPlayerImmuneToStatus,
     getCharacter,
     getCharacterOwner,
     getAllBoardCharacters,
