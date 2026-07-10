@@ -1,4 +1,4 @@
-// ─── Death Dice V2 — Action Card Pool ─────────────────────────────────────────
+// ─── Death Dice V2 — Action_Card Pool ─────────────────────────────────────────
 // Every card has TWO lives:
 //   CAST  — play it now for the printed effect (may need a target)
 //   RIG   — 1 mana, face-down onto a Death Row slot; when ANYONE rolls that
@@ -10,7 +10,7 @@
 
 const V2_CARDS = [
   {
-    id: 'abstain', name: 'Abstain', art: 'Action Card_Abstain.jpg', cost: 0,
+    id: 'abstain', name: 'Abstain', art: 'Action_Card_Abstain.jpg', cost: 0,
     castTarget: 'none',
     castText: 'Draw 2 cards.',
     rigText:  'EXECUTE: every other player discards 1 at random. You draw 2.',
@@ -21,7 +21,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'drain', name: 'Anemic Potion', art: 'Action Card_Anemic Potion.jpg', cost: 1,
+    id: 'drain', name: 'Anemic Potion', art: 'Action_Card_Anemic_Potion.jpg', cost: 1,
     castTarget: 'player',
     castText: 'Steal 2 HP from a player (they lose 2, you heal 2).',
     rigText:  'EXECUTE: drain ALL of the roller\'s mana this turn — you bank it as HP.',
@@ -34,7 +34,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'augment', name: 'Augment', art: 'Action Card_Augment.jpg', cost: 1,
+    id: 'augment', name: 'Augment', art: 'Action_Card_Augment.jpg', cost: 1,
     castTarget: 'player',
     castText: 'A player of your choice gains +3 mana right now.',
     rigText:  'EXECUTE: the roller gains +3 mana — and you draw 2 cards. (A public bribe.)',
@@ -49,7 +49,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'bloodmana', name: 'Blood Mana', art: 'Action Card_Blood Mana.jpg', cost: 0,
+    id: 'bloodmana', name: 'Blood Mana', art: 'Action_Card_Blood_Mana.jpg', cost: 0,
     castTarget: 'none',
     castText: 'Pay 2 HP: gain 3 mana.',
     rigText:  'EXECUTE: the roller bleeds 2 HP — you gain 2 mana (even off-turn, it banks).',
@@ -60,7 +60,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'bombs', name: 'Bombs Away', art: 'Action Card_Bombs Away.jpg', cost: 2,
+    id: 'bombs', name: 'Bombs Away', art: 'Action_Card_Bombs_Away.jpg', cost: 2,
     castTarget: 'player',
     castText: 'Deal 2 damage to a player.',
     rigText:  'EXECUTE: 3 damage to EVERY player except you. Table nuke.',
@@ -71,7 +71,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'cheese', name: 'Cheese Potion', art: 'Action Card_Cheese Potion.jpg', cost: 0,
+    id: 'cheese', name: 'Cheese Potion', art: 'Action_Card_Cheese_Potion.jpg', cost: 0,
     castTarget: 'none',
     castText: 'Roll on the Chaos Table. Anything can happen.',
     rigText:  'EXECUTE: DOUBLE chaos — roll on the Chaos Table twice.',
@@ -79,7 +79,7 @@ const V2_CARDS = [
     rigged: (C, owner) => { C.chaosTable(owner); C.chaosTable(owner); },
   },
   {
-    id: 'cleanse', name: 'Cleanse', art: 'Action Card_Cleanse.jpg', cost: 1,
+    id: 'cleanse', name: 'Cleanse', art: 'Action_Card_Cleanse.jpg', cost: 1,
     castTarget: 'slot',
     castText: 'Defuse: discard ALL cards on one Death Row slot.',
     rigText:  'EXECUTE: the entire Death Row detonates harmlessly — every slot is wiped.',
@@ -87,7 +87,7 @@ const V2_CARDS = [
     rigged: (C) => { C.wipeAllSlots(); C.toast('✨ CLEANSE — Death Row wiped clean!'); },
   },
   {
-    id: 'cripple', name: 'Cripple', art: 'Action Card_Cripple.jpg', cost: 1,
+    id: 'cripple', name: 'Cripple', art: 'Action_Card_Cripple.jpg', cost: 1,
     castTarget: 'player',
     castText: 'A player gets −3 mana on their next roll (min 0).',
     rigText:  'EXECUTE: the roller\'s turn ends IMMEDIATELY. No cards, no shop, gone.',
@@ -98,7 +98,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'riot', name: 'Damage Potion', art: 'Action Card_Damage Potion.jpg', cost: 1,
+    id: 'riot', name: 'Damage Potion', art: 'Action_Card_Damage_Potion.jpg', cost: 1,
     castTarget: 'player',
     castText: 'Deal 3 damage to a player.',
     rigText:  'EXECUTE: 5 damage to the roller. The classic landmine.',
@@ -106,7 +106,7 @@ const V2_CARDS = [
     rigged: (C, owner, roller) => { C.damage(roller, 5, 'Riot Punch trap'); },
   },
   {
-    id: 'drunk', name: 'Drunk Potion', art: 'Action Card_Drunk Potion.jpg', cost: 1,
+    id: 'drunk', name: 'Drunk Potion', art: 'Action_Card_Drunk_Potion.jpg', cost: 1,
     castTarget: 'player',
     castText: 'A player rolls TWO dice next turn and must keep the LOWER.',
     rigText:  'EXECUTE: the roller instantly re-rolls — the new number replaces this one AND fires its own slot.',
@@ -117,7 +117,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'exploit', name: 'Exploit', art: 'Action Card_Exploit.jpg', cost: 1,
+    id: 'exploit', name: 'Exploit', art: 'Action_Card_Exploit.jpg', cost: 1,
     castTarget: 'player',
     castText: 'Steal 2 mana from the active pool if it isn\'t yours — or 2 HP from any player.',
     rigText:  'EXECUTE: steal a random card from the roller\'s hand.',
@@ -125,7 +125,7 @@ const V2_CARDS = [
     rigged: (C, owner, roller) => { C.stealRandomCard(owner, roller); },
   },
   {
-    id: 'gas', name: 'Gas Potion', art: 'Action Card_Gas Potion.jpg', cost: 1,
+    id: 'gas', name: 'Gas Potion', art: 'Action_Card_Gas_Potion.jpg', cost: 1,
     castTarget: 'player',
     castText: 'Poison a player: 1 damage at the start of their next 3 turns.',
     rigText:  'EXECUTE: gas cloud — 2 damage to the roller AND both seat neighbours.',
@@ -136,7 +136,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'imp', name: 'Imp-Aired', art: 'Action Card_Imp-Aired.jpg', cost: 1,
+    id: 'imp', name: 'Imp-Aired', art: 'Action_Card_Imp-Aired.jpg', cost: 1,
     castTarget: 'player',
     castText: 'Peek at a player\'s hand and steal a card of your choice.',
     rigText:  'EXECUTE: the roller plays their whole next turn with their hand REVEALED.',
@@ -144,7 +144,7 @@ const V2_CARDS = [
     rigged: (C, owner, roller) => { C.setRevealed(roller); C.toast(`👁 ${C.name(roller)}'s hand will be PUBLIC next turn!`); },
   },
   {
-    id: 'impede', name: 'Impede', art: 'Action Card_Impede.jpg', cost: 1,
+    id: 'impede', name: 'Impede', art: 'Action_Card_Impede.jpg', cost: 1,
     castTarget: 'slot',
     castText: 'Freeze one Death Row slot — it cannot fire or be rigged until your next turn.',
     rigText:  'EXECUTE: the roller cannot RIG cards or CALL IT on their next turn.',
@@ -152,7 +152,7 @@ const V2_CARDS = [
     rigged: (C, owner, roller) => { C.setRigBlocked(roller); C.toast(`⛔ ${C.name(roller)} is blocked from rigging next turn!`); },
   },
   {
-    id: 'tribute', name: 'Love Potion', art: 'Action Card_Love Potion.jpg', cost: 1,
+    id: 'tribute', name: 'Love Potion', art: 'Action_Card_Love_Potion.jpg', cost: 1,
     castTarget: 'player',
     castText: 'A player must give you a card of THEIR choice. Tribute, publicly.',
     rigText:  'EXECUTE: the roller gives 2 random cards to whoever has the LEAST HP.',
@@ -164,7 +164,7 @@ const V2_CARDS = [
     },
   },
   {
-    id: 'reveal', name: 'Reveal', art: 'Action Card_Reveal.jpg', cost: 0,
+    id: 'reveal', name: 'Reveal', art: 'Action_Card_Reveal.jpg', cost: 0,
     castTarget: 'none',
     castText: 'Secretly peek at every face-down card on Death Row.',
     rigText:  'EXECUTE: flip ALL Death Row cards face-up. Everyone\'s plans, exposed.',
@@ -172,7 +172,7 @@ const V2_CARDS = [
     rigged: (C) => { C.exposeDeathRow(); C.toast('👁 DEATH ROW EXPOSED — every card flips face-up!'); },
   },
   {
-    id: 'vitalize', name: 'Vitalize', art: 'Action Card_Vitalize.jpg', cost: 1,
+    id: 'vitalize', name: 'Vitalize', art: 'Action_Card_Vitalize.jpg', cost: 1,
     castTarget: 'none',
     castText: 'Heal yourself 3 HP.',
     rigText:  'EXECUTE: the roller heals 4 HP. A blessing… or bait.',

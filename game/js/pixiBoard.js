@@ -7,7 +7,7 @@ const PixiBoard = (() => {
   // ── Asset paths ──────────────────────────────────────────────────────────────
   const HERO_DIR   = 'assets/cards/DD%20Character%20V7/';
   const ACTION_DIR = 'assets/cards/Action%20Card%20Test%20Export/';
-  const ACTION_DEF = 'Action%20Card.jpg';
+  const ACTION_DEF = 'Action_Card.jpg';
 
   // Encode spaces in filenames so browser fetches succeed
   const _encAsset = (s) => s ? s.replace(/ /g, '%20') : s;

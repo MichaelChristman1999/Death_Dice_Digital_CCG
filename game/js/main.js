@@ -342,7 +342,7 @@ function expandCard(card, type) {
         </div>
       </div>`;
   } else {
-    const aip = `assets/cards/Action Card Test Export/${card.imageAsset ?? 'Action Card.jpg'}`;
+    const aip = `assets/cards/Action Card Test Export/${card.imageAsset ?? 'Action_Card.jpg'}`;
     content.innerHTML = `
       <div class="card-detail-layout">
         <div class="card-detail-art action-art">

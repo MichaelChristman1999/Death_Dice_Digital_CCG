@@ -17,21 +17,21 @@ heroes: [
   {
     "id": "hero_aegalien",
     "name": "Aegalien",
-    "imageAsset": "DD_Aegalien.png",
+    "imageAsset": "DD_Cerulien.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 3, "role": "Fighter",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_aster_roid",
     "name": "Aster Roid",
-    "imageAsset": "DD_Aster Roid.png",
+    "imageAsset": "DD_Aster_Roid.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 4, "role": "Ranged",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_baller_ina",
     "name": "Baller-Ina",
-    "imageAsset": "DD_Baller Ina.png",
+    "imageAsset": "DD_Baller-Ina.png",
     "stage": "S1", "manaCost": 2, "hp": 8, "baseAttack": 3, "role": "Agile",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -45,28 +45,28 @@ heroes: [
   {
     "id": "hero_beeatrice",
     "name": "Beeatrice",
-    "imageAsset": "DD_Beeatrice.png",
+    "imageAsset": "DD_Buzz_Kill.png",
     "stage": "S1", "manaCost": 2, "hp": 9, "baseAttack": 2, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_breast_knuckle",
     "name": "Breast Knuckle",
-    "imageAsset": "DD_Breast Knuckle.png",
+    "imageAsset": "DD_Breast_Knuckle.png",
     "stage": "S1", "manaCost": 2, "hp": 11, "baseAttack": 4, "role": "Fighter",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_bro_chill",
     "name": "Bro Chill",
-    "imageAsset": "DD_Bro Chill.png",
+    "imageAsset": "DD_Aplombinable.png",
     "stage": "S1", "manaCost": 1, "hp": 8, "baseAttack": 2, "role": "Control",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_cath_eine",
     "name": "Cath-Eine",
-    "imageAsset": "DD_Cath Eine.png",
+    "imageAsset": "DD_Cath-eine.png",
     "stage": "S1", "manaCost": 2, "hp": 9, "baseAttack": 3, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -80,42 +80,42 @@ heroes: [
   {
     "id": "hero_chicki_barstooli",
     "name": "Chicki Barstooli",
-    "imageAsset": "DD_Chicki Barstooli.png",
+    "imageAsset": "DD_Chicki_Barstooli.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 3, "role": "Fighter",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_copy_cat",
     "name": "Copy Cat",
-    "imageAsset": "DD_Copy Cat.png",
+    "imageAsset": "DD_Copy-Cat.png",
     "stage": "S2", "manaCost": 3, "hp": 9, "baseAttack": 3, "role": "Trickster",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_cut_lass",
     "name": "Cut Lass",
-    "imageAsset": "DD_Cut Lass.png",
+    "imageAsset": "DD_Cut-Lass.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 4, "role": "Duelist",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_determinator",
     "name": "Determinator",
-    "imageAsset": "DD_Determinator.png",
+    "imageAsset": "DD_De-Terminator.png",
     "stage": "S2", "manaCost": 3, "hp": 13, "baseAttack": 4, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_disc_jockey",
     "name": "Disc Jockey",
-    "imageAsset": "DD_Disc Jockey.png",
+    "imageAsset": "DD_Disc_Jockey.png",
     "stage": "S1", "manaCost": 2, "hp": 9, "baseAttack": 3, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_dread_locks",
     "name": "Dread Locks",
-    "imageAsset": "DD_Dread Locks.png",
+    "imageAsset": "DD_Dread_Locks.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 3, "role": "Control",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -129,14 +129,14 @@ heroes: [
   {
     "id": "hero_fryborg",
     "name": "Fryborg",
-    "imageAsset": "DD_Fryborg.png",
+    "imageAsset": "DD_Fry-Borg.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 4, "role": "Ranged",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_geezer_freezer",
     "name": "Geezer Freezer",
-    "imageAsset": "DD_Geezer Freezer.png",
+    "imageAsset": "DD_Geezer_Freezer.png",
     "stage": "S2", "manaCost": 3, "hp": 14, "baseAttack": 3, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -150,28 +150,28 @@ heroes: [
   {
     "id": "hero_giant_jess",
     "name": "Giant Jess",
-    "imageAsset": "DD_Giant Jess.png",
+    "imageAsset": "DD_Giant_Tessa.png",
     "stage": "S3", "manaCost": 5, "hp": 18, "baseAttack": 6, "role": "Brute",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_goosebump",
     "name": "Goosebump",
-    "imageAsset": "DD_Goosebump.png",
+    "imageAsset": "DD_Goose_Bump.png",
     "stage": "S1", "manaCost": 2, "hp": 8, "baseAttack": 3, "role": "Agile",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_gorgon_zola",
     "name": "Gorgon Zola",
-    "imageAsset": "DD_Gorgon Zola.png",
+    "imageAsset": "DD_Gorgon_Zola.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 3, "role": "Control",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_hip_hop_papa",
     "name": "Hip Hop Papa",
-    "imageAsset": "DD_Hip Hop Papa.png",
+    "imageAsset": "DD_Hip_Hop_Papa.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 3, "role": "Duelist",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -185,35 +185,35 @@ heroes: [
   {
     "id": "hero_iron_maid",
     "name": "Iron Maid",
-    "imageAsset": "DD_Iron Maid.png",
+    "imageAsset": "DD_Iron_Maid.png",
     "stage": "S2", "manaCost": 3, "hp": 13, "baseAttack": 4, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_juju_jitsu",
     "name": "Juju Jitsu",
-    "imageAsset": "DD_Juju Jitsu.png",
+    "imageAsset": "DD_Juju_Jitsu.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 4, "role": "Fighter",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_kevlard",
     "name": "Kevlard",
-    "imageAsset": "DD_Kevlard.png",
+    "imageAsset": "DD_Kev-Lard.png",
     "stage": "S2", "manaCost": 3, "hp": 16, "baseAttack": 3, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_lassquach",
     "name": "Lassquach",
-    "imageAsset": "DD_Lassquach.png",
+    "imageAsset": "DD_Lassquatch.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 3, "role": "Trickster",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_lone_wolf",
     "name": "Lone Wolf",
-    "imageAsset": "DD_Lone Wolf.png",
+    "imageAsset": "DD_Lone_Wolf.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 5, "role": "Agile",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -227,49 +227,49 @@ heroes: [
   {
     "id": "hero_mob_barley",
     "name": "Mob Barley",
-    "imageAsset": "DD_Mob Barley.png",
+    "imageAsset": "DD_Don_Vino.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 4, "role": "Brute",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_mr_immutable",
     "name": "Mr. Immutable",
-    "imageAsset": "DD_Mr. Immutable.png",
+    "imageAsset": "DD_Mr._Immutable.png",
     "stage": "S3", "manaCost": 4, "hp": 14, "baseAttack": 3, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_mumma_mia",
     "name": "Mumma Mia",
-    "imageAsset": "DD_Mumma Mia.png",
+    "imageAsset": "DD_Mumma_Mia.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 3, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_prowl_ball",
     "name": "Prowl Ball",
-    "imageAsset": "DD_Prowl Ball.png",
+    "imageAsset": "DD_Prowl_Ball.png",
     "stage": "S1", "manaCost": 2, "hp": 10, "baseAttack": 3, "role": "Duelist",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_riff_wrath",
     "name": "Riff Wrath",
-    "imageAsset": "DD_Riff Wrath.png",
+    "imageAsset": "DD_Riff_Wrath.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 4, "role": "Fighter",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_ruby_goldberg",
     "name": "Ruby Goldberg",
-    "imageAsset": "DD_Ruby Goldberg.png",
+    "imageAsset": "DD_Ruby_Goldberg.png",
     "stage": "S2", "manaCost": 3, "hp": 10, "baseAttack": 3, "role": "Ranged",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_shell_shocked",
     "name": "Shell Shocked",
-    "imageAsset": "DD_Shell Shocked.png",
+    "imageAsset": "DD_Shell-Shock.png",
     "stage": "S2", "manaCost": 3, "hp": 15, "baseAttack": 3, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -283,7 +283,7 @@ heroes: [
   {
     "id": "hero_sir_ringe",
     "name": "Sir Ringe",
-    "imageAsset": "DD_Sir Ringe.png",
+    "imageAsset": "DD_Sir_Ringe.png",
     "stage": "S1", "manaCost": 2, "hp": 9, "baseAttack": 3, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -297,21 +297,21 @@ heroes: [
   {
     "id": "hero_stallwart",
     "name": "Stallwart",
-    "imageAsset": "DD_Stallwart.png",
+    "imageAsset": "DD_Stall-Wart.png",
     "stage": "S2", "manaCost": 3, "hp": 16, "baseAttack": 3, "role": "Tank",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_trollnet",
     "name": "Trollnet",
-    "imageAsset": "DD_Trollnet.png",
+    "imageAsset": "DD_Cyber_Trolly.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 4, "role": "Control",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_trophy_wife",
     "name": "Trophy Wife",
-    "imageAsset": "DD_Trophy Wife.png",
+    "imageAsset": "DD_Trophy_Wife.png",
     "stage": "S2", "manaCost": 3, "hp": 10, "baseAttack": 3, "role": "Duelist",
     "passives": [], "abilities": [], "flavorText": ""
   },
@@ -325,35 +325,35 @@ heroes: [
   {
     "id": "hero_val_cano",
     "name": "Val Cano",
-    "imageAsset": "DD_Val Cano.png",
+    "imageAsset": "DD_Volley-Cano.png",
     "stage": "S2", "manaCost": 3, "hp": 12, "baseAttack": 4, "role": "Ranged",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_wei_fu",
     "name": "Wei Fu",
-    "imageAsset": "DD_Wei Fu.png",
+    "imageAsset": "DD_Wife_Fu.png",
     "stage": "S2", "manaCost": 3, "hp": 10, "baseAttack": 4, "role": "Agile",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_wind_breaker",
     "name": "Wind Breaker",
-    "imageAsset": "DD_Wind Breaker.png",
+    "imageAsset": "DD_Wind_Breaker.png",
     "stage": "S2", "manaCost": 3, "hp": 11, "baseAttack": 3, "role": "Ranged",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_yeast_priest",
     "name": "Yeast Priest",
-    "imageAsset": "DD_Yeast Priest.png",
+    "imageAsset": "DD_Yeast_Priest.png",
     "stage": "S1", "manaCost": 2, "hp": 9, "baseAttack": 2, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   },
   {
     "id": "hero_zoom_stick",
     "name": "Zoom Stick",
-    "imageAsset": "DD_Zoom Stick.png",
+    "imageAsset": "DD_Zoomstick.png",
     "stage": "S1", "manaCost": 2, "hp": 8, "baseAttack": 3, "role": "Support",
     "passives": [], "abilities": [], "flavorText": ""
   }
@@ -364,7 +364,7 @@ actions: [
   {
     "id": "action_abstain",
     "name": "Abstain",
-    "imageAsset": "Action Card_Abstain.jpg",
+    "imageAsset": "Action_Card_Abstain.jpg",
     "manaCost": 0,
     "type": "free",
     "effect": "draw_cards",
@@ -377,7 +377,7 @@ actions: [
   {
     "id": "action_anemic_potion",
     "name": "Anemic Potion",
-    "imageAsset": "Action Card_Anemic Potion.jpg",
+    "imageAsset": "Action_Card_Anemic_Potion.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -390,7 +390,7 @@ actions: [
   {
     "id": "action_augment",
     "name": "Augment",
-    "imageAsset": "Action Card_Augment.jpg",
+    "imageAsset": "Action_Card_Augment.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -403,7 +403,7 @@ actions: [
   {
     "id": "action_blood_mana",
     "name": "Blood Mana",
-    "imageAsset": "Action Card_Blood Mana.jpg",
+    "imageAsset": "Action_Card_Blood_Mana.jpg",
     "manaCost": 0,
     "type": "free",
     "effect": "heal",
@@ -416,7 +416,7 @@ actions: [
   {
     "id": "action_bombs_away",
     "name": "Bombs Away",
-    "imageAsset": "Action Card_Bombs Away.jpg",
+    "imageAsset": "Action_Card_Bombs_Away.jpg",
     "manaCost": 2,
     "type": "paid",
     "effect": "cascade_damage",
@@ -429,7 +429,7 @@ actions: [
   {
     "id": "action_cheese_potion",
     "name": "Cheese Potion",
-    "imageAsset": "Action Card_Cheese Potion.jpg",
+    "imageAsset": "Action_Card_Cheese_Potion.jpg",
     "manaCost": 0,
     "type": "free",
     "effect": "random_effect",
@@ -442,7 +442,7 @@ actions: [
   {
     "id": "action_cleanse",
     "name": "Cleanse",
-    "imageAsset": "Action Card_Cleanse.jpg",
+    "imageAsset": "Action_Card_Cleanse.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "remove_status",
@@ -455,7 +455,7 @@ actions: [
   {
     "id": "action_cripple",
     "name": "Cripple",
-    "imageAsset": "Action Card_Cripple.jpg",
+    "imageAsset": "Action_Card_Cripple.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -468,7 +468,7 @@ actions: [
   {
     "id": "action_damage_potion",
     "name": "Damage Potion",
-    "imageAsset": "Action Card_Damage Potion.jpg",
+    "imageAsset": "Action_Card_Damage_Potion.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "deal_damage",
@@ -481,7 +481,7 @@ actions: [
   {
     "id": "action_drunk_potion",
     "name": "Drunk Potion",
-    "imageAsset": "Action Card_Drunk Potion.jpg",
+    "imageAsset": "Action_Card_Drunk_Potion.jpg",
     "manaCost": 0,
     "type": "free",
     "effect": "apply_status",
@@ -494,7 +494,7 @@ actions: [
   {
     "id": "action_exploit",
     "name": "Exploit",
-    "imageAsset": "Action Card_Exploit.jpg",
+    "imageAsset": "Action_Card_Exploit.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "deal_damage",
@@ -507,7 +507,7 @@ actions: [
   {
     "id": "action_gas_potion",
     "name": "Gas Potion",
-    "imageAsset": "Action Card_Gas Potion.jpg",
+    "imageAsset": "Action_Card_Gas_Potion.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -520,7 +520,7 @@ actions: [
   {
     "id": "action_imp_aired",
     "name": "Imp-Aired",
-    "imageAsset": "Action Card_Imp-Aired.jpg",
+    "imageAsset": "Action_Card_Imp-Aired.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -533,7 +533,7 @@ actions: [
   {
     "id": "action_impede",
     "name": "Impede",
-    "imageAsset": "Action Card_Impede.jpg",
+    "imageAsset": "Action_Card_Impede.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "apply_status",
@@ -546,7 +546,7 @@ actions: [
   {
     "id": "action_love_potion",
     "name": "Love Potion",
-    "imageAsset": "Action Card_Love Potion.jpg",
+    "imageAsset": "Action_Card_Love_Potion.jpg",
     "manaCost": 2,
     "type": "paid",
     "effect": "control_character",
@@ -559,7 +559,7 @@ actions: [
   {
     "id": "action_reveal",
     "name": "Reveal",
-    "imageAsset": "Action Card_Reveal.jpg",
+    "imageAsset": "Action_Card_Reveal.jpg",
     "manaCost": 0,
     "type": "free",
     "effect": "draw_cards",
@@ -572,7 +572,7 @@ actions: [
   {
     "id": "action_vitalize",
     "name": "Vitalize",
-    "imageAsset": "Action Card_Vitalize.jpg",
+    "imageAsset": "Action_Card_Vitalize.jpg",
     "manaCost": 1,
     "type": "paid",
     "effect": "heal",
