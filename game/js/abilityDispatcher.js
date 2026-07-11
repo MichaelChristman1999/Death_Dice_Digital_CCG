@@ -12,7 +12,7 @@ const AbilityDispatcher = (() => {
   const NEGATIVE_IDS = new Set([
     'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
-    'status_frozen', 'status_example_timed', 'status_example_permanent',
+    'status_frozen', 'status_rabies', 'status_locked_out', 'status_example_timed', 'status_example_permanent',
   ]);
 
   const _hasNegative = (char) => (char?.statuses ?? []).some(s => NEGATIVE_IDS.has(s.id));
@@ -23,9 +23,35 @@ const AbilityDispatcher = (() => {
   const _impairBlockReason = () => "Can't impair enemy hero as base attack is already min value.";
   const _playerIsDamaged = (pid) => {
     const p = GameState.getPlayerState(pid);
-    const maxHp = GameData?.rules?.startingPlayerHP ?? 20;
+    const maxHp = GameData?.rules?.startingPlayerHP ?? 40;
     return !!p && p.hp < maxHp;
   };
+  const _playerHasNegative = (pid) =>
+    (GameState.getPlayerState(pid)?.statuses ?? []).some(s => NEGATIVE_IDS.has(s.id));
+  const _outgoingDamage = (playerId, amount) =>
+    GameState.applyCaptainDamageBonus?.(playerId, amount) ?? amount;
+
+  function _cleanseCharacter(instanceId, options = {}) {
+    const except = new Set(options.except ?? []);
+    const char = GameState.getCharacter(instanceId);
+    if (!char) return 0;
+    const ids = [...new Set((char.statuses ?? [])
+      .map(s => s.id)
+      .filter(id => NEGATIVE_IDS.has(id) && !except.has(id)))];
+    ids.forEach(id => StatusEngine.remove(instanceId, id));
+    return ids.length;
+  }
+
+  function _cleansePlayer(playerId, options = {}) {
+    const except = new Set(options.except ?? []);
+    const p = GameState.getPlayerState(playerId);
+    if (!p) return 0;
+    const ids = [...new Set((p.statuses ?? [])
+      .map(s => s.id)
+      .filter(id => NEGATIVE_IDS.has(id) && !except.has(id)))];
+    ids.forEach(id => GameState.removePlayerStatus?.(playerId, id));
+    return ids.length;
+  }
 
   function _canReceiveStatus(char, statusId) {
     if (!statusId) return true;
@@ -43,7 +69,7 @@ const AbilityDispatcher = (() => {
 
   function _cardTargetFilter(card) {
     if (card.effect === 'remove_status') return _hasNegative;
-    if (card.effect === 'heal') return _isDamaged;
+    if (card.effect === 'heal') return card.id === 'action_vitalize' ? (() => true) : _isDamaged;
     if (card.effect === 'apply_status') return (char) => _canReceiveStatus(char, card.statusApplied?.[0]);
     return null;
   }
@@ -128,7 +154,7 @@ const AbilityDispatcher = (() => {
 
       case 'single_enemy_with_status': {
         const valid = enemyChars.filter(c => (c.statuses?.length ?? 0) > 0);
-        if (valid.length === 0) { showToast('Exploit needs an enemy with a status effect on it.', 'warn'); return; }
+        if (valid.length === 0) { showToast(`${card.name} needs a statused enemy.`, 'warn'); return; }
         return _pickTarget(ownerId, 'enemy_chars', (c) => (c.statuses?.length ?? 0) > 0,
           `${card.name}: click an enemy with a status effect`, commit);
       }
@@ -143,6 +169,19 @@ const AbilityDispatcher = (() => {
         }
         return _pickTarget(ownerId, allowSelfPlayer ? 'ally_or_self' : 'ally_chars', filter,
           `${card.name}: click a friendly ${allowSelfPlayer ? 'character (or your own HP icon)' : 'character'}`, commit);
+      }
+
+      case 'ally_any': {
+        const filter = _cardTargetFilter(card);
+        const validAllies = filter ? allyChars.filter(filter) : allyChars;
+        const selfIsValid = card.effect === 'remove_status'
+          ? _playerHasNegative(ownerId)
+          : true;
+        if (validAllies.length === 0 && !selfIsValid) {
+          showToast(`No valid targets for ${card.name}.`, 'warn'); return;
+        }
+        return _pickTarget(ownerId, 'ally_any', filter,
+          `${card.name}: choose ally or player`, commit);
       }
 
       // Everything else resolves immediately, no target click needed
@@ -163,7 +202,7 @@ const AbilityDispatcher = (() => {
     }
     if (card.effect === 'draw_cards') {
       const p = GameState.getPlayerState(ownerId);
-      const limit = GameData?.rules?.handLimits?.action ?? 5;
+      const limit = GameData?.rules?.handLimits?.action ?? 8;
       if ((p?.hand?.actions?.length ?? 0) >= limit) {
         return { ok: false, reason: 'Your action hand is full.' };
       }
@@ -176,6 +215,11 @@ const AbilityDispatcher = (() => {
     if (card.effect === 'cascade_damage') return _canResolveImmediateAction(card, ownerId, oppId);
 
     if (card.effect === 'remove_status') {
+      if (target?.type === 'player') {
+        return _playerHasNegative(target.id)
+          ? { ok: true }
+          : { ok: false, reason: `${GameState.getPlayerLabel(target.id)} has no debuffs.` };
+      }
       const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
       return _hasNegative(t)
         ? { ok: true }
@@ -184,13 +228,13 @@ const AbilityDispatcher = (() => {
 
     if (card.effect === 'heal') {
       if (target?.type === 'player') {
-        return _playerIsDamaged(target.id)
+        return (card.id === 'action_vitalize' || _playerIsDamaged(target.id))
           ? { ok: true }
           : { ok: false, reason: `${GameState.getPlayerLabel(target.id)} is already at full HP.` };
       }
       const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
       if (_isAnemic(t)) return { ok: false, reason: _healBlockReason(t) };
-      return _isDamaged(t)
+      return (card.id === 'action_vitalize' || _isDamaged(t))
         ? { ok: true }
         : { ok: false, reason: `${t?.name ?? 'That target'} is already at full HP.` };
     }
@@ -209,6 +253,32 @@ const AbilityDispatcher = (() => {
       return t && _canReceiveStatus(t, statusId)
         ? { ok: true }
         : { ok: false, reason: `${card.name} needs an enemy that does not already have that status.` };
+    }
+
+    if (card.effect === 'augment') {
+      if (target?.type === 'player') {
+        return target.id === ownerId
+          ? { ok: true }
+          : { ok: false, reason: 'Augment must target your own player or hero.' };
+      }
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      const targetOwner = t ? GameState.getCharacterOwner?.(t.instanceId) : null;
+      return t && targetOwner === ownerId
+        ? { ok: true }
+        : { ok: false, reason: 'Augment must target your own player or hero.' };
+    }
+
+    if (['accelerate', 'sidestep', 'rabies'].includes(card.effect)) {
+      const statusId = card.statusApplied?.[0];
+      if (target?.type === 'player') {
+        return GameState.canPlayerReceiveStatus?.(target.id, statusId) || GameState.hasPlayerStatus?.(target.id, statusId)
+          ? { ok: true }
+          : { ok: false, reason: `${card.name} needs a valid player target.` };
+      }
+      const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
+      return t && (_canReceiveStatus(t, statusId) || _hasStatus(t, statusId))
+        ? { ok: true }
+        : { ok: false, reason: `${card.name} needs a valid target.` };
     }
 
     if (card.effect === 'control_character') {
@@ -241,10 +311,10 @@ const AbilityDispatcher = (() => {
 
     // ── Special cards first ──────────────────────────────────────────────────
     if (card.id === 'action_blood_mana') {
-      GameState.damagePlayer(playerId, 3);
-      GameState.gainMana(3);
-      PixiBoard?.showHitEffect?.('player', playerId, 3);
-      showToast('🩸 Blood Mana: sacrificed 3 HP for 3 mana!', 'combat');
+      GameState.damagePlayer(playerId, 5);
+      const gained = GameState.gainMana(5, playerId);
+      PixiBoard?.showHitEffect?.('player', playerId, 5);
+      showToast(`Blood Mana: +${gained} mana.`, 'combat');
       return;
     }
     if (card.id === 'action_reveal') {
@@ -263,21 +333,76 @@ const AbilityDispatcher = (() => {
     }
 
     switch (card.effect) {
+      case 'accelerate': {
+        const sid = 'status_accelerated';
+        if (target?.type === 'character') {
+          const t = GameState.getCharacter(target.id);
+          GameState.removeStatus?.(target.id, 'status_impeded');
+          GameState.removeStatus?.(target.id, 'status_frozen');
+          StatusEngine.apply(target.id, sid);
+          showToast(`${t?.name ?? 'Ally'} accelerated.`, 'info');
+        } else if (target?.type === 'player') {
+          GameState.removePlayerStatus?.(target.id, 'status_impeded');
+          GameState.removePlayerStatus?.(target.id, 'status_frozen');
+          GameState.applyPlayerStatus?.(target.id, sid);
+          showToast(`${GameState.getPlayerLabel(target.id)} accelerated.`, 'info');
+        }
+        break;
+      }
+
+      case 'augment': {
+        const sid = card.statusApplied?.[0] ?? 'status_augmented';
+        const gained = GameState.gainMana?.(value || 2, playerId, { source: 'augment' }) ?? 0;
+        const result = _applyStatusToTarget(target, sid, { allowSafeguard: false, splashCaptain: false });
+        const targetName = target?.type === 'player'
+          ? GameState.getPlayerLabel(target.id)
+          : GameState.getCharacter(target?.id)?.name;
+        showToast(result.applied
+          ? `Augment: +${gained} mana and ${targetName ?? 'target'} gains +2 damage.`
+          : `Augment: +${gained} mana, but the buff did not land.`,
+          'info');
+        break;
+      }
+
       case 'cascade_damage': {
+        const damage = _outgoingDamage(playerId, value);
         const enemies = [...GameState.getPlayerState(oppId).board];
-        enemies.forEach(c => {
-          const dmg = GameState.previewCharacterDamage?.(c.instanceId, value) ?? value;
-          GameState.damageCharacter(c.instanceId, value);
-          PixiBoard?.showHitEffect?.('character', c.instanceId, dmg);
-        });
-        const playerDmg = GameState.previewPlayerDamage?.(oppId, value) ?? value;
-        GameState.damagePlayer(oppId, value);
-        PixiBoard?.showHitEffect?.('player', oppId, playerDmg);
-        showToast(`${card.name}: ${value} damage to all enemy characters and ${playerDmg} to ${GameState.getPlayerLabel(oppId)}!`, 'combat');
+        enemies.forEach(c => _showDamageHit(
+          GameState.damageTarget?.({ type: 'character', id: c.instanceId }, damage, { allowSafeguard: false })
+            ?? _fallbackDamageTarget({ type: 'character', id: c.instanceId }, damage)
+        ));
+        const playerHit = GameState.damageTarget?.({ type: 'player', id: oppId }, damage, { allowSafeguard: false, splashCaptain: false })
+          ?? _fallbackDamageTarget({ type: 'player', id: oppId }, damage);
+        _showDamageHit(playerHit);
+        showToast(`${card.name}: ${damage} damage to all enemies.`, 'combat');
+        break;
+      }
+
+      case 'cryofreeze': {
+        const event = RollEngine.rollEvent?.(playerId) ?? { roll: RollEngine.rollDie() };
+        _showDieEventDamage(event, playerId);
+        const roll = event.roll;
+        const own = GameState.getPlayerState(playerId);
+        if (roll >= 4) {
+          GameState.healPlayer(playerId, value);
+          own.board.forEach(c => GameState.healCharacter(c.instanceId, value, { overheal: true }));
+          showToast(`Cryofreeze armor: +${value}.`, 'info');
+        } else {
+          GameState.damagePlayer(playerId, 1);
+          PixiBoard?.showHitEffect?.('player', playerId, 1);
+          GameState.applyPlayerStatus?.(playerId, 'status_frozen');
+          own.board.forEach(c => {
+            GameState.damageCharacter(c.instanceId, 1);
+            StatusEngine.apply(c.instanceId, 'status_frozen');
+            PixiBoard?.showHitEffect?.('character', c.instanceId, 1);
+          });
+          showToast('Frozen next turn.', 'warn');
+        }
         break;
       }
 
       case 'deal_damage': {
+        const damage = _outgoingDamage(playerId, value);
         /*
         if (false) {
           const enemies = [...GameState.getPlayerState(oppId).board];
@@ -289,16 +414,41 @@ const AbilityDispatcher = (() => {
           showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage to all enemies!`, 'combat');
         } else */ if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          const dmg = GameState.previewCharacterDamage?.(target.id, value) ?? value;
-          GameState.damageCharacter(target.id, value);
-          PixiBoard?.showHitEffect?.('character', target.id, dmg);
-          showToast(`💥 ${card.name} hits ${t?.name ?? 'enemy'} for ${dmg}!`, 'combat');
+          const hit = GameState.damageTarget?.(target, damage) ?? _fallbackDamageTarget(target, damage);
+          _showDamageHit(hit);
+          showToast(hit.safeguarded ? `${card.name} hits Safeguard.` : `${card.name} hits ${t?.name ?? 'enemy'}.`, 'combat');
         } else if (target?.type === 'player') {
-          const dmg = GameState.previewPlayerDamage?.(target.id, value) ?? value;
-          GameState.damagePlayer(target.id, value);
-          PixiBoard?.showHitEffect?.('player', target.id, dmg);
-          showToast(`💥 ${card.name} hits ${GameState.getPlayerLabel(target.id)} for ${dmg}!`, 'combat');
+          const hit = GameState.damageTarget?.(target, damage) ?? _fallbackDamageTarget(target, damage);
+          _showDamageHit(hit);
+          showToast(hit.safeguarded ? `${card.name} hits Safeguard.` : `${card.name} hits player.`, 'combat');
         }
+        break;
+      }
+
+      case 'multi_damage': {
+        const damage = _outgoingDamage(playerId, value);
+        const pool = [
+          ...GameState.getPlayerState(oppId).board.map(c => ({ type: 'character', id: c.instanceId, name: c.name })),
+          { type: 'player', id: oppId, name: GameState.getPlayerLabel(oppId) },
+        ];
+        const hits = [];
+        if (target) hits.push(target);
+        const remaining = pool.filter(t => !(t.type === target?.type && t.id === target?.id));
+        if (remaining.length) hits.push(remaining[Math.floor(Math.random() * remaining.length)]);
+
+        const safeguard = GameState.getSafeguardCaptain?.(oppId, hits[0]);
+        if (safeguard) {
+          const hit = GameState.damageTarget?.(hits[0], damage, { safeguardDamage: 5, multiTarget: true })
+            ?? _fallbackDamageTarget({ type: 'character', id: safeguard.instanceId }, 5);
+          _showDamageHit(hit);
+          showToast('Safeguard stops second hit.', 'combat');
+          break;
+        }
+
+        hits.slice(0, 2).forEach(hitTarget => _showDamageHit(
+          GameState.damageTarget?.(hitTarget, damage) ?? _fallbackDamageTarget(hitTarget, damage)
+        ));
+        showToast(`Damage Potion hits ${hits.length}.`, 'combat');
         break;
       }
 
@@ -329,11 +479,13 @@ const AbilityDispatcher = (() => {
       case 'heal': {
         if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          GameState.healCharacter(target.id, value);
-          showToast(`💖 ${card.name} heals ${t?.name ?? 'ally'} for ${value}!`, 'info');
+          GameState.healCharacter(target.id, value, { overheal: card.id === 'action_vitalize' });
+          if (card.id === 'action_vitalize') _cleanseCharacter(target.id, { except: ['status_rabies'] });
+          showToast(`${card.name} heals ${t?.name ?? 'ally'} ${value}.`, 'info');
         } else if (target?.type === 'player') {
           GameState.healPlayer(target.id, value);
-          showToast(`💖 ${card.name} heals ${GameState.getPlayerLabel(target.id)} for ${value} HP!`, 'info');
+          if (card.id === 'action_vitalize') _cleansePlayer(target.id, { except: ['status_rabies'] });
+          showToast(`${card.name} heals ${GameState.getPlayerLabel(target.id)} ${value}.`, 'info');
         }
         break;
       }
@@ -341,25 +493,31 @@ const AbilityDispatcher = (() => {
       case 'apply_status': {
         const sid = card.statusApplied?.[0];
         if (sid && target?.type === 'character') {
-          const t = GameState.getCharacter(target.id);
-          if (StatusEngine.apply(target.id, sid)) {
+          const result = _applyStatusToTarget(target, sid);
+          const t = GameState.getCharacter(result.id ?? target.id);
+          if (result.applied) {
             showToast(`${_statusSym(sid)} ${t?.name ?? 'Target'} is now ${_statusName(sid)}!`, 'combat');
           }
         } else if (sid && target?.type === 'player') {
-          if (GameState.applyPlayerStatus?.(target.id, sid)) {
-            showToast(`${_statusSym(sid)} ${GameState.getPlayerLabel(target.id)} is now ${_statusName(sid)}!`, 'combat');
+          const result = _applyStatusToTarget(target, sid, { splashCaptain: true });
+          if (result.applied) {
+            const label = result.type === 'player'
+              ? GameState.getPlayerLabel(result.id)
+              : GameState.getCharacter(result.id)?.name;
+            showToast(`${_statusSym(sid)} ${label ?? 'Target'} is now ${_statusName(sid)}!`, 'combat');
           }
         }
         break;
       }
 
-      case 'remove_status': { // Cleanse — strip all negative statuses
+      case 'remove_status': {
         if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          const removed = StatusEngine.removeAllNegative(target.id);
-          showToast(removed > 0
-            ? `✨ Cleansed ${removed} status effect${removed > 1 ? 's' : ''} from ${t?.name}!`
-            : `${t?.name} had nothing to cleanse — mana well spent?`, 'info');
+          const removed = _cleanseCharacter(target.id);
+          showToast(removed > 0 ? `Cleansed ${t?.name}.` : 'No debuffs found.', 'info');
+        } else if (target?.type === 'player') {
+          const removed = _cleansePlayer(target.id);
+          showToast(removed > 0 ? `Cleansed ${GameState.getPlayerLabel(target.id)}.` : 'No debuffs found.', 'info');
         }
         break;
       }
@@ -377,89 +535,176 @@ const AbilityDispatcher = (() => {
         break;
       }
 
-      case 'control_character': { // Love Potion — charmed enemy turns on its owner
+      case 'rabies': {
+        _applyRabies(target, oppId);
+        break;
+      }
+
+      case 'sidestep': {
+        const sid = 'status_sidestep';
         if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          if (t && _canReceiveStatus(t, 'status_charmed')) {
-            const dmg = GameState.getEffectiveAttack(t);
-            StatusEngine.apply(target.id, 'status_charmed');
-            GameState.damagePlayer(oppId, dmg);
-            GameState.tapCharacter(target.id);
-            PixiBoard?.showHitEffect?.('player', oppId, dmg);
-            showToast(`💕 ${t.name} is charmed — and attacks its own player for ${dmg}!`, 'combat');
-          }
+          StatusEngine.apply(target.id, sid);
+          showToast(`${t?.name ?? 'Ally'} sidesteps.`, 'info');
+        } else if (target?.type === 'player') {
+          GameState.applyPlayerStatus?.(target.id, sid);
+          showToast(`${GameState.getPlayerLabel(target.id)} sidesteps.`, 'info');
         }
         break;
       }
 
+      case 'control_character': {
+        if (target?.type === 'character') {
+          const result = _applyStatusToTarget(target, 'status_charmed');
+          const charmed = result.type === 'character' ? GameState.getCharacter(result.id) : null;
+          if (result.applied && charmed) {
+            const dmg = _outgoingDamage(playerId, GameState.getEffectiveAttack(charmed));
+            const hit = GameState.damageTarget?.({ type: 'player', id: oppId }, dmg)
+              ?? _fallbackDamageTarget({ type: 'player', id: oppId }, dmg);
+            GameState.tapCharacter(charmed.instanceId);
+            _showDamageHit(hit);
+            showToast(`Love Potion: ${charmed.name} turns on their own player.`, 'combat');
+          }
+        }
+        break;
+      }
       default:
         console.warn(`[AbilityDispatcher] Unknown card effect: ${card.effect}`);
         showToast(`${card.name} fizzles… (unknown effect)`, 'warn');
     }
   }
 
+  function _applyStatusToTarget(target, statusId, options = {}) {
+    if (GameState.applyStatusToTarget) return GameState.applyStatusToTarget(target, statusId, options);
+    if (target?.type === 'character') {
+      const applied = StatusEngine.apply(target.id, statusId);
+      return { type: 'character', id: target.id, statusId, applied };
+    }
+    if (target?.type === 'player') {
+      const applied = GameState.applyPlayerStatus?.(target.id, statusId, { splashCaptain: options.splashCaptain ?? true });
+      return { type: 'player', id: target.id, statusId, applied };
+    }
+    return { applied: false };
+  }
+
+  function _applyRabies(target, oppId) {
+    if (!target) return;
+    ['status_poisoned', 'status_crippled', 'status_rabies'].forEach(sid => _applyStatusToTarget(target, sid));
+    const pool = [
+      ...GameState.getPlayerState(oppId).board.map(c => ({ type: 'character', id: c.instanceId, name: c.name })),
+      { type: 'player', id: oppId, name: GameState.getPlayerLabel(oppId) },
+    ].filter(t => !(t.type === target.type && t.id === target.id));
+    if (pool.length) {
+      const spread = pool[Math.floor(Math.random() * pool.length)];
+      ['status_poisoned', 'status_crippled', 'status_rabies'].forEach(sid => _applyStatusToTarget(spread, sid));
+      showToast('Rabies spreads.', 'combat');
+    } else {
+      showToast('Rabies applied.', 'combat');
+    }
+  }
+
+  function _showDieEventDamage(event, playerId) {
+    if (!event || !playerId) return;
+    if (event.playerDamage) {
+      PixiBoard?.showHitEffect?.('player', playerId, event.playerDamage);
+      showToast('Die consequence hits.', 'combat');
+    }
+    event.characterHits?.forEach(hit => {
+      PixiBoard?.showHitEffect?.('character', hit.instanceId, hit.damage);
+    });
+    if (event.characterHits?.length) showToast('Bomb hits field.', 'combat');
+  }
+
+  function _showDamageHit(hit) {
+    if (!hit) return;
+    PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage ?? hit.amount ?? 0);
+  }
+
+  function _fallbackDamageTarget(target, amount) {
+    if (target?.type === 'player') {
+      const actual = GameState.previewPlayerDamage?.(target.id, amount) ?? amount;
+      const hp = GameState.damagePlayer(target.id, amount, { splashCaptain: true });
+      return { type: 'player', id: target.id, amount, actualDamage: actual, hp };
+    }
+    if (target?.type === 'character') {
+      const actual = GameState.previewCharacterDamage?.(target.id, amount) ?? amount;
+      const hp = GameState.damageCharacter(target.id, amount);
+      return { type: 'character', id: target.id, amount, actualDamage: actual, hp };
+    }
+    return null;
+  }
+
   // Cheese Potion chaos table — every result does something real
   function _cheesePotion(playerId, oppId) {
-    const roll = RollEngine.rollDie();
+    const event = RollEngine.rollEvent?.(playerId) ?? { roll: RollEngine.rollDie() };
+    _showDieEventDamage(event, playerId);
+    const roll = event.roll;
     const enemies = GameState.getPlayerState(oppId).board;
     const randEnemy = enemies.length ? enemies[Math.floor(Math.random() * enemies.length)] : null;
 
     switch (roll) {
-      case 1:
-        if (randEnemy) {
-          const playerDmg = GameState.previewPlayerDamage?.(oppId, 3) ?? 3;
-          GameState.damagePlayer(oppId, 3);
-          PixiBoard?.showHitEffect?.('player', oppId, playerDmg);
+      case 1: {
+        if (GameState.hasPlayerStatus?.(playerId, 'status_impeded')) {
+          showToast('Impede blocks cheese attack.', 'warn');
+          break;
         }
+        const damage = _outgoingDamage(playerId, 3);
         if (randEnemy) {
-          GameState.damageCharacter(randEnemy.instanceId, 3);
-          PixiBoard?.showHitEffect?.('character', randEnemy.instanceId, 3);
-          showToast(`🧀 Rolled 1 — cheese shrapnel! ${randEnemy.name} takes 3 damage!`, 'combat');
+          _showDamageHit(GameState.damageTarget?.({ type: 'player', id: oppId }, damage)
+            ?? _fallbackDamageTarget({ type: 'player', id: oppId }, damage));
+          const hit = GameState.damageTarget?.({ type: 'character', id: randEnemy.instanceId }, damage)
+            ?? _fallbackDamageTarget({ type: 'character', id: randEnemy.instanceId }, damage);
+          _showDamageHit(hit);
+          showToast(`Cheese shrapnel: ${randEnemy.name} takes ${hit.actualDamage} damage.`, 'combat');
         } else {
-          GameState.damagePlayer(oppId, 3);
-          PixiBoard?.showHitEffect?.('player', oppId, 3);
-          showToast(`🧀 Rolled 1 — cheese shrapnel! ${GameState.getPlayerLabel(oppId)} takes 3!`, 'combat');
+          const hit = GameState.damageTarget?.({ type: 'player', id: oppId }, damage)
+            ?? _fallbackDamageTarget({ type: 'player', id: oppId }, damage);
+          _showDamageHit(hit);
+          showToast(`Cheese shrapnel: ${GameState.getPlayerLabel(oppId)} takes ${hit.actualDamage}.`, 'combat');
         }
         break;
+      }
       case 2:
         GameState.healPlayer(playerId, 3);
-        showToast('🧀 Rolled 2 — nourishing gouda! You heal 3 HP.', 'info');
+        showToast('Cheese Potion: you heal 3 HP.', 'info');
         break;
       case 3:
         GameState.gainMana(2);
-        showToast('🧀 Rolled 3 — fermented power! +2 mana.', 'info');
+        showToast('Cheese Potion: +2 mana.', 'info');
         break;
       case 4:
         HandManager.drawAction(playerId);
-        showToast('🧀 Rolled 4 — a card was hiding in the cheese! Drew 1.', 'info');
+        showToast('Cheese Potion: drew 1 action card.', 'info');
         break;
       case 5:
         if (randEnemy) {
-          StatusEngine.apply(randEnemy.instanceId, 'status_poisoned');
-          showToast(`🧀 Rolled 5 — moldy bits! ${randEnemy.name} is Poisoned ☠`, 'combat');
+          const result = _applyStatusToTarget({ type: 'character', id: randEnemy.instanceId }, 'status_poisoned');
+          const statusTarget = result.type === 'character' ? GameState.getCharacter(result.id) : null;
+          showToast(result.applied ? `Moldy bits: ${statusTarget?.name ?? randEnemy.name} is Poisoned.` : 'Moldy bits missed.', 'combat');
         } else {
-          GameState.damagePlayer(oppId, 2);
-          PixiBoard?.showHitEffect?.('player', oppId, 2);
-          showToast(`🧀 Rolled 5 — moldy bits! ${GameState.getPlayerLabel(oppId)} takes 2!`, 'combat');
+          const damage = _outgoingDamage(playerId, 2);
+          const hit = GameState.damageTarget?.({ type: 'player', id: oppId }, damage)
+            ?? _fallbackDamageTarget({ type: 'player', id: oppId }, damage);
+          _showDamageHit(hit);
+          showToast(`Moldy bits: ${GameState.getPlayerLabel(oppId)} takes ${hit.actualDamage}.`, 'combat');
         }
         break;
-      default: // 6
+      default:
         {
           const selfDmg = GameState.previewPlayerDamage?.(playerId, 2) ?? 2;
           const selfHp = GameState.getPlayerState(playerId)?.hp ?? 0;
           if (selfHp <= selfDmg) {
-            showToast('Cheese Potion/Fondue backfire would be lethal, so it fizzles instead.', 'warn');
+            showToast('Cheese Potion backfire would be lethal, so it fizzles.', 'warn');
             break;
           }
+          const before = selfHp;
+          const hp = GameState.damagePlayer(playerId, 2);
+          const actual = Math.max(0, before - Math.max(0, hp ?? before));
+          PixiBoard?.showHitEffect?.('player', playerId, actual);
+          showToast('Regular cheese backfire.', 'warn');
         }
-        const selfDmg = GameState.previewPlayerDamage?.(playerId, 2) ?? 2;
-        GameState.damagePlayer(playerId, 2);
-        PixiBoard?.showHitEffect?.('player', playerId, selfDmg);
-        showToast('🧀 Rolled 6 — it was WAY past its date. You take 2 damage. 🤢', 'warn');
     }
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
   // CHARACTER ABILITIES — full use flow
   // ══════════════════════════════════════════════════════════════════════════
   function _canResolveAbilityTarget(ability, ownerId, oppId, target) {
@@ -481,13 +726,13 @@ const AbilityDispatcher = (() => {
 
     if (ability.effect === 'draw_cards') {
       const p = GameState.getPlayerState(ownerId);
-      const limit = GameData?.rules?.handLimits?.action ?? 5;
+      const limit = GameData?.rules?.handLimits?.action ?? 8;
       return (p?.hand?.actions?.length ?? 0) < limit
         ? { ok: true }
         : { ok: false, reason: 'Your action hand is full.' };
     }
 
-    if (ability.effect === 'gain_mana') return { ok: true };
+    if (ability.effect === 'gain_mana' || ability.effect === 'cheatah_reroll') return { ok: true };
 
     if (ability.effect === 'heal') {
       const t = target?.type === 'character' ? GameState.getCharacter(target.id) : null;
@@ -516,7 +761,7 @@ const AbilityDispatcher = (() => {
         : { ok: false, reason: `${ability.abilityName} needs a valid target that can receive that status.` };
     }
 
-    if (ability.effect === 'apply_player_status') {
+    if (ability.effect === 'apply_player_status' || ability.effect === 'shop_lock') {
       const sid = ability.statusApplied?.[0];
       return target?.type === 'player' && GameState.canPlayerReceiveStatus?.(target.id, sid)
         ? { ok: true }
@@ -610,44 +855,45 @@ const AbilityDispatcher = (() => {
 
     switch (ability.effect) {
       case 'deal_damage': {
+        const damage = _outgoingDamage(ownerId, value);
         if (ability.targetType === 'all_enemies') {
           const enemies = [...GameState.getPlayerState(oppId).board];
           enemies.forEach(enemy => {
-            GameState.damageCharacter(enemy.instanceId, value);
-            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+            _showDamageHit(GameState.damageTarget?.({ type: 'character', id: enemy.instanceId }, damage, { multiTarget: true })
+              ?? _fallbackDamageTarget({ type: 'character', id: enemy.instanceId }, damage));
           });
-          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage to all enemies!`, 'combat');
+          showToast(`${char.name} uses ${ability.abilityName}: ${damage} damage to all enemies!`, 'combat');
         } else if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          const dmg = GameState.previewCharacterDamage?.(target.id, value) ?? value;
-          GameState.damageCharacter(target.id, value);
-          PixiBoard?.showHitEffect?.('character', target.id, dmg);
-          showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage to ${t?.name}!`, 'combat');
+          const hit = GameState.damageTarget?.(target, damage) ?? _fallbackDamageTarget(target, damage);
+          _showDamageHit(hit);
+          showToast(hit.safeguarded ? `${char.name} hits Safeguard.` : `${char.name} hits ${t?.name}.`, 'combat');
         } else if (target?.type === 'player') {
-          const dmg = GameState.previewPlayerDamage?.(target.id, value) ?? value;
-          GameState.damagePlayer(target.id, value);
-          PixiBoard?.showHitEffect?.('player', target.id, dmg);
-          showToast(`⚡ ${char.name} uses ${ability.abilityName} — ${value} damage to ${GameState.getPlayerLabel(target.id)}!`, 'combat');
+          const hit = GameState.damageTarget?.(target, damage) ?? _fallbackDamageTarget(target, damage);
+          _showDamageHit(hit);
+          showToast(hit.safeguarded ? `${char.name} hits Safeguard.` : `${char.name} hits player.`, 'combat');
         }
         break;
       }
 
       case 'deal_damage_apply_status': {
         const sid = ability.statusApplied?.[0];
+        const damage = _outgoingDamage(ownerId, value);
         if (ability.targetType === 'all_enemies') {
           const enemies = [...GameState.getPlayerState(oppId).board];
           enemies.forEach(enemy => {
-            GameState.damageCharacter(enemy.instanceId, value);
-            if (sid) StatusEngine.apply(enemy.instanceId, sid);
-            PixiBoard?.showHitEffect?.('character', enemy.instanceId, value);
+            const hit = GameState.damageTarget?.({ type: 'character', id: enemy.instanceId }, damage, { multiTarget: true })
+              ?? _fallbackDamageTarget({ type: 'character', id: enemy.instanceId }, damage);
+            if (sid) _applyStatusToTarget({ type: hit.type, id: hit.id }, sid, { allowSafeguard: false });
+            _showDamageHit(hit);
           });
-          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to all enemies!`, 'combat');
+          showToast(`${char.name} uses ${ability.abilityName}: ${damage} damage${sid ? ` and ${_statusName(sid)}` : ''} to all enemies!`, 'combat');
         } else if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          GameState.damageCharacter(target.id, value);
-          if (sid) StatusEngine.apply(target.id, sid);
-          PixiBoard?.showHitEffect?.('character', target.id, value);
-          showToast(`${char.name} uses ${ability.abilityName}: ${value} damage${sid ? ` and ${_statusName(sid)}` : ''} to ${t?.name}!`, 'combat');
+          const hit = GameState.damageTarget?.(target, damage) ?? _fallbackDamageTarget(target, damage);
+          if (sid) _applyStatusToTarget({ type: hit.type, id: hit.id }, sid, { allowSafeguard: false });
+          _showDamageHit(hit);
+          showToast(hit.safeguarded ? `${char.name} hits Safeguard.` : `${char.name} hits ${t?.name}.`, 'combat');
         }
         break;
       }
@@ -669,11 +915,20 @@ const AbilityDispatcher = (() => {
         const sid = ability.statusApplied?.[0];
         if (sid && ability.targetType === 'all_enemies') {
           const enemies = [...GameState.getPlayerState(oppId).board].filter(_alreadyHasStatus(sid));
-          enemies.forEach(enemy => StatusEngine.apply(enemy.instanceId, sid));
-          showToast(`${_statusSym(sid)} ${char.name}: ${enemies.length} enemy character${enemies.length === 1 ? '' : 's'} now ${_statusName(sid)}!`, 'combat');
+          const safeguard = GameState.getSafeguardCaptain?.(oppId, null);
+          if (safeguard && enemies.some(enemy => enemy.instanceId !== safeguard.instanceId)) {
+            const result = _applyStatusToTarget({ type: 'character', id: enemies[0]?.instanceId }, sid);
+            showToast(result.applied
+              ? `${_statusSym(sid)} Safeguard absorbs ${_statusName(sid)}.`
+              : `Safeguard attempted to absorb ${_statusName(sid)}.`,
+              'combat');
+          } else {
+            enemies.forEach(enemy => _applyStatusToTarget({ type: 'character', id: enemy.instanceId }, sid, { allowSafeguard: false }));
+            showToast(`${_statusSym(sid)} ${char.name}: ${enemies.length} enemy character${enemies.length === 1 ? '' : 's'} now ${_statusName(sid)}!`, 'combat');
+          }
         } else if (sid && target?.type === 'character') {
-          const t = GameState.getCharacter(target.id);
-          StatusEngine.apply(target.id, sid);
+          const result = _applyStatusToTarget(target, sid);
+          const t = GameState.getCharacter(result.id ?? target.id);
           showToast(`${_statusSym(sid)} ${char.name}: ${t?.name} is now ${_statusName(sid)}!`, 'combat');
         }
         break;
@@ -681,8 +936,25 @@ const AbilityDispatcher = (() => {
 
       case 'apply_player_status': {
         const sid = ability.statusApplied?.[0];
-        if (sid && target?.type === 'player' && GameState.applyPlayerStatus?.(target.id, sid)) {
-          showToast(`${_statusSym(sid)} ${GameState.getPlayerLabel(target.id)} is now ${_statusName(sid)}!`, 'combat');
+        if (sid && target?.type === 'player') {
+          const result = _applyStatusToTarget(target, sid, { splashCaptain: true });
+          if (result.applied) {
+            const label = result.type === 'player'
+              ? GameState.getPlayerLabel(result.id)
+              : GameState.getCharacter(result.id)?.name;
+            showToast(`${_statusSym(sid)} ${label ?? 'Target'} is now ${_statusName(sid)}!`, 'combat');
+          }
+        }
+        break;
+      }
+
+      case 'shop_lock': {
+        const sid = ability.statusApplied?.[0] ?? 'status_locked_out';
+        if (target?.type === 'player') {
+          const result = _applyStatusToTarget(target, sid, { splashCaptain: true });
+          if (result.applied) {
+            showToast(result.safeguarded ? 'Safeguard absorbs Locked Out.' : 'Shop locked.', 'combat');
+          }
         }
         break;
       }
@@ -697,8 +969,19 @@ const AbilityDispatcher = (() => {
 
       case 'gain_mana': {
         const n = Math.max(1, value || 1);
-        GameState.gainMana(n);
-        showToast(`${char.name} uses ${ability.abilityName} — gained ${n} mana!`, 'info');
+        const source = /Cheatah/i.test(char.name ?? '')
+          ? 'cheatah_reroll'
+          : (char.statuses?.some(s => s.id === 'status_augmented') ? 'augment' : null);
+        const gained = GameState.gainMana(n, ownerId, source ? { source } : undefined);
+        showToast(`${char.name} uses ${ability.abilityName} — gained ${gained} mana!`, 'info');
+        break;
+      }
+
+      case 'cheatah_reroll': {
+        const event = RollEngine.rollEvent?.(ownerId) ?? { roll: RollEngine.rollDie() };
+        _showDieEventDamage(event, ownerId);
+        const gained = GameState.gainMana(event.roll, ownerId, { source: 'cheatah_reroll' });
+        showToast(`${char.name} cheats the die: rolled ${event.roll}, gained ${gained} mana.`, 'info');
         break;
       }
 
@@ -714,42 +997,43 @@ const AbilityDispatcher = (() => {
         if (sourceAbility?.effect === 'apply_status') {
           const sid = sourceAbility.statusApplied?.[0];
           if (sid && _canReceiveStatus(copied, sid)) {
-            StatusEngine.apply(copied.instanceId, sid);
+            _applyStatusToTarget({ type: 'character', id: copied.instanceId }, sid, { allowSafeguard: false });
             showToast(`${char.name} copies ${copied.name}'s ${sourceAbility.abilityName}: ${_statusName(sid)} applied back to ${copied.name}!`, 'combat');
           } else {
-            const dmg = Math.max(1, GameState.getEffectiveAttack(copied));
-            const actual = GameState.previewCharacterDamage?.(copied.instanceId, dmg) ?? dmg;
-            GameState.damageCharacter(copied.instanceId, dmg);
-            PixiBoard?.showHitEffect?.('character', copied.instanceId, actual);
-            showToast(`${char.name} copies ${copied.name}'s passive pressure: ${copied.name} takes ${actual} damage!`, 'combat');
+            const dmg = _outgoingDamage(ownerId, Math.max(1, GameState.getEffectiveAttack(copied)));
+            const hit = GameState.damageTarget?.({ type: 'character', id: copied.instanceId }, dmg, { allowSafeguard: false })
+              ?? _fallbackDamageTarget({ type: 'character', id: copied.instanceId }, dmg);
+            _showDamageHit(hit);
+            showToast(`${char.name} copies ${copied.name}'s passive pressure: ${copied.name} takes ${hit.actualDamage} damage!`, 'combat');
           }
           break;
         }
 
         const copiedDamage = sourceAbility?.effectValue ?? GameState.getEffectiveAttack(copied);
-        const dmg = Math.max(1, copiedDamage || copied.baseAttack || 1);
-        const actual = GameState.previewCharacterDamage?.(copied.instanceId, dmg) ?? dmg;
-        GameState.damageCharacter(copied.instanceId, dmg);
+        const dmg = _outgoingDamage(ownerId, Math.max(1, copiedDamage || copied.baseAttack || 1));
+        const hit = GameState.damageTarget?.({ type: 'character', id: copied.instanceId }, dmg, { allowSafeguard: false })
+          ?? _fallbackDamageTarget({ type: 'character', id: copied.instanceId }, dmg);
         const sid = sourceAbility?.statusApplied?.[0];
-        if (sid && _canReceiveStatus(copied, sid)) StatusEngine.apply(copied.instanceId, sid);
-        PixiBoard?.showHitEffect?.('character', copied.instanceId, actual);
-        showToast(`${char.name} copies ${copied.name}: ${copied.name} takes ${actual}${sid ? ` and ${_statusName(sid)}` : ''}!`, 'combat');
+        if (sid && _canReceiveStatus(copied, sid)) _applyStatusToTarget({ type: 'character', id: copied.instanceId }, sid, { allowSafeguard: false });
+        _showDamageHit(hit);
+        showToast(`${char.name} copies ${copied.name}: ${copied.name} takes ${hit.actualDamage}${sid ? ` and ${_statusName(sid)}` : ''}!`, 'combat');
         break;
       }
 
       case 'duel': {
         if (target?.type === 'character') {
           const t = GameState.getCharacter(target.id);
-          showToast(`⚔ ${char.name} challenges ${t?.name} to a duel!`, 'combat');
+          showToast(`${char.name} challenges ${t?.name} to a duel!`, 'combat');
           DuelSystem.start(char.instanceId, target.id, (winnerId, loserId) => {
             if (loserId) {
               const loser = GameState.getCharacter(loserId);
-              const dmg = GameState.previewCharacterDamage?.(loserId, value) ?? value;
-              GameState.damageCharacter(loserId, value);
+              const damage = _outgoingDamage(ownerId, value);
+              const hit = GameState.damageTarget?.({ type: 'character', id: loserId }, damage, { allowSafeguard: false })
+                ?? _fallbackDamageTarget({ type: 'character', id: loserId }, damage);
               const sid = ability.statusApplied?.[0];
-              if (sid) StatusEngine.apply(loserId, sid);
-              PixiBoard?.showHitEffect?.('character', loserId, dmg);
-              showToast(`⚔ ${loser?.name ?? 'The loser'} takes ${dmg} duel damage!`, 'combat');
+              if (sid) _applyStatusToTarget({ type: 'character', id: loserId }, sid, { allowSafeguard: false });
+              _showDamageHit(hit);
+              showToast(`Duel: ${loser?.name ?? 'The loser'} takes ${hit.actualDamage} damage!`, 'combat');
             }
             renderBoard();
             PhaseManager.checkWin?.();
@@ -757,7 +1041,6 @@ const AbilityDispatcher = (() => {
         }
         break;
       }
-
       default:
         console.warn(`[AbilityDispatcher] Unknown ability effect: ${ability.effect}`);
     }

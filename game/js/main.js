@@ -310,6 +310,8 @@ function expandCard(card, type) {
     const passiveHtml = passiveRows.length ? `<div class="card-detail-section"><h3>Passives</h3>
             ${passiveRows.map(p => `<div class="passive-row"><div class="passive-name">- ${p.name}</div><div class="passive-desc">${p.description}</div></div>`).join('')}
           </div>` : '';
+    const rolePassiveHtml = _rolePassiveHtml(card);
+    const statusGlossaryHtml = _statusGlossaryHtml(card);
     content.innerHTML = `
       <div class="card-detail-layout">
         <div class="card-detail-art">
@@ -326,6 +328,7 @@ function expandCard(card, type) {
             ${card.archetype ? `<span class="meta-badge role">${card.archetype}</span>` : ''}
             ${card.role   ? `<span class="meta-badge role">${card.role}</span>`    : ''}
           </div>
+          ${rolePassiveHtml}
           ${docAbilityHtml}
           ${passiveHtml}
           ${card.abilities?.length ? `<div class="card-detail-section"><h3>Abilities</h3>
@@ -338,11 +341,13 @@ function expandCard(card, type) {
               <div class="ability-desc">${a.description ?? a.effect}${a.damageFormula ? ' Â· ' + a.damageFormula : ''}</div>
             </div>`).join('')}
           </div>` : ''}
+          ${statusGlossaryHtml}
           ${card.flavorText ? `<div class="card-detail-section"><div class="flavor-text">"${card.flavorText}"</div></div>` : ''}
         </div>
       </div>`;
   } else {
     const aip = `assets/cards/Action Card Test Export/${card.imageAsset ?? 'Action_Card.jpg'}`;
+    const statusGlossaryHtml = _statusGlossaryHtml(card);
     content.innerHTML = `
       <div class="card-detail-layout">
         <div class="card-detail-art action-art">
@@ -356,6 +361,7 @@ function expandCard(card, type) {
             <span class="meta-badge stage">${card.targetType ?? ''}</span>
           </div>
           <p style="color:var(--text-dim,#8888aa);line-height:1.75;margin-top:16px;">${card.description ?? ''}</p>
+          ${statusGlossaryHtml}
         </div>
       </div>`;
   }
@@ -365,6 +371,51 @@ function expandCard(card, type) {
   }, { once: true });
 
   modal.classList.remove('hidden');
+}
+
+function _statusGlossaryHtml(card) {
+  const defs = GameData?.statusEffects ?? [];
+  const source = [
+    card?.description,
+    card?.docAbility,
+    ...(card?.statusApplied ?? []),
+    ...(card?.abilities ?? []).map(a => `${a.description ?? ''} ${(a.statusApplied ?? []).join(' ')}`),
+    ...(card?.passives ?? []).map(p => `${p.name ?? ''} ${p.description ?? ''}`),
+  ].join(' ');
+  const found = defs.filter(def => {
+    const bare = (def.id ?? '').replace(/^status_/, '').replace(/_/g, ' ');
+    return (card?.statusApplied ?? []).includes(def.id)
+      || new RegExp(`\\b${def.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(source)
+      || new RegExp(`\\b${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(source);
+  });
+  if (!found.length) return '';
+  return `<div class="card-detail-section status-glossary"><h3>Status Effects</h3>
+    ${found.map(def => `<button class="status-desc-row" type="button">
+      <span>${def.name}</span><small>${def.description}</small>
+    </button>`).join('')}
+  </div>`;
+}
+
+function _rolePassiveHtml(cardOrRole) {
+  const role = typeof cardOrRole === 'string' ? cardOrRole : cardOrRole?.classType;
+  const passive = typeof cardOrRole === 'object' ? cardOrRole?.rolePassive : null;
+  const map = {
+    Agility: ['Evasive Maneuver', 'Roll 4-6 to dodge captain/player damage.'],
+    Balanced: ['Enact', 'Roll 4-6 after turn roll to draw an action.'],
+    Durability: ['Safeguard', 'Captain redirects damage from allies and player.'],
+    IQ: ['Foresight', 'Preview two future shop rows while captain.'],
+    Legendary: ['Invocation', 'Roll 4-6 after turn roll to draw a hero.'],
+    Mana: ['Enchant', 'Roll 4-6 to add 3 mana beyond cap.'],
+    Passive: ['Imbue', 'Share passive pressure for three turns.'],
+    Speed: ['Enhanced Reflex', 'Gain one extra action while captain.'],
+    Strength: ['Crit-Hit Chance', 'Captain attacks can critically hit.'],
+    Technique: ['Duelist', 'Captain gains stronger duel odds.'],
+  };
+  const row = passive ? [passive.name, passive.description] : map[role];
+  if (!row?.[0]) return '';
+  return `<div class="card-detail-section role-passive"><h3>Role Passive</h3>
+    <div class="passive-row"><div class="passive-name">${row[0]}</div><div class="passive-desc">${row[1]}</div></div>
+  </div>`;
 }
 
 // â”€â”€â”€ Error screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -34,8 +34,22 @@ const DuelSystem = (() => {
   }
 
   function _resolve(c1Id, c2Id, onResult, modal) {
-    const roll1 = RollEngine.rollForDuel();
-    const roll2 = RollEngine.rollForDuel();
+    const p1 = GameState.getCharacterOwner?.(c1Id);
+    const p2 = GameState.getCharacterOwner?.(c2Id);
+    const event1 = RollEngine.rollForDuel(p1);
+    const event2 = RollEngine.rollForDuel(p2);
+    let roll1 = event1.roll;
+    let roll2 = event2.roll;
+    if (GameState.hasCaptainClass?.(p1, 'Technique') && roll1 >= 3) {
+      roll1 = 7;
+      showToast('Duelist succeeds.', 'combat');
+    }
+    if (GameState.hasCaptainClass?.(p2, 'Technique') && roll2 >= 3) {
+      roll2 = 7;
+      showToast('Duelist succeeds.', 'combat');
+    }
+    _showDieEventDamage(event1, p1);
+    _showDieEventDamage(event2, p2);
 
     if (modal) {
       modal.querySelector('.duel-p1-roll').textContent = roll1;
@@ -64,6 +78,18 @@ const DuelSystem = (() => {
       showToast(resultText, 'combat');
       onResult?.(winnerId, loserId, roll1, roll2);
     }
+  }
+
+  function _showDieEventDamage(event, playerId) {
+    if (!event || !playerId) return;
+    if (event.playerDamage) {
+      PixiBoard?.showHitEffect?.('player', playerId, event.playerDamage);
+      showToast('Die consequence hits.', 'combat');
+    }
+    event.characterHits?.forEach(hit => {
+      PixiBoard?.showHitEffect?.('character', hit.instanceId, hit.damage);
+    });
+    if (event.characterHits?.length) showToast('Bomb hits field.', 'combat');
   }
 
   return { start };

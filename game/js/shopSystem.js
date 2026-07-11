@@ -15,6 +15,10 @@ const ShopSystem = (() => {
 
   function open() {
     if (!PhaseManager.canShop()) { showToast('Cannot shop right now.', 'warn'); return; }
+    if (GameState.hasPlayerStatus?.(GameState.currentTurn, 'status_locked_out')) {
+      showToast('Shop closed.', 'warn');
+      return;
+    }
     const overlay = document.getElementById('overlay-shop');
     if (!overlay) return;
     _renderShop();
@@ -35,6 +39,28 @@ const ShopSystem = (() => {
     return a;
   }
 
+  function _weightedActionOffers(count) {
+    const weights = _rules.actionSpawnWeights ?? { common: 60, 'semi-common': 30, rare: 10 };
+    const pool = _actions.slice();
+    const picks = [];
+    while (pool.length && picks.length < count) {
+      const rows = pool.map(card => ({
+        card,
+        weight: Math.max(1, weights[card.rarity ?? 'semi-common'] ?? 10),
+      }));
+      const total = rows.reduce((sum, row) => sum + row.weight, 0);
+      let roll = Math.random() * total;
+      let picked = rows[rows.length - 1].card;
+      for (const row of rows) {
+        roll -= row.weight;
+        if (roll <= 0) { picked = row.card; break; }
+      }
+      picks.push(picked);
+      pool.splice(pool.findIndex(card => card.id === picked.id), 1);
+    }
+    return picks;
+  }
+
   function _renderShop() {
     const heroCost   = _rules.shopCosts?.hero   ?? 2;
     const actionCost = _rules.shopCosts?.action ?? 1;
@@ -42,12 +68,13 @@ const ShopSystem = (() => {
     const playerId   = GameState.currentTurn;
     const p          = GameState.getPlayerState(playerId);
 
-    const heroLimit   = _rules.handLimits?.hero   ?? 5;
-    const actionLimit = _rules.handLimits?.action ?? 5;
+    const heroLimit   = _rules.handLimits?.hero   ?? 8;
+    const actionLimit = _rules.handLimits?.action ?? 8;
     const heroFull    = p.hand.heroes.length  >= heroLimit;
     const actionFull  = p.hand.actions.length >= actionLimit;
 
-    const { heroes: shopHeroes, actions: shopActions } = _getOffersForTurn();
+    const foresight = GameState.hasIQCaptain?.(playerId) ?? false;
+    const { heroes: shopHeroes, actions: shopActions } = _getOffersForTurn(foresight);
 
     // Mana display in header
     const manaVal = document.getElementById('shop-mana-val');
@@ -57,6 +84,7 @@ const ShopSystem = (() => {
     const heroGrid = document.getElementById('shop-heroes');
     if (heroGrid) {
       heroGrid.innerHTML = '';
+      heroGrid.classList.toggle('foresight', foresight);
       shopHeroes.forEach(card => {
         heroGrid.appendChild(_buildShopItem(card, 'hero', heroCost, mana, heroFull, playerId));
       });
@@ -66,6 +94,7 @@ const ShopSystem = (() => {
     const actionGrid = document.getElementById('shop-actions');
     if (actionGrid) {
       actionGrid.innerHTML = '';
+      actionGrid.classList.toggle('foresight', foresight);
       shopActions.forEach(card => {
         actionGrid.appendChild(_buildShopItem(card, 'action', actionCost, mana, actionFull, playerId));
       });
@@ -78,14 +107,18 @@ const ShopSystem = (() => {
     }
   }
 
-  function _getOffersForTurn() {
+  function _getOffersForTurn(foresight = false) {
     const turnNumber = GameState.getTurnNumber?.() ?? 1;
-    if (_offers.turnNumber !== turnNumber) {
+    const offerKey = `${turnNumber}:${foresight ? 'foresight' : 'normal'}`;
+    if (_offers.turnNumber !== offerKey) {
+      const heroIdsInUse = GameState.getAllHeroIdsInUse?.({ includeGraveyard: true }) ?? new Set();
+      const count = foresight ? 12 : 4;
       _offers = {
-        turnNumber,
-        heroes: _shuffle(_heroes).slice(0, 4),
-        actions: _shuffle(_actions).slice(0, 4),
+        turnNumber: offerKey,
+        heroes: _shuffle(_heroes.filter(h => !heroIdsInUse.has(h.id))).slice(0, count),
+        actions: _weightedActionOffers(count),
       };
+      if (foresight) showToast('Foresight shop open.', 'info');
     }
     return _offers;
   }
@@ -94,10 +127,18 @@ const ShopSystem = (() => {
     const el = document.createElement('div');
     el.className = 'shop-item';
 
-    const purchaseLimit = _rules.shopLimits?.purchasesPerTurn ?? 1;
-    const alreadyBought = GameState.getShopPurchasesThisTurn() >= purchaseLimit;
+    const purchaseLimit = type === 'hero'
+      ? (_rules.shopLimits?.heroPerTurn ?? 1)
+      : (_rules.shopLimits?.actionPerTurn ?? 1);
+    const alreadyBought = GameState.getShopPurchasesThisTurn(type) >= purchaseLimit;
+    const p = GameState.getPlayerState(playerId);
+    const duplicateAction = type === 'action'
+      && (p.hand.actions?.filter(c => c.id === card.id).length ?? 0) >= 2;
+    const duplicateHero = type === 'hero'
+      && (GameState.getAllHeroIdsInUse?.({ includeGraveyard: true })?.has(card.id) ?? false);
     const canAfford     = mana >= cost;
-    const canBuy        = canAfford && !handFull && !alreadyBought;
+    const needsActionDiscard = type === 'action' && handFull;
+    const canBuy        = canAfford && !handFull && !alreadyBought && !duplicateAction && !duplicateHero;
 
     // ── Card preview art ───────────────────────────────────────────────────────
     const artDiv = document.createElement('div');
@@ -152,16 +193,24 @@ const ShopSystem = (() => {
     const warnEl = document.createElement('div');
     warnEl.className = 'shop-item-warn';
     warnEl.textContent = handFull ? 'Hand full'
-      : alreadyBought              ? '1 purchase/turn'
+      : alreadyBought              ? `1 ${type}/turn`
+      : duplicateAction            ? '2 copies max'
+      : duplicateHero              ? 'Hero already used'
       : !canAfford                 ? 'Not enough mana'
       : '';
     if (warnEl.textContent) body.appendChild(warnEl);
 
     const btn = document.createElement('button');
     btn.className = 'menu-btn primary';
-    btn.textContent = 'Buy';
-    btn.disabled = !canBuy;
-    btn.addEventListener('click', () => _buy(card, type, cost, playerId));
+    btn.textContent = needsActionDiscard ? 'Discard' : 'Buy';
+    btn.disabled = !(canBuy || needsActionDiscard);
+    btn.addEventListener('click', () => {
+      if (needsActionDiscard) {
+        HandManager.promptForcedActionDiscard?.(playerId);
+        return;
+      }
+      _buy(card, type, cost, playerId);
+    });
     body.appendChild(btn);
     el.appendChild(body);
 
@@ -169,19 +218,27 @@ const ShopSystem = (() => {
   }
 
   function _buy(card, type, cost, playerId) {
-    if (!GameState.spendMana(cost)) {
+    const purchaseLimit = type === 'hero'
+      ? (_rules.shopLimits?.heroPerTurn ?? 1)
+      : (_rules.shopLimits?.actionPerTurn ?? 1);
+    if (GameState.getShopPurchasesThisTurn(type) >= purchaseLimit) {
+      showToast(`Already bought a ${type}.`, 'warn');
+      return;
+    }
+
+    if (!GameState.spendMana(cost, playerId)) {
       showToast('Not enough mana.', 'warn');
       return;
     }
 
     const result = GameState.addCardToHand(playerId, card, type);
     if (!result.ok) {
-      GameState.gainMana(cost); // refund
+      GameState.gainMana(cost, playerId); // refund
       showToast(result.error, 'warn');
       return;
     }
 
-    GameState.recordShopPurchase();
+    GameState.recordShopPurchase(type);
     showToast(`Bought ${card.name}!`, 'info');
     HandManager.promptDiscardIfOverLimit(playerId);
     close();

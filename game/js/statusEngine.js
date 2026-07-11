@@ -31,7 +31,7 @@ const StatusEngine = (() => {
   const NEGATIVE_IDS = [
     'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
-    'status_frozen', 'status_example_timed', 'status_example_permanent',
+    'status_frozen', 'status_rabies', 'status_locked_out', 'status_example_timed', 'status_example_permanent',
   ];
 
   function removeAllNegative(instanceId) {

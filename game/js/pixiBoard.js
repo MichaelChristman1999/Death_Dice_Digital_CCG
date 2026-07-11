@@ -36,7 +36,7 @@ const PixiBoard = (() => {
     own:     0xcc2200,   // blood crimson (active player)
     opp:     0x660088,   // death purple  (opponent)
     accent:  0xff3300,   // ember red
-    mana:    0xcc3300,   // hellfire
+    mana:    0x8b35ff,   // arcane purple
     gold:    0xd4af37,   // bone gold
     green:   0x1a5c28,   // dark forest
     red:     0xff2222,   // bright blood
@@ -316,7 +316,9 @@ const PixiBoard = (() => {
     p2.beginFill(0x140008, 0.25);
     p2.drawRoundedRect(cx - zW/2, ZONE.p2Y(), zW, ZONE.hOpp(), 14);
     p2.endFill();
+    p2._zoneRole = 'opponent';
     _L.zones.addChild(p2);
+    _L.zones.addChild(_captainSlotGraphic(false));
 
     // Player zone (bottom) — blood red tint, full size
     const p1 = new PIXI.Graphics();
@@ -324,7 +326,34 @@ const PixiBoard = (() => {
     p1.beginFill(0x140004, 0.25);
     p1.drawRoundedRect(cx - zW/2, ZONE.p1Y(), zW, ZONE.hOwn(), 14);
     p1.endFill();
+    p1._zoneRole = 'active';
     _L.zones.addChild(p1);
+    _L.zones.addChild(_captainSlotGraphic(true));
+  }
+
+  function _captainSlotRect(active = true) {
+    const scale = active ? 1 : OPP_CARD_SCALE;
+    const w = CC.w * scale + (_isCompact() ? 22 : 32);
+    const h = CC.h * scale + (_isCompact() ? 18 : 28);
+    const zY = active ? ZONE.p1Y() : ZONE.p2Y();
+    const zH = active ? ZONE.hOwn() : ZONE.hOpp();
+    return { x: W() / 2 - w / 2, y: zY + zH / 2 - h / 2, w, h };
+  }
+
+  function _captainSlotGraphic(active = true) {
+    const r = _captainSlotRect(active);
+    const g = new PIXI.Graphics();
+    g.lineStyle(active ? 2 : 1.5, P.gold, active ? 0.72 : 0.48);
+    g.beginFill(0x2a1700, active ? 0.12 : 0.08);
+    g.drawRoundedRect(r.x, r.y, r.w, r.h, 14);
+    g.endFill();
+    g.lineStyle(1, P.gold, active ? 0.34 : 0.22);
+    g.moveTo(r.x + r.w * 0.5, r.y + 8);
+    g.lineTo(r.x + r.w * 0.5, r.y + r.h - 8);
+    g.moveTo(r.x + 8, r.y + r.h * 0.5);
+    g.lineTo(r.x + r.w - 8, r.y + r.h * 0.5);
+    g._zoneRole = active ? 'active-captain' : 'opponent-captain';
+    return g;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -397,6 +426,10 @@ const PixiBoard = (() => {
       ct.addChild(barFg);
       ct._barFg = barFg;
       ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
+      const statusLayer = new PIXI.Container();
+      statusLayer.position.set(BX, 48);
+      ct.addChild(statusLayer);
+      ct._statusLayer = statusLayer;
 
       // Hand + board counts (replaces the old row of face-down cards —
       // an opponent's hidden hand doesn't deserve board real estate)
@@ -452,6 +485,10 @@ const PixiBoard = (() => {
     ct.addChild(barFg);
     ct._barFg = barFg;
     ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
+    const statusLayer = new PIXI.Container();
+    statusLayer.position.set(BX, 8);
+    ct.addChild(statusLayer);
+    ct._statusLayer = statusLayer;
 
     // Right side: phase + turn labels
     {
@@ -474,15 +511,55 @@ const PixiBoard = (() => {
     return ct;
   }
 
+  function _drawManaBubble(g, mana = 0) {
+    const maxMana = GameState?.getMaxMana?.() ?? GameData?.rules?.mana?.maxPool ?? 12;
+    const fullness = _clamp(mana / Math.max(1, maxMana), 0, 1);
+    g.clear();
+    for (let r = 42; r >= 22; r -= 4) {
+      g.beginFill(P.mana, ((42 - r) / 42) * (0.13 + fullness * 0.16));
+      g.drawCircle(0, 0, r);
+      g.endFill();
+    }
+    g.lineStyle(3, P.mana, 0.85);
+    g.beginFill(0x0b0216, 0.94);
+    g.drawCircle(0, 0, 28);
+    g.endFill();
+    g.lineStyle(1, 0xdcb8ff, 0.42);
+    g.drawCircle(-7, -8, 9 + fullness * 5);
+    g.lineStyle(2, 0x3c0d65, 0.72);
+    g.drawCircle(0, 0, 36);
+  }
+
   function _buildManaGauge() {
     // Liquid mana gauge (6 fillable orbs) at left-of-center + dice panel at right
     const ct = new PIXI.Container();
     ct._dots = [];
 
-    const MAX_MANA = 6;
+    const MAX_MANA = 0;
     const gCX      = W() * (_isCompact() ? 0.50 : 0.22);   // gauge centred here
     const spc      = _isCompact() ? 23 : 27;
     const gStartX  = gCX - (MAX_MANA - 1) * spc / 2;
+
+    const bubble = new PIXI.Graphics();
+    bubble.position.set(gCX, 0);
+    _drawManaBubble(bubble, 0);
+    ct.addChild(bubble);
+
+    const manaNum = _T('0', {
+      fontFamily: "'Exo 2', sans-serif", fontSize: 24, fontWeight: '900',
+      fill: 0xf7eaff, stroke: 0x220038, strokeThickness: 4,
+    });
+    manaNum.anchor.set(0.5);
+    manaNum.position.set(gCX, -2);
+    ct.addChild(manaNum);
+
+    const capLbl = _T('/12', {
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 10, fontWeight: '800',
+      fill: 0xb984ff,
+    });
+    capLbl.anchor.set(0.5, 0);
+    capLbl.position.set(gCX, 21);
+    ct.addChild(capLbl);
 
     for (let i = 0; i < MAX_MANA; i++) {
       const dot = new PIXI.Container();
@@ -526,9 +603,9 @@ const PixiBoard = (() => {
     // MANA label below dots
     const manaLbl = _T('MANA', {
       fontFamily: "'Rajdhani', sans-serif", fontSize: 8, fontWeight: '700',
-      fill: 0x551100, letterSpacing: 3,
+      fill: 0x8f5cff, letterSpacing: 3,
     });
-    manaLbl.anchor.set(0.5, 0); manaLbl.position.set(gCX, 17);
+    manaLbl.anchor.set(0.5, 0); manaLbl.position.set(gCX, 36);
     ct.addChild(manaLbl);
 
     // ── Spinning skull-pip dice — above the action buttons (right rail) ──────────
@@ -569,6 +646,9 @@ const PixiBoard = (() => {
     ct._diceContainer = dc;
     // Backward-compat stubs
     ct._diceNum = { text: '—', style: { fill: 0xff3300 } };
+    ct._manaBubble = bubble;
+    ct._manaNum = manaNum;
+    ct._manaCap = capLbl;
     ct._mana  = { text: '0' };
     ct._phase = { text: '' };
     ct._turn  = { text: '' };
@@ -671,7 +751,8 @@ const PixiBoard = (() => {
       const st = GameState.getPlayerState?.(pid);
       if (!st) return;
       bar._hpNum.text = String(st.hp);
-      const pct = Math.max(0, Math.min(1, st.hp / 20));
+      const maxHp = GameData?.rules?.startingPlayerHP ?? 40;
+      const pct = Math.max(0, Math.min(1, st.hp / maxHp));
       const { x, y, w, h } = bar._barSpec;
       const col = pct > 0.5 ? P.green : pct > 0.2 ? P.warn : P.red;
       bar._barFg.clear();
@@ -682,9 +763,25 @@ const PixiBoard = (() => {
         const hc = (st.hand.heroes?.length ?? 0) + (st.hand.actions?.length ?? 0);
         bar._stats.text = `HAND ${hc} / FIELD ${st.board?.length ?? 0}`;
       }
+      if (bar._statusLayer) {
+        bar._statusLayer.removeChildren();
+        let sx = 0;
+        (st.statuses ?? []).slice(0, 6).forEach(status => {
+          const chip = _statusPill(status);
+          chip.scale.set(0.82);
+          chip.position.set(sx, 0);
+          bar._statusLayer.addChild(chip);
+          sx += (chip._pw + 4) * 0.82;
+        });
+      }
     };
     _applyBar(_hud.p1bar, activePid);
     _applyBar(_hud.p2bar, inactivePid);
+
+    // Mana pool bubble
+    if (_hud.center?._manaBubble) _drawManaBubble(_hud.center._manaBubble, mana);
+    if (_hud.center?._manaNum) _hud.center._manaNum.text = String(mana);
+    if (_hud.center?._manaCap) _hud.center._manaCap.text = `/${GameState.getMaxMana?.() ?? 12}`;
 
     // Mana gauge dots
     if (_hud.center?._dots) {
@@ -793,6 +890,47 @@ const PixiBoard = (() => {
       img.src = imgUrl;
     }
 
+    return ct;
+  }
+
+  function _roleIcon(role, x, y, size = 24) {
+    if (!role) return null;
+    const clean = String(role).replace(/[^a-z]/gi, '');
+    if (!clean) return null;
+    const imgUrl = HERO_DIR + _encAsset(`${clean}_Role_Icon.png`);
+    const ct = new PIXI.Container();
+    ct.position.set(x, y);
+    const bg = new PIXI.Graphics();
+    bg.lineStyle(1.5, P.gold, 0.8);
+    bg.beginFill(0x08030c, 0.88);
+    bg.drawRoundedRect(0, 0, size, size, 6);
+    bg.endFill();
+    ct.addChild(bg);
+
+    const apply = (texture) => {
+      if (!texture?.width) return;
+      const spr = new PIXI.Sprite(texture);
+      const scale = Math.min((size - 4) / texture.width, (size - 4) / texture.height);
+      spr.scale.set(scale);
+      spr.x = (size - spr.width) / 2;
+      spr.y = (size - spr.height) / 2;
+      ct.addChild(spr);
+    };
+
+    if (_texCache.has(imgUrl)) {
+      apply(_texCache.get(imgUrl));
+    } else {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const tex = PIXI.Texture.from(img);
+          _texCache.set(imgUrl, tex);
+          apply(tex);
+        } catch (_) {}
+      };
+      img.onerror = () => {};
+      img.src = imgUrl;
+    }
     return ct;
   }
 
@@ -962,11 +1100,11 @@ const PixiBoard = (() => {
     const icon = new PIXI.Graphics();
     const cx = 11, cy = PH / 2;
     switch (sid) {
-      case 'poisoned': case 'poison': // green droplet
+      case 'poisoned': case 'poison': case 'rabies': // green droplet
         icon.beginFill(0x33dd55); icon.drawCircle(cx, cy + 1.5, 4.5);
         icon.drawPolygon([cx, cy - 6.5, cx - 3.4, cy - 0.5, cx + 3.4, cy - 0.5]); icon.endFill();
         break;
-      case 'augmented': case 'accelerated': case 'buffed': // green up-arrow
+      case 'augmented': case 'accelerated': case 'buffed': case 'sidestep': // green up-arrow
         icon.beginFill(0x33ee66);
         icon.drawPolygon([cx, cy - 6, cx - 5.5, cy + 4, cx + 5.5, cy + 4]); icon.endFill();
         break;
@@ -1095,6 +1233,8 @@ const PixiBoard = (() => {
 
     // Cost badge overlaid top-left corner of art
     ct.addChild(_costBadge(card.manaCost ?? 0, 15, 15, free));
+    const roleIcon = _roleIcon(card.classType, w - 33, 7, 26);
+    if (roleIcon) ct.addChild(roleIcon);
 
     // Stats + ability inside the card's WHITE TEXT BOX (matches the PNG art —
     // same gem layout as board character cards so hand/board look identical)
@@ -1192,7 +1332,8 @@ const PixiBoard = (() => {
     const hpPct = Math.max(0, Math.min(1, char.currentHp / (char.maxHp || 1)));
     const isOwn = owner === 'p1';
     const isTap = char.tapped || char.hasAttackedThisTurn;
-    const bCol  = hpPct > 0.5 ? (isOwn ? P.own : P.opp) : hpPct > 0.2 ? P.warn : P.red;
+    const isCaptain = char.instanceId === GameState?.getPlayerState?.(owner)?.captainId;
+    const bCol  = isCaptain ? P.gold : hpPct > 0.5 ? (isOwn ? P.own : P.opp) : hpPct > 0.2 ? P.warn : P.red;
 
     // Shadow
     const sh = new PIXI.Graphics();
@@ -1204,6 +1345,14 @@ const PixiBoard = (() => {
     frame.lineStyle(3, bCol, 0.9);
     frame.beginFill(P.card); frame.drawRoundedRect(0, 0, w, h, 12); frame.endFill();
     ct.addChild(frame); ct._frame = frame;
+    if (isCaptain) {
+      const badge = new PIXI.Graphics();
+      badge.beginFill(P.gold, 0.92);
+      badge.drawPolygon([0, -7, 7, 0, 0, 7, -7, 0]);
+      badge.endFill();
+      badge.position.set(w - 16, 16);
+      ct.addChild(badge);
+    }
 
     // Full-card art — IDENTICAL rendering to hand cards (PNG includes the name
     // banner + white text box), so cards look the same in hand and in play
@@ -1214,6 +1363,8 @@ const PixiBoard = (() => {
       ph.beginFill(0x1a1550); ph.drawRoundedRect(2, 2, w - 4, h - 4, 10); ph.endFill();
       ct.addChild(ph);
     }
+    const roleIcon = _roleIcon(char.classType || src.classType, w - 34, 8, 26);
+    if (roleIcon) ct.addChild(roleIcon);
 
     // Stats + ability in the white box. HP bar lives BETWEEN the corner gems at
     // the very bottom of the card — never over the name banner in the art.
@@ -1236,7 +1387,7 @@ const PixiBoard = (() => {
         const sid = (s.id ?? '').replace(/^status_/, '');
         let glowCol = null, hazeCol = null, borderCol = null;
         switch (sid) {
-          case 'poison': case 'poisoned':
+          case 'poison': case 'poisoned': case 'rabies':
             glowCol = 0x00dd44; hazeCol = 0x00dd44; break;
           case 'taunt':
             borderCol = 0xff8800; break;
@@ -1246,7 +1397,7 @@ const PixiBoard = (() => {
             glowCol = 0xff4400; hazeCol = 0xff4400; break;
           case 'frozen': case 'freeze':
             glowCol = 0x44aaff; hazeCol = 0x4488ff; break;
-          case 'buffed': case 'strengthen': case 'augmented': case 'accelerated':
+          case 'buffed': case 'strengthen': case 'augmented': case 'accelerated': case 'sidestep':
             glowCol = 0x9955ff; break;
           case 'anemic':
             hazeCol = 0x661122; break;
@@ -1292,23 +1443,17 @@ const PixiBoard = (() => {
 
     const myTurn = owner === (GameState?.currentTurn ?? '');
     const canAtk = myTurn && !isTap && (PhaseManager?.canAttack?.() ?? false);
+    const canDrag = myTurn && !isTap;
 
     ct._cardType = 'char'; ct._charData = char;
-    ct.interactive = true; ct.cursor = canAtk ? 'grab' : 'default';
+    ct.interactive = true; ct.cursor = canDrag ? 'grab' : 'default';
     // Only add hover/drag when the card is usable
     if (!isTap) {
       ct.on('pointerover', () => _hover(ct, true));
       ct.on('pointerout',  () => _hover(ct, false));
     }
-    if (canAtk) {
-      ct.on('pointerdown', (e) => _dragStart(e, ct)); // drag=attack, click=panel
-    } else if (myTurn && !isTap) {
-      // Own char that can't attack right now — click still opens the info panel
-      ct.on('pointerdown', (e) => {
-        if (_targetMode) return;
-        e.stopPropagation();
-        ActionUI?.openCharPanel?.(char, owner);
-      });
+    if (canDrag) {
+      ct.on('pointerdown', (e) => _dragStart(e, ct)); // drag=reposition/attack, click=panel
     }
     return ct;
   }
@@ -1417,6 +1562,8 @@ const PixiBoard = (() => {
     const n     = chars.length;
     const activePid = GameState?.currentTurn ?? 'p1';
     const isActive  = pid === activePid;
+    const captainId = state.captainId;
+    const captain = captainId ? chars.find(c => c.instanceId === captainId) : null;
 
     // Opponent's board renders COMPACT (party layout: your cards get the space)
     const scale = isActive ? 1 : OPP_CARD_SCALE;
@@ -1425,13 +1572,15 @@ const PixiBoard = (() => {
     const startX = W() / 2 - (gap * (n - 1)) / 2;
     const zH    = isActive ? ZONE.hOwn() : ZONE.hOpp();
     const zoneY = (isActive ? ZONE.p1Y() : ZONE.p2Y()) + zH / 2 - ch / 2;
+    const slots = captain
+      ? _captainLayoutSlots(chars, captain, gap)
+      : chars.map((char, i) => ({ char, cardCX: startX + i * gap }));
 
-    chars.forEach((char, i) => {
+    slots.forEach(({ char, cardCX }, i) => {
       const ct = _charCard(char, pid);
       ct.scale.set(scale);
       ct._baseScale = scale; // hover/leave restores THIS, not 1
       const isTap = char.tapped || char.hasAttackedThisTurn;
-      const cardCX = startX + i * gap; // horizontal centre of slot
 
       if (isTap) {
         // Rotate 90° around card centre — set pivot to centre so rotation is in-place
@@ -1452,6 +1601,21 @@ const PixiBoard = (() => {
       gsap.to(ct, { alpha: 1, y: ct._baseY, duration: 0.32, ease: 'back.out(1.3)', delay: i * 0.06 });
       _L.cards.addChild(ct); _board[pid].push(ct);
     });
+  }
+
+  function _captainLayoutSlots(chars, captain, gap) {
+    const others = chars.filter(c => c.instanceId !== captain.instanceId);
+    const leftCount = Math.ceil(others.length / 2);
+    const slots = [{ char: captain, cardCX: W() / 2 }];
+
+    others.forEach((char, i) => {
+      const offset = i < leftCount
+        ? -(leftCount - i)
+        : (i - leftCount + 1);
+      slots.push({ char, cardCX: W() / 2 + offset * gap });
+    });
+
+    return slots.sort((a, b) => a.cardCX - b.cardCX);
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1475,7 +1639,7 @@ const PixiBoard = (() => {
 
   function _targetCharPid() {
     const { ownerId, mode } = _targetMode;
-    return (mode === 'ally_chars' || mode === 'ally_or_self')
+    return (mode === 'ally_chars' || mode === 'ally_or_self' || mode === 'ally_any')
       ? ownerId : (ownerId === 'p1' ? 'p2' : 'p1');
   }
 
@@ -1487,7 +1651,7 @@ const PixiBoard = (() => {
   function _targetPlayerPid() {
     const { ownerId, mode } = _targetMode;
     if (mode === 'enemy_any')    return ownerId === 'p1' ? 'p2' : 'p1';
-    if (mode === 'ally_or_self') return ownerId;
+    if (mode === 'ally_or_self' || mode === 'ally_any') return ownerId;
     return null;
   }
 
@@ -1685,7 +1849,7 @@ const PixiBoard = (() => {
       // Hero deploy — highlight bottom zone (always the active player's deploy zone)
       const inZone = _inZone(pos);
       _L.zones.children.forEach((z, idx) => {
-        const isBottomZone = idx === 1; // zones[0]=top(p2), zones[1]=bottom(p1)
+        const isBottomZone = z._zoneRole === 'active' || z._zoneRole === 'active-captain';
         z.alpha = (isBottomZone && inZone) ? 1.0 : 0.55;
       });
     }
@@ -1709,7 +1873,7 @@ const PixiBoard = (() => {
     const { ct, isChar, t0, px0, py0 } = _drag;
     _drag = null;
     ct.alpha = 1; ct.scale.set(1);
-    _L.drag.removeChild(ct);
+    if (ct.parent === _L.drag) _L.drag.removeChild(ct);
     _L.zones.children.forEach(z => z.alpha = 0.55);
     // Reset enemy card highlights
     const oppPid = ct._owner === 'p1' ? 'p2' : 'p1';
@@ -1732,6 +1896,22 @@ const PixiBoard = (() => {
     }
 
     if (isChar) {
+      if (_inCaptainSlot(pos)) {
+        const assigned = GameState?.setCaptain?.(owner, ct._charData?.instanceId);
+        if (assigned?.ok) showToast('Captain assigned.', 'info');
+        renderBoard(); return;
+      }
+
+      if (_inZone(pos)) {
+        if (GameState?.getPlayerState?.(owner)?.captainId === ct._charData?.instanceId) {
+          GameState?.setCaptain?.(owner, null);
+        }
+        const targetIndex = _boardDropIndex(owner, pos.x, ct._charData?.instanceId);
+        const moved = GameState?.reorderBoardCharacter?.(owner, ct._charData?.instanceId, targetIndex);
+        if (moved?.ok) showToast('Hero repositioned.', 'info');
+        renderBoard(); return;
+      }
+
       // Drag-to-attack: check if dropped on enemy char or player icon
       let targetHit = null;
       _board[oppPid].forEach(c => {
@@ -1770,7 +1950,10 @@ const PixiBoard = (() => {
         showToast('Not enough mana', 'warn');
       } else {
         const r = GameState?.deployHero?.(owner, card.id);
-        if (r?.ok) { renderBoard(); return; }
+        if (r?.ok) {
+          if (_inCaptainSlot(pos)) GameState?.setCaptain?.(owner, r.instance?.instanceId);
+          renderBoard(); return;
+        }
         else showToast(r?.error ?? 'Deploy failed', 'warn');
       }
     }
@@ -1782,6 +1965,19 @@ const PixiBoard = (() => {
     const zT = ZONE.p1Y();
     const zH = ZONE.hOwn();
     return pos.y >= zT && pos.y <= zT + zH && pos.x >= W() * 0.12 && pos.x <= W() * 0.88;
+  }
+
+  function _inCaptainSlot(pos) {
+    const r = _captainSlotRect(true);
+    return pos.x >= r.x && pos.x <= r.x + r.w && pos.y >= r.y && pos.y <= r.y + r.h;
+  }
+
+  function _boardDropIndex(pid, x, instanceId) {
+    const cards = (_board[pid] ?? [])
+      .filter(c => c._charData?.instanceId !== instanceId)
+      .sort((a, b) => (a._baseX ?? a.x) - (b._baseX ?? b.x));
+    const idx = cards.findIndex(c => x < ((c._baseX ?? c.x) + (CC.w * (c._baseScale ?? 1)) / 2));
+    return idx === -1 ? cards.length : idx;
   }
 
   function _inOpponentZone(pos) {
@@ -1817,6 +2013,16 @@ const PixiBoard = (() => {
     requestAnimationFrame(() => {
       const mana = GameState?.getMana?.() ?? 0;
 
+      if (_hud.center?._manaBubble) {
+        _drawManaBubble(_hud.center._manaBubble, mana);
+        if (_hud.center._manaNum) _hud.center._manaNum.text = String(mana);
+        gsap.killTweensOf(_hud.center._manaBubble.scale);
+        _hud.center._manaBubble.scale.set(1);
+        gsap.to(_hud.center._manaBubble.scale, {
+          x: 1.18, y: 1.18, duration: 0.16, yoyo: true, repeat: 1, ease: 'power2.out',
+        });
+      }
+
       if (_hud.center?._dots) {
         // Hard-reset all dots to empty so the animation plays from zero
         _hud.center._dots.forEach(dot => {
@@ -1841,8 +2047,8 @@ const PixiBoard = (() => {
       // Floating +N MANA text — bottom-left near the health bar, floats upward
       const txt = _T(`+${amount} MANA`, {
         fontFamily: "'Exo 2', sans-serif", fontSize: 20, fontWeight: '900',
-        fill: 0xff4400, stroke: 0x000000, strokeThickness: 4,
-        dropShadow: true, dropShadowColor: 0x880000, dropShadowBlur: 14, dropShadowAlpha: 0.85,
+        fill: 0xb984ff, stroke: 0x160020, strokeThickness: 4,
+        dropShadow: true, dropShadowColor: 0x5c149c, dropShadowBlur: 14, dropShadowAlpha: 0.85,
       });
       txt.anchor.set(0.5);
       txt.x = W() * 0.18; txt.y = H() - 60;
@@ -2180,14 +2386,46 @@ const PixiBoard = (() => {
       ct.addChild(ret);
 
       // Tooltip text
-      const tip = _T('drop here to\nattack player', {
+      const tip = _T(isActive ? 'click to\nattack' : 'drop here to\nattack player', {
         fontFamily: "'Rajdhani', sans-serif", fontSize: 7, fill: 0x775555, align: 'center',
       });
       tip.anchor.set(0.5, 0); tip.position.set(0, 44); ct.addChild(tip);
 
-      ct.interactive = false; // icons are drop targets, not click targets
+      if (isActive) {
+        ct.interactive = true;
+        ct.cursor = 'pointer';
+        ct.on('pointertap', (event) => {
+          event.stopPropagation();
+          _startPlayerBaseAttack(pid);
+        });
+      } else {
+        ct.interactive = false;
+      }
       _L.hud.addChild(ct);
       _playerIcons[pid] = ct;
+    });
+  }
+
+  function _startPlayerBaseAttack(pid) {
+    const check = GameState?.canPlayerBaseAttack?.(pid);
+    if (!check?.ok) {
+      showToast(check?.error ?? 'Player attack unavailable.', 'warn');
+      return;
+    }
+
+    const oppPid = GameState?.getOpponentId?.(pid);
+    const taunter = GameState?.getPlayerState?.(oppPid)?.board
+      ?.find(c => c.statuses?.some(s => s.id === 'status_taunt'));
+    const mode = taunter ? 'enemy_chars' : 'enemy_any';
+    const filter = taunter ? (char) => char.instanceId === taunter.instanceId : null;
+
+    showToast('Choose target. Click empty space to cancel.', 'info');
+    enterTargetMode({ ownerId: pid, mode, filter }, (target) => {
+      if (!target) {
+        showToast('Player attack cancelled.', 'info');
+        return;
+      }
+      CombatEngine?.resolvePlayerBaseAttack?.(pid, target);
     });
   }
 
@@ -2317,6 +2555,7 @@ const PixiBoard = (() => {
     _L.oppHand.removeChildren();
     _L.cards.removeChildren();
     _L.hand.removeChildren();
+    _drag = null;
     _L.drag.removeChildren();
     _hand  = { p1: [], p2: [] };
     _board = { p1: [], p2: [] };

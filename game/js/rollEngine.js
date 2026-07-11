@@ -54,10 +54,48 @@ const RollEngine = (() => {
 
   function getRequired() { return _storedRequired; }
 
+  function resolveDieEvent(playerId, roll) {
+    const previousRequired = _storedRequired;
+    const result = {
+      roll,
+      previousRequired,
+      nextRequired: roll,
+      playerDamage: 0,
+      characterHits: [],
+    };
+
+    if (playerId && previousRequired !== null && roll < previousRequired) {
+      const baseDamage = previousRequired - roll;
+      const playerBefore = GameState.getPlayerState?.(playerId)?.hp ?? 0;
+      const playerHp = GameState.damagePlayer(playerId, baseDamage);
+      result.playerDamage = Math.max(0, playerBefore - Math.max(0, playerHp ?? playerBefore));
+
+      if (_rules.dice?.roll5Bomb && previousRequired === 5) {
+        const board = [...(GameState.getPlayerState?.(playerId)?.board ?? [])];
+        board.forEach(char => {
+          const before = char.currentHp ?? 0;
+          const hp = GameState.damageCharacter(char.instanceId, baseDamage);
+          const damage = Math.max(0, before - Math.max(0, hp ?? before));
+          result.characterHits.push({ instanceId: char.instanceId, damage });
+        });
+      }
+    }
+
+    if (_rules.dice?.roll6ResetsRequired && roll === _rules.dice.sides) {
+      result.nextRequired = null;
+    }
+    setRequired(result.nextRequired);
+    return result;
+  }
+
+  function rollEvent(playerId, maxSides = null) {
+    return resolveDieEvent(playerId, rollDie(maxSides));
+  }
+
   // ── Mana Setting ──────────────────────────────────────────────────────────
-  // Mana = roll value for the current turn.
+  // Mana pool gains the roll value and carries over.
   function applyRollMana(roll) {
-    GameState.setMana(roll);
+    GameState.gainMana(roll);
   }
 
   // ── Damage Application ────────────────────────────────────────────────────
@@ -65,13 +103,14 @@ const RollEngine = (() => {
     const req = _storedRequired;
     if (req === null || roll >= req) return 0;
     const dmg = req - roll;
-    GameState.damagePlayer(targetPlayerId, dmg);
-    return dmg;
+    const before = GameState.getPlayerState?.(targetPlayerId)?.hp ?? 0;
+    const hp = GameState.damagePlayer(targetPlayerId, dmg);
+    return Math.max(0, before - Math.max(0, hp ?? before));
   }
 
   // ── Duel Roll (used by DuelSystem) ────────────────────────────────────────
-  function rollForDuel() {
-    return rollDie();
+  function rollForDuel(playerId = null) {
+    return rollEvent(playerId);
   }
 
   return {
@@ -80,6 +119,8 @@ const RollEngine = (() => {
     rollTurnStart,
     setRequired,
     getRequired,
+    resolveDieEvent,
+    rollEvent,
     applyRollMana,
     applyRollDamage,
     rollForDuel,

@@ -193,17 +193,20 @@ const CombatEngine = (() => {
     if (!attacker) { _reset(); return; }
 
     // Effective attack — includes Augmented (+2) / Anemic (−2) modifiers
-    const attackDamage = GameState.getEffectiveAttack?.(attacker) ?? attacker.baseAttack;
+    const baseAttackDamage = GameState.getEffectiveAttack?.(attacker) ?? attacker.baseAttack;
+    const attackDamage = GameState.applyCaptainDamageBonus?.(attackOwner, baseAttackDamage) ?? baseAttackDamage;
 
     if (blockerId) {
       // ── Blocked ──────────────────────────────────────────────────────────
       const blocker = GameState.getCharacter(blockerId);
       if (blocker) {
         const blockDamage = GameState.getEffectiveAttack?.(blocker) ?? blocker.baseAttack;
-        const blockerActual = GameState.previewCharacterDamage?.(blockerId, attackDamage) ?? attackDamage;
-        const attackerActual = GameState.previewCharacterDamage?.(attackerId, blockDamage) ?? blockDamage;
-        GameState.damageCharacter(blockerId,  attackDamage);
-        GameState.damageCharacter(attackerId, blockDamage);
+        const blockerBefore = blocker.currentHp ?? 0;
+        const attackerBefore = attacker.currentHp ?? 0;
+        const blockerHp = GameState.damageCharacter(blockerId, attackDamage);
+        const attackerHp = GameState.damageCharacter(attackerId, blockDamage);
+        const blockerActual = Math.max(0, blockerBefore - Math.max(0, blockerHp ?? blockerBefore));
+        const attackerActual = Math.max(0, attackerBefore - Math.max(0, attackerHp ?? attackerBefore));
         PixiBoard?.showHitEffect?.('character', blockerId,  blockerActual);
         PixiBoard?.showHitEffect?.('character', attackerId, attackerActual);
         showToast(
@@ -213,23 +216,30 @@ const CombatEngine = (() => {
       }
     } else if (targetType === 'player') {
       // ── Unblocked direct attack ───────────────────────────────────────────
-      const actualDamage = GameState.previewPlayerDamage?.(targetId, attackDamage) ?? attackDamage;
-      const newHp = GameState.damagePlayer(targetId, attackDamage);
-      PixiBoard?.showHitEffect?.('player', targetId, actualDamage);
-      showToast(`${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${actualDamage}! HP → ${newHp}`, 'combat');
+      const hit = GameState.damageTarget?.({ type: 'player', id: targetId }, attackDamage)
+        ?? { type: 'player', id: targetId, actualDamage: attackDamage, hp: GameState.damagePlayer(targetId, attackDamage, { splashCaptain: true }) };
+      PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+      showToast(hit.safeguarded
+        ? `${attacker.name} hits Safeguard.`
+        : `${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${hit.actualDamage}! HP → ${hit.hp}`,
+        'combat');
     } else if (targetType === 'character') {
       // ── Unblocked character attack ────────────────────────────────────────
       const target = GameState.getCharacter(targetId);
       if (target) {
         // Retort-style statuses reflect damage back at the attacker
         const retort = target.statuses?.find(s => s.trigger === 'on_attacked');
-        const actualDamage = GameState.previewCharacterDamage?.(targetId, attackDamage) ?? attackDamage;
-        GameState.damageCharacter(targetId, attackDamage);
-        PixiBoard?.showHitEffect?.('character', targetId, actualDamage);
-        showToast(`${attacker.name} attacks ${target.name} for ${actualDamage}!`, 'combat');
+        const hit = GameState.damageTarget?.({ type: 'character', id: targetId }, attackDamage)
+          ?? { type: 'character', id: targetId, actualDamage: GameState.previewCharacterDamage?.(targetId, attackDamage) ?? attackDamage };
+        PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+        showToast(hit.safeguarded
+          ? `${attacker.name} hits Safeguard.`
+          : `${attacker.name} attacks ${target.name} for ${hit.actualDamage}!`,
+          'combat');
         if (retort) {
-          const retortDamage = GameState.previewCharacterDamage?.(attackerId, 2) ?? 2;
-          GameState.damageCharacter(attackerId, 2);
+          const before = attacker.currentHp ?? 0;
+          const hp = GameState.damageCharacter(attackerId, 2);
+          const retortDamage = Math.max(0, before - Math.max(0, hp ?? before));
           PixiBoard?.showHitEffect?.('character', attackerId, retortDamage);
           showToast(`⚡ ${target.name}'s ${retort.name} strikes back for ${retortDamage}!`, 'combat');
         }
@@ -242,6 +252,43 @@ const CombatEngine = (() => {
     GameState.tapCharacter(attackerId);
 
     _reset();
+    renderBoard();
+    PhaseManager.checkWin?.();
+  }
+
+  function resolvePlayerBaseAttack(attackerPlayerId, target) {
+    if (!target) {
+      showToast('Player attack cancelled.', 'info');
+      return;
+    }
+
+    const check = GameState.commitPlayerBaseAttack?.(attackerPlayerId);
+    if (!check?.ok) {
+      showToast(check?.error ?? 'Player attack unavailable.', 'warn');
+      return;
+    }
+
+    const baseDamage = check.damage ?? GameState.getPlayerBaseAttackDamage?.() ?? 2;
+    const damage = GameState.applyCaptainDamageBonus?.(attackerPlayerId, baseDamage) ?? baseDamage;
+    if (target?.type === 'character') {
+      const targetChar = GameState.getCharacter(target.id);
+      const hit = GameState.damageTarget?.(target, damage)
+        ?? { type: 'character', id: target.id, actualDamage: damage };
+      PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+      showToast(hit.safeguarded
+        ? `${GameState.getPlayerLabel(attackerPlayerId)} hits Safeguard.`
+        : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${targetChar?.name ?? 'target'} for ${hit.actualDamage}.`,
+        'combat');
+    } else if (target?.type === 'player') {
+      const hit = GameState.damageTarget?.(target, damage)
+        ?? { type: 'player', id: target.id, actualDamage: damage, hp: GameState.damagePlayer(target.id, damage, { splashCaptain: true }) };
+      PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+      showToast(hit.safeguarded
+        ? `${GameState.getPlayerLabel(attackerPlayerId)} hits Safeguard.`
+        : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${GameState.getPlayerLabel(target.id)} for ${hit.actualDamage}. HP → ${hit.hp}`,
+        'combat');
+    }
+
     renderBoard();
     PhaseManager.checkWin?.();
   }
@@ -262,5 +309,6 @@ const CombatEngine = (() => {
     declareAttack,
     resolveAttack,
     resolveDirectAttack,
+    resolvePlayerBaseAttack,
   };
 })();

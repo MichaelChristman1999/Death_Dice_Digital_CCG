@@ -166,15 +166,29 @@ const PhaseManager = (() => {
 
     const required = RollEngine.getRequired();
     let damage = 0;
+    let bombDamage = 0;
 
     if (required !== null && roll < required) {
       const baseDamage = required - roll;
-      damage = GameState.previewPlayerDamage?.(activePlayer, baseDamage) ?? baseDamage;
-      GameState.damagePlayer(activePlayer, baseDamage);
+      const before = GameState.getPlayerState?.(activePlayer)?.hp ?? 0;
+      const hp = GameState.damagePlayer(activePlayer, baseDamage);
+      damage = Math.max(0, before - Math.max(0, hp ?? before));
+      if (GameData.rules.dice?.roll5Bomb && required === 5) {
+        bombDamage = baseDamage;
+        [...GameState.getPlayerState(activePlayer).board].forEach(char => {
+          const beforeHp = char.currentHp ?? 0;
+          const hpAfter = GameState.damageCharacter(char.instanceId, bombDamage);
+          const actual = Math.max(0, beforeHp - Math.max(0, hpAfter ?? beforeHp));
+          PixiBoard?.showHitEffect?.('character', char.instanceId, actual);
+        });
+      }
     }
 
-    // Mana = roll value regardless of damage
-    GameState.setMana(roll);
+    // Mana pool carries over, capped by rules. Mana captains can Enchant beyond cap.
+    const rollManaGained = GameState.gainMana(roll, activePlayer);
+    const roleResults = _resolveCaptainRollPassives(activePlayer);
+    const enchantMana = roleResults.enchantMana;
+    const manaGained = rollManaGained + enchantMana;
 
     const nextRequired = (GameData.rules.dice?.roll6ResetsRequired && roll === GameData.rules.dice.sides)
       ? null : roll;
@@ -183,14 +197,55 @@ const PhaseManager = (() => {
     _setStep(STEPS.MAIN);
 
     // Structured info → dice overlay renders a punchy result readout
-    const info = { name: GameState.getPlayerLabel(activePlayer).toUpperCase(), roll, mana: roll, damage };
+    const info = { name: GameState.getPlayerLabel(activePlayer).toUpperCase(), roll, mana: manaGained, damage };
 
     DiceAnimation.roll(roll, info, () => {
-      animateManaGain(roll);
+      if (bombDamage) showToast('Bomb hits your field!', 'combat');
+      roleResults.messages.forEach(msg => showToast(msg, 'info'));
+      animateManaGain(manaGained);
       _updateUI();
       renderBoard();
       _checkWinCondition();
     });
+  }
+
+  function _resolveCaptainRollPassives(playerId) {
+    const messages = [];
+    let enchantMana = 0;
+
+    if (GameState.hasManaCaptain?.(playerId)) {
+      const r = RollEngine.rollDie();
+      if (r >= 4) {
+        enchantMana = GameState.gainMana(3, playerId, { source: 'mana_enchant' });
+        messages.push(`Enchant +${enchantMana} mana.`);
+      } else {
+        messages.push('Enchant failed.');
+      }
+    }
+
+    if (GameState.hasCaptainClass?.(playerId, 'Balanced')) {
+      const r = RollEngine.rollDie();
+      if (r >= 4) {
+        const drawn = HandManager.drawAction(playerId);
+        if (drawn.ok && drawn.card) drawn.card._freeCast = true;
+        messages.push(drawn.ok ? 'Enact drew action.' : 'Enact no room.');
+      } else {
+        messages.push('Enact missed.');
+      }
+    }
+
+    if (GameState.hasCaptainClass?.(playerId, 'Legendary')) {
+      const r = RollEngine.rollDie();
+      if (r >= 4) {
+        const drawn = HandManager.drawHero(playerId);
+        if (drawn.ok && drawn.card) drawn.card._freeCast = true;
+        messages.push(drawn.ok ? 'Invocation drew hero.' : 'Invocation no room.');
+      } else {
+        messages.push('Invocation missed.');
+      }
+    }
+
+    return { enchantMana, messages };
   }
 
   // ── End Turn ───────────────────────────────────────────────────────────────

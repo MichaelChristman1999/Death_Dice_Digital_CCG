@@ -10,18 +10,21 @@ const GameState = (() => {
   let _currentTurn = 'p1';
   let _currentPhase = 'rolloff'; // 'rolloff' | 'etiquette' | 'combat'
   let _phaseStep = 'rolloff';
-  let _mana = 0;
+  let _mana = 0; // legacy save migration only; live mana lives on each player
   let _lastRoll = null;
   let _actionStack = [];  // for response resolution (LIFO)
   let _instanceCounter = 0;
   let _turnNumber = 1;
   // Per-turn trackers (reset in advanceTurn)
   let _actionCardsPlayedThisTurn = 0;
-  let _shopPurchasesThisTurn = 0;
+  let _playerBaseAttackUsedThisTurn = false;
+  let _shopPurchasesThisTurn = { hero: 0, action: 0 };
+  const _MANA_CAP_EXCEPTION_SOURCES = new Set(['cheatah_reroll', 'augment', 'mana_enchant']);
+  const _QUEUED_STATUS_IDS = new Set(['status_crippled', 'status_augmented']);
   const _NEGATIVE_STATUS_IDS = new Set([
     'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
-    'status_frozen', 'status_example_timed', 'status_example_permanent',
+    'status_frozen', 'status_rabies', 'status_locked_out', 'status_example_timed', 'status_example_permanent',
   ]);
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -43,7 +46,8 @@ const GameState = (() => {
     _instanceCounter = 0;
     _turnNumber = 1;
     _actionCardsPlayedThisTurn = 0;
-    _shopPurchasesThisTurn = 0;
+    _playerBaseAttackUsedThisTurn = false;
+    _shopPurchasesThisTurn = { hero: 0, action: 0 };
 
     if (!options.skipSave) _saveToStorage();
   }
@@ -52,10 +56,12 @@ const GameState = (() => {
     return {
       id,
       label,
-      hp: _rules.startingPlayerHP ?? 20,
+      hp: _rules.startingPlayerHP ?? 40,
+      mana: 0,
       statuses: [],
       hand: { heroes: [], actions: [] },
       board: [],
+      captainId: null,
       graveyard: [],
       drawPile: [],
       discardedForManaThisTurn: { hero: 0, action: 0 },
@@ -85,23 +91,51 @@ const GameState = (() => {
     }
   }
 
-  function getMana() { return _mana; }
-
-  function setMana(value) {
-    _mana = Math.max(0, value);
-    _saveToStorage();
+  function getMaxMana() {
+    return _rules.mana?.maxPool ?? 12;
   }
 
-  function spendMana(amount) {
-    if (_mana < amount) return false;
-    _mana -= amount;
+  function canExceedManaCap(playerId = _currentTurn, source = null) {
+    if (!source || !_MANA_CAP_EXCEPTION_SOURCES.has(source)) return false;
+    if (source === 'mana_enchant') return hasManaCaptain(playerId);
+    return true;
+  }
+
+  function _resolveManaArgs(playerIdOrOptions, maybeOptions) {
+    if (typeof playerIdOrOptions === 'string') {
+      return { playerId: playerIdOrOptions, ...(maybeOptions ?? {}) };
+    }
+    return { playerId: _currentTurn, ...(playerIdOrOptions ?? {}) };
+  }
+
+  function getMana(playerId = _currentTurn) {
+    return _players[playerId]?.mana ?? 0;
+  }
+
+  function setMana(value, playerIdOrOptions, maybeOptions) {
+    const { playerId, bypassCap = false, source = null } = _resolveManaArgs(playerIdOrOptions, maybeOptions);
+    const p = _players[playerId];
+    if (!p) return 0;
+    const cap = (bypassCap || canExceedManaCap(playerId, source)) ? Number.POSITIVE_INFINITY : getMaxMana();
+    p.mana = Math.max(0, Math.min(cap, value));
+    _saveToStorage();
+    return p.mana;
+  }
+
+  function spendMana(amount, playerId = _currentTurn) {
+    const p = _players[playerId];
+    if (!p || p.mana < amount) return false;
+    p.mana -= amount;
     _saveToStorage();
     return true;
   }
 
-  function gainMana(amount) {
-    _mana += amount;
+  function gainMana(amount, playerIdOrOptions, maybeOptions) {
+    const { playerId, bypassCap = false, source = null } = _resolveManaArgs(playerIdOrOptions, maybeOptions);
+    const before = getMana(playerId);
+    const after = setMana(before + amount, playerId, { bypassCap, source });
     _saveToStorage();
+    return after - before;
   }
 
   // ── Turn / Phase ───────────────────────────────────────────────────────────
@@ -128,17 +162,22 @@ const GameState = (() => {
 
     _currentTurn = getOpponentId(_currentTurn);
     _turnNumber++;
-    _mana = 0;
     _lastRoll = null;
     _actionCardsPlayedThisTurn = 0;
-    _shopPurchasesThisTurn = 0;
+    _playerBaseAttackUsedThisTurn = false;
+    _shopPurchasesThisTurn = { hero: 0, action: 0 };
 
     // Reset per-turn state for new active player
     const p = _players[_currentTurn];
     p.discardedForManaThisTurn = { hero: 0, action: 0 };
 
-    // Untap all characters for the new player
-    p.board.forEach(c => { c.tapped = false; c.hasAttackedThisTurn = false; c.hasUsedAbilityThisTurn = false; });
+    // Untap all characters for the new player unless a lockout status keeps them tapped.
+    p.board.forEach(c => {
+      const locked = (c.statuses ?? []).some(s => ['status_impeded', 'status_frozen'].includes(s.id));
+      c.tapped = locked;
+      c.hasAttackedThisTurn = false;
+      c.hasUsedAbilityThisTurn = false;
+    });
 
     // Tick timed statuses for the new player's board.
     // Iterate over a COPY — poison deaths splice the live board array.
@@ -170,6 +209,10 @@ const GameState = (() => {
       maxHp: heroData.hp,
       currentHp: heroData.hp,
       baseAttack: heroData.baseAttack,
+      manaCost: heroData.manaCost ?? 0,
+      role: heroData.role ?? '',
+      classType: heroData.classType ?? '',
+      archetype: heroData.archetype ?? '',
       abilities: heroData.abilities ?? [],
       passives: heroData.passives ?? [],
       tapped: false,
@@ -217,11 +260,15 @@ const GameState = (() => {
     const p = _players[playerId];
     const idx = p.hand.heroes.findIndex(c => c.id === cardId);
     if (idx === -1) return { ok: false, error: 'Card not in hand' };
+    if (p.board.length >= (_rules.fieldLimits?.heroes ?? 5)) {
+      return { ok: false, error: 'Hero field full' };
+    }
 
     const card = p.hand.heroes[idx];
-    if (_mana < card.manaCost) return { ok: false, error: 'Not enough mana' };
+    const freeCast = card._freeCast === true;
+    if (!freeCast && getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
 
-    if (!spendMana(card.manaCost)) return { ok: false, error: 'Mana spend failed' };
+    if (!freeCast && !spendMana(card.manaCost, playerId)) return { ok: false, error: 'Mana spend failed' };
 
     p.hand.heroes.splice(idx, 1);
     const instance = _createCharacterInstance(card);
@@ -237,6 +284,118 @@ const GameState = (() => {
     return { ok: true, instance };
   }
 
+  function reorderBoardCharacter(playerId, instanceId, targetIndex) {
+    const p = _players[playerId];
+    if (!p?.board?.length) return { ok: false, error: 'No board' };
+    const from = p.board.findIndex(c => c.instanceId === instanceId);
+    if (from === -1) return { ok: false, error: 'Hero not found' };
+    const [card] = p.board.splice(from, 1);
+    const to = Math.max(0, Math.min(targetIndex, p.board.length));
+    p.board.splice(to, 0, card);
+    _saveToStorage();
+    return { ok: true, from, to };
+  }
+
+  function setCaptain(playerId, instanceId = null) {
+    const p = _players[playerId];
+    if (!p) return { ok: false, error: 'Player not found' };
+    if (!instanceId) {
+      p.captainId = null;
+      _saveToStorage();
+      return { ok: true, captain: null };
+    }
+
+    const captain = p.board.find(c => c.instanceId === instanceId);
+    if (!captain) return { ok: false, error: 'Hero not on board' };
+    p.captainId = instanceId;
+    _activateCaptainRolePassive(playerId, captain);
+    _saveToStorage();
+    return { ok: true, captain };
+  }
+
+  function _activateCaptainRolePassive(playerId, captain) {
+    const role = captain.classType || captain._sourceCard?.classType || '';
+    const names = {
+      Agility: 'Evasive Maneuver',
+      Balanced: 'Enact',
+      Durability: 'Safeguard',
+      IQ: 'Foresight',
+      Legendary: 'Invocation',
+      Mana: 'Enchant',
+      Passive: 'Imbue',
+      Speed: 'Enhanced Reflex',
+      Strength: 'Crit-Hit Chance',
+      Technique: 'Duelist',
+    };
+    const key = Object.keys(names).find(k => new RegExp(k, 'i').test(role));
+    if (!key) return;
+    try { showToast?.(`${names[key]} active.`, 'info'); } catch (_) {}
+    if (key === 'Passive') {
+      const p = _players[playerId];
+      applyPlayerStatus(playerId, 'status_imbued');
+      p.board.filter(c => c.instanceId !== captain.instanceId)
+        .forEach(c => applyStatus(c.instanceId, 'status_imbued'));
+    }
+  }
+
+  function getCaptain(playerId) {
+    const p = _players[playerId];
+    if (!p?.captainId) return null;
+    return p.board?.find(c => c.instanceId === p.captainId) ?? null;
+  }
+
+  function getCaptainClassType(playerId) {
+    const captain = getCaptain(playerId);
+    return captain?.classType || captain?._sourceCard?.classType || '';
+  }
+
+  function hasCaptainClass(playerId, roleName) {
+    const captain = getCaptain(playerId);
+    if (!captain) return false;
+    if (hasStatus(captain.instanceId, 'status_impeded')) return false;
+    return new RegExp(roleName, 'i').test(captain.classType || captain._sourceCard?.classType || '');
+  }
+
+  function hasSpeedCaptain(playerId) {
+    return hasCaptainClass(playerId, 'Speed');
+  }
+
+  function hasManaCaptain(playerId) {
+    return hasCaptainClass(playerId, 'Mana');
+  }
+
+  function hasIQCaptain(playerId) {
+    return hasCaptainClass(playerId, 'IQ');
+  }
+
+  function hasDurabilityCaptain(playerId) {
+    return hasCaptainClass(playerId, 'Durability');
+  }
+
+  function hasAgilityCaptain(playerId) {
+    return hasCaptainClass(playerId, 'Agility');
+  }
+
+  function applyCaptainDamageBonus(playerId, amount) {
+    let next = amount;
+    if (hasCaptainClass(playerId, 'Strength')) {
+      const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
+        ? RollEngine.rollDie(4)
+        : Math.floor(Math.random() * 4) + 1;
+      if (roll === 4) {
+        next *= 2;
+        try { showToast?.('Crit-Hit!', 'combat'); } catch (_) {}
+      }
+    }
+    return next;
+  }
+
+  function tryManaEnchant(playerId = _currentTurn) {
+    if (!hasManaCaptain(playerId)) return 0;
+    if (Math.random() >= 0.5) return 0;
+    return gainMana(3, playerId, { source: 'mana_enchant' });
+  }
+
   // Validate an action card WITHOUT spending anything — used by the targeting
   // flow so a cancelled/invalid play never costs mana or the card.
   function canPlayAction(playerId, cardId) {
@@ -244,17 +403,71 @@ const GameState = (() => {
     const card = p.hand.actions.find(c => c.id === cardId);
     if (!card) return { ok: false, error: 'Card not in hand' };
 
-    const isFree = card.manaCost === 0 || card.type === 'free';
-    if (_actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
+    const isFree = card._freeCast === true || card.manaCost === 0 || card.type === 'free';
+    const actionLimit = getActionCardLimit(playerId);
+    if (!isFree && _actionCardsPlayedThisTurn >= actionLimit) {
       return { ok: false, error: 'Only one action card per turn' };
     }
-    if (card.id === 'action_blood_mana' && p.hp <= 3) {
-      return { ok: false, error: 'Blood Mana cannot be played at 3 HP or lower' };
+    if (card.id === 'action_blood_mana' && p.hp <= 5) {
+      return { ok: false, error: 'Blood Mana needs more HP' };
+    }
+    if (card.id === 'action_blood_mana' && getMana(playerId) >= getMaxMana()) {
+      return { ok: false, error: 'Mana pool is full' };
+    }
+    if (hasPlayerStatus(playerId, 'status_frozen') && card.id !== 'action_accelerate') {
+      return { ok: false, error: 'Frozen blocks cards' };
+    }
+    if (hasPlayerStatus(playerId, 'status_impeded')) {
+      const attackEffects = new Set(['cascade_damage', 'deal_damage', 'multi_damage', 'rabies', 'control_character']);
+      if (attackEffects.has(card.effect)) return { ok: false, error: 'Impeded blocks attacks' };
     }
     if (!isFree) {
-      if (_mana < card.manaCost) return { ok: false, error: 'Not enough mana' };
+      if (getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
     }
     return { ok: true, card, isFree };
+  }
+
+  function getActionCardLimit(playerId = _currentTurn) {
+    let limit = _rules.combat?.actionCardsPerTurn ?? 1;
+    if (hasPlayerStatus(playerId, 'status_accelerated')) limit++;
+    if (hasSpeedCaptain(playerId)) limit++;
+    return limit;
+  }
+
+  function getPlayerBaseAttackDamage(playerId = _currentTurn) {
+    let damage = _rules.combat?.playerBaseAttack ?? 2;
+    if (hasPlayerStatus(playerId, 'status_augmented')) damage += 2;
+    if (hasPlayerStatus(playerId, 'status_anemic')) damage = Math.max(0, damage - 2);
+    return damage;
+  }
+
+  function _baseAttackConsumesAction(playerId) {
+    return !(hasPlayerStatus(playerId, 'status_accelerated') || hasSpeedCaptain(playerId));
+  }
+
+  function canPlayerBaseAttack(playerId = _currentTurn) {
+    if (playerId !== _currentTurn) return { ok: false, error: 'Not your turn' };
+    if (_currentPhase !== 'combat' || _phaseStep !== 'main') return { ok: false, error: 'Combat only' };
+    if (_playerBaseAttackUsedThisTurn) return { ok: false, error: 'Base attack already used' };
+    if (hasPlayerStatus(playerId, 'status_frozen')) return { ok: false, error: 'Frozen blocks player attack' };
+    if (hasPlayerStatus(playerId, 'status_impeded')) return { ok: false, error: 'Impeded blocks player attack' };
+    if (_baseAttackConsumesAction(playerId) && _actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
+      return { ok: false, error: 'Player attack needs your action slot' };
+    }
+    return {
+      ok: true,
+      damage: getPlayerBaseAttackDamage(playerId),
+      consumesAction: _baseAttackConsumesAction(playerId),
+    };
+  }
+
+  function commitPlayerBaseAttack(playerId = _currentTurn) {
+    const check = canPlayerBaseAttack(playerId);
+    if (!check.ok) return check;
+    _playerBaseAttackUsedThisTurn = true;
+    if (check.consumesAction) _actionCardsPlayedThisTurn++;
+    _saveToStorage();
+    return check;
   }
 
   // Commit the play: spend mana, remove from hand, count it, graveyard it.
@@ -268,9 +481,9 @@ const GameState = (() => {
     const card = p.hand.actions[idx];
 
     if (!check.isFree) {
-      if (!spendMana(card.manaCost)) return { ok: false, error: 'Mana spend failed' };
+      if (!spendMana(card.manaCost, playerId)) return { ok: false, error: 'Mana spend failed' };
     }
-    _actionCardsPlayedThisTurn++;
+    if (!check.isFree) _actionCardsPlayedThisTurn++;
     p.hand.actions.splice(idx, 1);
     p.graveyard.push(card);
     _saveToStorage();
@@ -288,31 +501,68 @@ const GameState = (() => {
   // ── Discard for Mana ───────────────────────────────────────────────────────
   function discardForMana(playerId, cardId, cardType) {
     const p = _players[playerId];
-    const limit = _rules.mana?.maxDiscardRefundPerTurn?.[cardType] ?? 1;
+    const discardRules = _rules.mana?.discardForMana ?? {};
+    const limit = cardType === 'hero'
+      ? (discardRules.maxHeroPerTurn ?? 1)
+      : (discardRules.maxActionPerTurn ?? 1);
     const used  = p.discardedForManaThisTurn[cardType] ?? 0;
-    if (used >= limit) return { ok: false, error: `Already discarded a ${cardType} for mana this turn` };
+    if (used >= limit) return { ok: false, error: `Already discarded a ${cardType}` };
 
     const hand = cardType === 'hero' ? p.hand.heroes : p.hand.actions;
     const idx  = hand.findIndex(c => c.id === cardId);
     if (idx === -1) return { ok: false, error: 'Card not in hand' };
 
     const card = hand[idx];
+    const refund = _getDiscardRefund(card, cardType);
     hand.splice(idx, 1);
     p.graveyard.push(card);
     p.discardedForManaThisTurn[cardType]++;
-    gainMana(card.manaCost);
+    gainMana(refund, playerId);
 
     _saveToStorage();
-    return { ok: true, refund: card.manaCost };
+    return { ok: true, refund };
+  }
+
+  function _getDiscardRefund(card, cardType) {
+    if (cardType === 'action') return 1;
+    const cost = card?.manaCost ?? 0;
+    return cost <= 2 ? 1 : Math.ceil(cost / 2);
+  }
+
+  function forceDiscardFromHand(playerId, cardId, cardType = 'action') {
+    const p = _players[playerId];
+    const hand = cardType === 'hero' ? p?.hand?.heroes : p?.hand?.actions;
+    if (!hand) return { ok: false, error: 'Hand not found' };
+    const idx = hand.findIndex(c => c.id === cardId);
+    if (idx === -1) return { ok: false, error: 'Card not in hand' };
+    const [card] = hand.splice(idx, 1);
+    p.graveyard.push(card);
+    _saveToStorage();
+    return { ok: true, card };
   }
 
   // ── HP Manipulation ────────────────────────────────────────────────────────
-  function damagePlayer(playerId, amount) {
+  function damagePlayer(playerId, amount, options = {}) {
     const p = _players[playerId];
+    if (_tryPlayerSidestep(playerId, 'attack')) return p.hp;
+    if (options.roleEvasion && _tryRoleEvasion(playerId, 'player', playerId)) return p.hp;
     const dmg = previewPlayerDamage(playerId, amount);
     p.hp = Math.max(0, p.hp - dmg);
+    if (options.splashCaptain && dmg > 0) _splashDamageToCaptain(playerId, amount);
     _saveToStorage();
     return p.hp;
+  }
+
+  function _splashDamageToCaptain(playerId, amount) {
+    const captain = getCaptain(playerId);
+    if (!captain) return;
+    const before = captain.currentHp ?? 0;
+    const hp = damageCharacter(captain.instanceId, amount);
+    const after = Math.max(0, hp ?? captain.currentHp ?? 0);
+    const actual = Math.max(0, before - after);
+    if (actual > 0) {
+      try { PixiBoard?.showHitEffect?.('character', captain.instanceId, actual); } catch (_) {}
+    }
   }
 
   function healPlayer(playerId, amount) {
@@ -322,9 +572,15 @@ const GameState = (() => {
     return p.hp;
   }
 
-  function damageCharacter(instanceId, amount) {
+  function damageCharacter(instanceId, amount, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
+    if (_tryCharacterSidestep(instanceId, 'attack')) return char.currentHp;
+    const ownerId = getCharacterOwner(instanceId);
+    const captain = getCaptain(ownerId);
+    if (options.roleEvasion && captain?.instanceId === instanceId && _tryRoleEvasion(ownerId, 'character', instanceId)) {
+      return char.currentHp;
+    }
     const dmg = previewCharacterDamage(instanceId, amount);
     char.currentHp -= dmg;
     if (char.currentHp <= 0) _killCharacter(instanceId);
@@ -332,11 +588,13 @@ const GameState = (() => {
     return char.currentHp;
   }
 
-  function healCharacter(instanceId, amount) {
+  function healCharacter(instanceId, amount, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
     if ((char.statuses ?? []).some(s => s.id === 'status_anemic')) return char.currentHp;
-    char.currentHp = Math.min(char.maxHp, char.currentHp + amount);
+    char.currentHp = options.overheal
+      ? char.currentHp + amount
+      : Math.min(char.maxHp, char.currentHp + amount);
     _saveToStorage();
     return char.currentHp;
   }
@@ -350,6 +608,86 @@ const GameState = (() => {
     const { char } = _findChar(instanceId);
     const mult = (char?.statuses ?? []).some(s => s.id === 'status_crippled') ? 2 : 1;
     return Math.max(0, amount * mult);
+  }
+
+  function getSafeguardCaptain(playerId, target = null) {
+    const captain = getCaptain(playerId);
+    if (!captain || !hasDurabilityCaptain(playerId)) return null;
+    if (target?.type === 'character' && target.id === captain.instanceId) return null;
+    return captain;
+  }
+
+  function damageTarget(target, amount, options = {}) {
+    if (!target) return null;
+    const ownerId = target.type === 'player' ? target.id : getCharacterOwner(target.id);
+    const safeguard = options.allowSafeguard !== false
+      ? getSafeguardCaptain(ownerId, target)
+      : null;
+
+    if (safeguard) {
+      const redirected = options.safeguardDamage ?? Math.ceil(amount * (options.multiTarget ? 1.5 : 1));
+      const before = safeguard.currentHp ?? 0;
+      const hp = damageCharacter(safeguard.instanceId, redirected, { roleEvasion: false });
+      const after = Math.max(0, hp ?? safeguard.currentHp ?? 0);
+      const actual = Math.max(0, before - after);
+      try { showToast?.('Safeguard blocks.', 'combat'); } catch (_) {}
+      return {
+        type: 'character',
+        id: safeguard.instanceId,
+        ownerId,
+        amount: redirected,
+        actualDamage: actual,
+        safeguarded: true,
+      };
+    }
+
+    if (target.type === 'player') {
+      const player = _players[target.id];
+      const before = player?.hp ?? 0;
+      const hp = damagePlayer(target.id, amount, {
+        splashCaptain: options.splashCaptain ?? true,
+        roleEvasion: options.roleEvasion ?? true,
+      });
+      const actual = Math.max(0, before - Math.max(0, hp ?? before));
+      return { type: 'player', id: target.id, ownerId, amount, actualDamage: actual, hp };
+    }
+
+    const before = getCharacter(target.id)?.currentHp ?? 0;
+    const hp = damageCharacter(target.id, amount, { roleEvasion: options.roleEvasion ?? true });
+    const actual = Math.max(0, before - Math.max(0, hp ?? before));
+    return { type: 'character', id: target.id, ownerId, amount, actualDamage: actual, hp };
+  }
+
+  function applyStatusToTarget(target, statusId, options = {}) {
+    if (!target || !statusId) return { applied: false };
+    const isNegative = _NEGATIVE_STATUS_IDS.has(statusId);
+    const ownerId = target.type === 'player' ? target.id : getCharacterOwner(target.id);
+    const safeguard = options.allowSafeguard !== false && isNegative
+      ? getSafeguardCaptain(ownerId, target)
+      : null;
+
+    if (safeguard) {
+      const applied = applyStatus(safeguard.instanceId, statusId);
+      try { showToast?.('Safeguard absorbs the status.', 'combat'); } catch (_) {}
+      return {
+        type: 'character',
+        id: safeguard.instanceId,
+        ownerId,
+        statusId,
+        applied,
+        safeguarded: true,
+      };
+    }
+
+    if (target.type === 'player') {
+      const applied = applyPlayerStatus(target.id, statusId, {
+        splashCaptain: options.splashCaptain ?? isNegative,
+      });
+      return { type: 'player', id: target.id, ownerId, statusId, applied };
+    }
+
+    const applied = applyStatus(target.id, statusId);
+    return { type: 'character', id: target.id, ownerId, statusId, applied };
   }
 
   function _killCharacter(instanceId) {
@@ -366,6 +704,7 @@ const GameState = (() => {
           return;
         }
         const [dead] = p.board.splice(idx, 1);
+        if (p.captainId === dead.instanceId) p.captainId = null;
         p.graveyard.push(dead._sourceCard ?? { id: dead.id, name: dead.name });
         return;
       }
@@ -396,6 +735,7 @@ const GameState = (() => {
 
     const def = _data.statusEffects.find(s => s.id === statusId);
     if (!def) return false;
+    if (_NEGATIVE_STATUS_IDS.has(statusId) && _tryCharacterSidestep(instanceId, 'debuff')) return false;
     if (char._statusImmune && _NEGATIVE_STATUS_IDS.has(statusId)) return false;
     const ownerId = getCharacterOwner(instanceId);
     if (isPlayerImmuneToStatus(ownerId, statusId)) return false;
@@ -406,12 +746,20 @@ const GameState = (() => {
     if (existing !== -1) {
       if (def.stackBehavior === 'stack') {
         char.statuses[existing].stacks = (char.statuses[existing].stacks ?? 1) + 1;
+      } else if (_QUEUED_STATUS_IDS.has(statusId)) {
+        char.statuses[existing].queued = (char.statuses[existing].queued ?? 0) + 1;
+        try { showToast?.(`${def.name} queued.`, 'info'); } catch (_) {}
       } else if (def.stackBehavior === 'replace') {
         char.statuses[existing] = { ...def, remainingDuration: def.duration };
       } else if (def.stackBehavior === 'cancel') {
         char.statuses.splice(existing, 1);
       }
     } else {
+      const limit = _rules.statusLimits?.character ?? 6;
+      if (char.statuses.length >= limit) {
+        try { showToast?.(`${char.name} status slots full.`, 'warn'); } catch (_) {}
+        return false;
+      }
       char.statuses.push({ ...def, remainingDuration: def.duration, stacks: 1 });
     }
 
@@ -427,27 +775,56 @@ const GameState = (() => {
     return true;
   }
 
-  function applyPlayerStatus(playerId, statusId) {
+  function removePlayerStatus(playerId, statusId) {
+    const p = _players[playerId];
+    if (!p?.statuses) return false;
+    p.statuses = p.statuses.filter(s => s.id !== statusId);
+    _saveToStorage();
+    return true;
+  }
+
+  function applyPlayerStatus(playerId, statusId, options = {}) {
     const p = _players[playerId];
     if (!p) return false;
     if (isPlayerImmuneToStatus(playerId, statusId)) return false;
     const def = _data.statusEffects.find(s => s.id === statusId);
     if (!def) return false;
+    if (_NEGATIVE_STATUS_IDS.has(statusId) && _tryPlayerSidestep(playerId, 'debuff')) return false;
     p.statuses ??= [];
     const existing = p.statuses.findIndex(s => s.id === statusId);
     if (existing !== -1) {
       if (def.stackBehavior === 'stack') {
         p.statuses[existing].stacks = (p.statuses[existing].stacks ?? 1) + 1;
+      } else if (_QUEUED_STATUS_IDS.has(statusId)) {
+        p.statuses[existing].queued = (p.statuses[existing].queued ?? 0) + 1;
+        try { showToast?.(`${def.name} queued.`, 'info'); } catch (_) {}
       } else if (def.stackBehavior === 'replace') {
         p.statuses[existing] = { ...def, remainingDuration: def.duration };
       } else if (def.stackBehavior === 'cancel') {
         p.statuses.splice(existing, 1);
       }
     } else {
+      const limit = _rules.statusLimits?.player ?? 6;
+      if (p.statuses.length >= limit) {
+        try { showToast?.(`${getPlayerLabel(playerId)} status slots full.`, 'warn'); } catch (_) {}
+        return false;
+      }
       p.statuses.push({ ...def, remainingDuration: def.duration, stacks: 1 });
+    }
+    if (options.splashCaptain && _NEGATIVE_STATUS_IDS.has(statusId)) {
+      _splashStatusToCaptain(playerId, statusId);
     }
     _saveToStorage();
     return true;
+  }
+
+  function _splashStatusToCaptain(playerId, statusId) {
+    const captain = getCaptain(playerId);
+    if (!captain) return;
+    const applied = applyStatus(captain.instanceId, statusId);
+    if (applied) {
+      try { showToast?.(`${captain.name} shares ${_data.statusEffects.find(s => s.id === statusId)?.name ?? 'status'}.`, 'combat'); } catch (_) {}
+    }
   }
 
   function hasPlayerStatus(playerId, statusId) {
@@ -457,11 +834,65 @@ const GameState = (() => {
   function canPlayerReceiveStatus(playerId, statusId) {
     if (!_players[playerId] || !statusId) return false;
     if (isPlayerImmuneToStatus(playerId, statusId)) return false;
+    const statuses = _players[playerId].statuses ?? [];
+    const exists = statuses.some(s => s.id === statusId);
+    if (!exists && statuses.length >= (_rules.statusLimits?.player ?? 6)) return false;
     return !hasPlayerStatus(playerId, statusId);
   }
 
   function isPlayerImmuneToStatus(playerId, statusId) {
-    return !!playerId && statusId === 'status_charmed' && hasPlayerStatus(playerId, 'status_abstaining');
+    return !!playerId
+      && ['status_charmed', 'status_drunk'].includes(statusId)
+      && hasPlayerStatus(playerId, 'status_abstaining');
+  }
+
+  function _rollSidestep(label, reason) {
+    const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
+      ? RollEngine.rollDie()
+      : Math.floor(Math.random() * 6) + 1;
+    const dodged = roll >= 4;
+    try {
+      showToast?.(`Sidestep rolled ${roll}.`, 'info');
+      showToast?.(dodged ? `${label} dodged.` : `${label} failed dodge.`, dodged ? 'info' : 'warn');
+    } catch (_) {}
+    return dodged;
+  }
+
+  function _tryPlayerSidestep(playerId, reason) {
+    const p = _players[playerId];
+    if (!p?.statuses?.some(s => s.id === 'status_sidestep')) return false;
+    if (hasPlayerStatus(playerId, 'status_impeded')) {
+      try { showToast?.('Impede blocks dodge.', 'warn'); } catch (_) {}
+      return false;
+    }
+    removePlayerStatus(playerId, 'status_sidestep');
+    return _rollSidestep(getPlayerLabel(playerId), reason);
+  }
+
+  function _tryCharacterSidestep(instanceId, reason) {
+    const { char } = _findChar(instanceId);
+    if (!char?.statuses?.some(s => s.id === 'status_sidestep')) return false;
+    if (char.statuses?.some(s => s.id === 'status_impeded')) {
+      try { showToast?.('Impede blocks dodge.', 'warn'); } catch (_) {}
+      return false;
+    }
+    removeStatus(instanceId, 'status_sidestep');
+    return _rollSidestep(char.name, reason);
+  }
+
+  function _tryRoleEvasion(playerId, targetType, targetId) {
+    if (!hasAgilityCaptain(playerId)) return false;
+    const captain = getCaptain(playerId);
+    if (targetType === 'character' && targetId !== captain?.instanceId) return false;
+    const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
+      ? RollEngine.rollDie()
+      : Math.floor(Math.random() * 6) + 1;
+    const dodged = roll >= 4;
+    try {
+      showToast?.(`Evasion rolled ${roll}.`, 'info');
+      if (dodged) showToast?.('Evasive Maneuver.', 'info');
+    } catch (_) {}
+    return dodged;
   }
 
   // Damage-over-time statuses: id → damage per stack per tick
@@ -484,27 +915,36 @@ const GameState = (() => {
   }
 
   function expireTurnStatuses(char) {
-    const toRemove = [];
-    char.statuses.forEach(s => {
-      if (s.type === 'timed' && s.remainingDuration != null) {
-        s.remainingDuration--;
-        if (s.remainingDuration <= 0) toRemove.push(s.id);
-      }
-    });
-    char.statuses = char.statuses.filter(s => !toRemove.includes(s.id));
+    char.statuses = _expireStatusList(char.statuses);
   }
 
   function expirePlayerStatuses(playerId) {
     const p = _players[playerId];
     if (!p?.statuses) return;
-    const toRemove = [];
-    p.statuses.forEach(s => {
+    p.statuses = _expireStatusList(p.statuses);
+  }
+
+  function _expireStatusList(statuses = []) {
+    const kept = [];
+    statuses.forEach(s => {
       if (s.type === 'timed' && s.remainingDuration != null) {
         s.remainingDuration--;
-        if (s.remainingDuration <= 0) toRemove.push(s.id);
+        if (s.remainingDuration <= 0) {
+          if ((s.queued ?? 0) > 0) {
+            const def = _data.statusEffects.find(row => row.id === s.id);
+            kept.push({
+              ...(def ?? s),
+              remainingDuration: def?.duration ?? s.duration ?? 1,
+              stacks: s.stacks ?? 1,
+              queued: (s.queued ?? 0) - 1,
+            });
+          }
+          return;
+        }
       }
+      kept.push(s);
     });
-    p.statuses = p.statuses.filter(s => !toRemove.includes(s.id));
+    return kept;
   }
 
   // ── Effective Attack — base attack modified by statuses ───────────────────
@@ -548,19 +988,34 @@ const GameState = (() => {
   function addCardToHand(playerId, card, type) {
     const p = _players[playerId];
     const hand = type === 'hero' ? p.hand.heroes : p.hand.actions;
-    const limit = _rules.handLimits?.[type] ?? 5;
+    const limit = _rules.handLimits?.[type] ?? 8;
     if (hand.length >= limit) return { ok: false, error: 'Hand full' };
-    hand.push(card);
+    if (type === 'action') {
+      const copies = hand.filter(c => c.id === card.id).length;
+      if (copies >= 2) return { ok: false, error: 'Max 2 copies in hand' };
+    }
+    if (type === 'hero' && getAllHeroIdsInUse({ includeGraveyard: true }).has(card.id)) {
+      return { ok: false, error: 'Hero already in play' };
+    }
+    const handCard = { ...card };
+    hand.push(handCard);
     _saveToStorage();
-    return { ok: true };
+    return { ok: true, card: handCard };
   }
 
-  function recordShopPurchase() {
-    _shopPurchasesThisTurn++;
+  function recordShopPurchase(type = 'action') {
+    if (typeof _shopPurchasesThisTurn !== 'object') {
+      _shopPurchasesThisTurn = { hero: 0, action: 0 };
+    }
+    _shopPurchasesThisTurn[type] = (_shopPurchasesThisTurn[type] ?? 0) + 1;
     _saveToStorage();
   }
 
-  function getShopPurchasesThisTurn() { return _shopPurchasesThisTurn; }
+  function getShopPurchasesThisTurn(type = null) {
+    if (typeof _shopPurchasesThisTurn === 'number') return type ? _shopPurchasesThisTurn : _shopPurchasesThisTurn;
+    if (type) return _shopPurchasesThisTurn[type] ?? 0;
+    return (_shopPurchasesThisTurn.hero ?? 0) + (_shopPurchasesThisTurn.action ?? 0);
+  }
   function getActionCardsPlayedThisTurn() { return _actionCardsPlayedThisTurn; }
   function getTurnNumber() { return _turnNumber; }
 
@@ -603,6 +1058,18 @@ const GameState = (() => {
     ];
   }
 
+  function getAllHeroIdsInUse(options = {}) {
+    const ids = new Set();
+    for (const p of Object.values(_players)) {
+      p.hand?.heroes?.forEach(c => ids.add(c.id));
+      p.board?.forEach(c => ids.add(c.id));
+      if (options.includeGraveyard) {
+        p.graveyard?.forEach(c => { if ((c.id ?? '').startsWith('hero_')) ids.add(c.id); });
+      }
+    }
+    return ids;
+  }
+
   // ── Persistence ───────────────────────────────────────────────────────────
   function _saveToStorage() {
     try {
@@ -611,11 +1078,12 @@ const GameState = (() => {
         currentTurn: _currentTurn,
         currentPhase: _currentPhase,
         phaseStep: _phaseStep,
-        mana: _mana,
+        mana: { p1: _players.p1?.mana ?? 0, p2: _players.p2?.mana ?? 0 },
         lastRoll: _lastRoll,
         instanceCounter: _instanceCounter,
         turnNumber: _turnNumber,
         actionCardsPlayedThisTurn: _actionCardsPlayedThisTurn,
+        playerBaseAttackUsedThisTurn: _playerBaseAttackUsedThisTurn,
         shopPurchasesThisTurn: _shopPurchasesThisTurn,
       }));
     } catch (_) { /* storage unavailable — non-fatal */ }
@@ -627,16 +1095,41 @@ const GameState = (() => {
       if (!raw) return false;
       const saved = JSON.parse(raw);
       _players = saved.players;
-      Object.values(_players ?? {}).forEach(p => { p.statuses ??= []; });
+      Object.values(_players ?? {}).forEach(p => {
+        p.statuses ??= [];
+        p.mana ??= 0;
+        p.hand ??= { heroes: [], actions: [] };
+        p.hand.heroes ??= [];
+        p.hand.actions ??= [];
+        p.board ??= [];
+        p.captainId ??= null;
+        p.board.forEach(c => {
+          c.classType ??= c._sourceCard?.classType ?? '';
+          c.archetype ??= c._sourceCard?.archetype ?? '';
+          c.role ??= c._sourceCard?.role ?? '';
+          c.manaCost ??= c._sourceCard?.manaCost ?? 0;
+        });
+        if (p.captainId && !p.board.some(c => c.instanceId === p.captainId)) p.captainId = null;
+        p.graveyard ??= [];
+        p.discardedForManaThisTurn ??= { hero: 0, action: 0 };
+      });
       _currentTurn = saved.currentTurn;
       _currentPhase = saved.currentPhase;
       _phaseStep = saved.phaseStep ?? (saved.currentPhase === 'rolloff' ? 'rolloff' : 'await_roll');
-      _mana = saved.mana;
+      if (typeof saved.mana === 'number') {
+        _players[_currentTurn].mana = saved.mana;
+      } else if (saved.mana && typeof saved.mana === 'object') {
+        _players.p1.mana = saved.mana.p1 ?? _players.p1.mana ?? 0;
+        _players.p2.mana = saved.mana.p2 ?? _players.p2.mana ?? 0;
+      }
       _lastRoll = saved.lastRoll;
       _instanceCounter = saved.instanceCounter ?? 0;
       _turnNumber = saved.turnNumber ?? 1;
       _actionCardsPlayedThisTurn = saved.actionCardsPlayedThisTurn ?? 0;
-      _shopPurchasesThisTurn = saved.shopPurchasesThisTurn ?? 0;
+      _playerBaseAttackUsedThisTurn = saved.playerBaseAttackUsedThisTurn ?? false;
+      _shopPurchasesThisTurn = typeof saved.shopPurchasesThisTurn === 'object'
+        ? { hero: saved.shopPurchasesThisTurn.hero ?? 0, action: saved.shopPurchasesThisTurn.action ?? 0 }
+        : { hero: 0, action: saved.shopPurchasesThisTurn ?? 0 };
       return true;
     } catch (_) { return false; }
   }
@@ -649,6 +1142,8 @@ const GameState = (() => {
     getPlayerLabel,
     setPlayerLabel,
     getMana,
+    getMaxMana,
+    canExceedManaCap,
     setMana,
     spendMana,
     gainMana,
@@ -661,15 +1156,34 @@ const GameState = (() => {
     setLastRoll,
     getLastRoll,
     deployHero,
+    reorderBoardCharacter,
+    setCaptain,
+    getCaptain,
+    getCaptainClassType,
+    hasCaptainClass,
+    hasSpeedCaptain,
+    hasManaCaptain,
+    hasIQCaptain,
+    hasDurabilityCaptain,
+    hasAgilityCaptain,
+    applyCaptainDamageBonus,
+    tryManaEnchant,
     playAction,
     canPlayAction,
     commitPlayAction,
+    getActionCardLimit,
+    getPlayerBaseAttackDamage,
+    canPlayerBaseAttack,
+    commitPlayerBaseAttack,
     consumeTickEvents,
     getEffectiveAttack,
     canCharacterAttack,
     canCharacterUseAbility,
     discardForMana,
+    forceDiscardFromHand,
     damagePlayer,
+    damageTarget,
+    getSafeguardCaptain,
     previewPlayerDamage,
     healPlayer,
     damageCharacter,
@@ -677,9 +1191,11 @@ const GameState = (() => {
     healCharacter,
     tapCharacter,
     untapCharacter,
+    applyStatusToTarget,
     applyStatus,
     applyPlayerStatus,
     removeStatus,
+    removePlayerStatus,
     hasStatus,
     hasPlayerStatus,
     canPlayerReceiveStatus,
@@ -687,6 +1203,7 @@ const GameState = (() => {
     getCharacter,
     getCharacterOwner,
     getAllBoardCharacters,
+    getAllHeroIdsInUse,
     addCardToHand,
     recordShopPurchase,
     getShopPurchasesThisTurn,

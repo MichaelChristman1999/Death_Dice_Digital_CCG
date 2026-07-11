@@ -83,21 +83,45 @@ const HeroAbilities = (() => {
   }
 
   function _specialFor(card) {
-    if (card.id === 'hero_mob_barley') {
+    if (card.id === 'hero_cheatah') {
       return {
-        abilityName: 'Wasted',
-        manaCost: 5,
-        effect: 'apply_player_status',
+        abilityName: 'Cheetah Code',
+        manaCost: 3,
+        effect: 'cheatah_reroll',
+        effectValue: 0,
+        targetType: 'self',
+        statusApplied: [],
+        description: 'Roll the event die and gain that much mana, bypassing the mana cap.',
+      };
+    }
+
+    if (card.id === 'hero_dread_locks') {
+      return {
+        abilityName: 'Locked Out',
+        manaCost: 3,
+        effect: 'shop_lock',
         effectValue: 0,
         targetType: 'enemy_player',
-        statusApplied: ['status_drunk'],
-        description: 'Inflict Drunk on the enemy player for their next 2 turns; their die can only roll 1-3.',
+        statusApplied: ['status_locked_out'],
+        description: 'Lock the enemy shop for 2 turns.',
+      };
+    }
+
+    if (card.id === 'hero_mob_barley') {
+      return {
+        abilityName: 'Tapped Out',
+        manaCost: 6,
+        effect: 'deal_damage_apply_status',
+        effectValue: 3,
+        targetType: 'all_enemies',
+        statusApplied: ['status_impeded'],
+        description: 'Deal 3 damage and Impede all enemy heroes.',
       };
     }
 
     if (card.id === 'hero_copy_cat') {
       return {
-        abilityName: 'Paw Print',
+        abilityName: 'Meowrox',
         manaCost: 1,
         effect: 'copy_enemy_ability',
         effectValue: 0,
