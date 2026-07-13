@@ -19,12 +19,29 @@ const GameState = (() => {
   let _actionCardsPlayedThisTurn = 0;
   let _playerBaseAttackUsedThisTurn = false;
   let _shopPurchasesThisTurn = { hero: 0, action: 0 };
-  const _MANA_CAP_EXCEPTION_SOURCES = new Set(['cheatah_reroll', 'augment', 'mana_enchant']);
+  const _MANA_CAP_EXCEPTION_SOURCES = new Set(['cheatah_reroll', 'augment', 'mana_enchant', 'blood_mana']);
   const _QUEUED_STATUS_IDS = new Set(['status_crippled', 'status_augmented']);
   const _NEGATIVE_STATUS_IDS = new Set([
     'status_poisoned', 'status_anemic', 'status_crippled', 'status_impaired',
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
-    'status_frozen', 'status_rabies', 'status_locked_out', 'status_example_timed', 'status_example_permanent',
+    'status_frozen', 'status_rabies', 'status_locked_out', 'status_burning',
+    'status_haunted', 'status_shocked', 'status_cursed', 'status_virus',
+    'status_jinxed', 'status_example_timed', 'status_example_permanent',
+  ]);
+  const _STATUS_CANCELS = {
+    status_accelerated: ['status_impeded'],
+    status_impeded: ['status_accelerated'],
+    status_burning: ['status_frozen'],
+    status_frozen: ['status_burning'],
+    status_blessed: ['status_cursed'],
+    status_cursed: ['status_blessed'],
+  };
+  const _POSITIVE_SHARED_STATUS_IDS = new Set([
+    'status_accelerated', 'status_augmented', 'status_blessed', 'status_sidestep',
+  ]);
+  const _SAFEGUARD_BLOCK_STATUS_IDS = new Set([
+    'status_charmed', 'status_impeded', 'status_haunted',
+    'status_edible', 'status_shocked', 'status_frozen',
   ]);
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -380,11 +397,11 @@ const GameState = (() => {
     let next = amount;
     if (hasCaptainClass(playerId, 'Strength')) {
       const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
-        ? RollEngine.rollDie(4)
-        : Math.floor(Math.random() * 4) + 1;
-      if (roll === 4) {
+        ? RollEngine.rollDie(6)
+        : Math.floor(Math.random() * 6) + 1;
+      if (roll >= 5) {
         next *= 2;
-        try { showToast?.('Crit-Hit!', 'combat'); } catch (_) {}
+        try { showToast?.(`Crit-Hit rolled ${roll}!`, 'combat'); } catch (_) {}
       }
     }
     return next;
@@ -411,9 +428,6 @@ const GameState = (() => {
     if (card.id === 'action_blood_mana' && p.hp <= 5) {
       return { ok: false, error: 'Blood Mana needs more HP' };
     }
-    if (card.id === 'action_blood_mana' && getMana(playerId) >= getMaxMana()) {
-      return { ok: false, error: 'Mana pool is full' };
-    }
     if (hasPlayerStatus(playerId, 'status_frozen') && card.id !== 'action_accelerate') {
       return { ok: false, error: 'Frozen blocks cards' };
     }
@@ -436,7 +450,10 @@ const GameState = (() => {
 
   function getPlayerBaseAttackDamage(playerId = _currentTurn) {
     let damage = _rules.combat?.playerBaseAttack ?? 2;
-    if (hasPlayerStatus(playerId, 'status_augmented')) damage += 2;
+    if (hasPlayerStatus(playerId, 'status_augmented')) damage *= 2;
+    if (hasPlayerStatus(playerId, 'status_blessed')) damage *= 2;
+    if (hasPlayerStatus(playerId, 'status_stimulated')) damage *= 3;
+    if (hasPlayerStatus(playerId, 'status_cursed')) damage = Math.ceil(damage / 2);
     if (hasPlayerStatus(playerId, 'status_anemic')) damage = Math.max(0, damage - 2);
     return damage;
   }
@@ -449,8 +466,9 @@ const GameState = (() => {
     if (playerId !== _currentTurn) return { ok: false, error: 'Not your turn' };
     if (_currentPhase !== 'combat' || _phaseStep !== 'main') return { ok: false, error: 'Combat only' };
     if (_playerBaseAttackUsedThisTurn) return { ok: false, error: 'Base attack already used' };
-    if (hasPlayerStatus(playerId, 'status_frozen')) return { ok: false, error: 'Frozen blocks player attack' };
-    if (hasPlayerStatus(playerId, 'status_impeded')) return { ok: false, error: 'Impeded blocks player attack' };
+    const blocker = (_players[playerId]?.statuses ?? [])
+      .find(s => ['status_frozen', 'status_impeded', 'status_charmed', 'status_haunted', 'status_edible', 'status_shocked'].includes(s.id));
+    if (blocker) return { ok: false, error: `${blocker.name} blocks player attack` };
     if (_baseAttackConsumesAction(playerId) && _actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
       return { ok: false, error: 'Player attack needs your action slot' };
     }
@@ -567,6 +585,7 @@ const GameState = (() => {
 
   function healPlayer(playerId, amount) {
     const p = _players[playerId];
+    if (hasPlayerStatus(playerId, 'status_anemic') || hasPlayerStatus(playerId, 'status_cursed')) return p.hp;
     p.hp += amount;
     _saveToStorage();
     return p.hp;
@@ -591,7 +610,7 @@ const GameState = (() => {
   function healCharacter(instanceId, amount, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
-    if ((char.statuses ?? []).some(s => s.id === 'status_anemic')) return char.currentHp;
+    if ((char.statuses ?? []).some(s => s.id === 'status_anemic' || s.id === 'status_cursed')) return char.currentHp;
     char.currentHp = options.overheal
       ? char.currentHp + amount
       : Math.min(char.maxHp, char.currentHp + amount);
@@ -600,20 +619,26 @@ const GameState = (() => {
   }
 
   function previewPlayerDamage(playerId, amount) {
-    const mult = hasPlayerStatus(playerId, 'status_crippled') ? 2 : 1;
-    return Math.max(0, amount * mult);
+    let dmg = amount;
+    if (hasPlayerStatus(playerId, 'status_crippled') || hasPlayerStatus(playerId, 'status_cursed')) dmg *= 2;
+    if (hasPlayerStatus(playerId, 'status_blessed')) dmg = Math.ceil(dmg / 2);
+    return Math.max(0, dmg);
   }
 
   function previewCharacterDamage(instanceId, amount) {
     const { char } = _findChar(instanceId);
-    const mult = (char?.statuses ?? []).some(s => s.id === 'status_crippled') ? 2 : 1;
-    return Math.max(0, amount * mult);
+    const statuses = char?.statuses ?? [];
+    let dmg = amount;
+    if (statuses.some(s => s.id === 'status_crippled' || s.id === 'status_frozen' || s.id === 'status_cursed')) dmg *= 2;
+    if (statuses.some(s => s.id === 'status_blessed')) dmg = Math.ceil(dmg / 2);
+    return Math.max(0, dmg);
   }
 
   function getSafeguardCaptain(playerId, target = null) {
     const captain = getCaptain(playerId);
     if (!captain || !hasDurabilityCaptain(playerId)) return null;
     if (target?.type === 'character' && target.id === captain.instanceId) return null;
+    if ((captain.statuses ?? []).some(s => _SAFEGUARD_BLOCK_STATUS_IDS.has(s.id))) return null;
     return captain;
   }
 
@@ -625,7 +650,7 @@ const GameState = (() => {
       : null;
 
     if (safeguard) {
-      const redirected = options.safeguardDamage ?? Math.ceil(amount * (options.multiTarget ? 1.5 : 1));
+      const redirected = options.safeguardDamage ?? Math.ceil(amount * 1.5);
       const before = safeguard.currentHp ?? 0;
       const hp = damageCharacter(safeguard.instanceId, redirected, { roleEvasion: false });
       const after = Math.max(0, hp ?? safeguard.currentHp ?? 0);
@@ -667,7 +692,7 @@ const GameState = (() => {
       : null;
 
     if (safeguard) {
-      const applied = applyStatus(safeguard.instanceId, statusId);
+      const applied = applyStatus(safeguard.instanceId, statusId, { sharePlayer: false });
       try { showToast?.('Safeguard absorbs the status.', 'combat'); } catch (_) {}
       return {
         type: 'character',
@@ -729,7 +754,7 @@ const GameState = (() => {
   }
 
   // ── Status Effects ─────────────────────────────────────────────────────────
-  function applyStatus(instanceId, statusId) {
+  function applyStatus(instanceId, statusId, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return false;
 
@@ -738,8 +763,15 @@ const GameState = (() => {
     if (_NEGATIVE_STATUS_IDS.has(statusId) && _tryCharacterSidestep(instanceId, 'debuff')) return false;
     if (char._statusImmune && _NEGATIVE_STATUS_IDS.has(statusId)) return false;
     const ownerId = getCharacterOwner(instanceId);
-    if (isPlayerImmuneToStatus(ownerId, statusId)) return false;
+    if (_playerStatusBlocksCharacterStatus(ownerId, statusId)) return false;
     if (statusId === 'status_impaired' && (char.baseAttack ?? 0) <= 1) return false;
+
+    _removeCancelingStatuses(char.statuses, statusId);
+    if (statusId === 'status_accelerated') {
+      char.tapped = false;
+      char.hasAttackedThisTurn = false;
+      char.hasUsedAbilityThisTurn = false;
+    }
 
     const existing = char.statuses.findIndex(s => s.id === statusId);
 
@@ -763,8 +795,23 @@ const GameState = (() => {
       char.statuses.push({ ...def, remainingDuration: def.duration, stacks: 1 });
     }
 
+    const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
+    if ((options.sharePlayer ?? true) && isCaptain && _POSITIVE_SHARED_STATUS_IDS.has(statusId)) {
+      applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
+    }
+
     _saveToStorage();
     return true;
+  }
+
+  function _removeCancelingStatuses(statuses = [], incomingStatusId) {
+    const cancels = _STATUS_CANCELS[incomingStatusId];
+    if (!cancels?.length) return false;
+    const before = statuses.length;
+    for (let i = statuses.length - 1; i >= 0; i--) {
+      if (cancels.includes(statuses[i].id)) statuses.splice(i, 1);
+    }
+    return before !== statuses.length;
   }
 
   function removeStatus(instanceId, statusId) {
@@ -791,6 +838,10 @@ const GameState = (() => {
     if (!def) return false;
     if (_NEGATIVE_STATUS_IDS.has(statusId) && _tryPlayerSidestep(playerId, 'debuff')) return false;
     p.statuses ??= [];
+    _removeCancelingStatuses(p.statuses, statusId);
+    if (statusId === 'status_accelerated' && playerId === _currentTurn) {
+      _playerBaseAttackUsedThisTurn = false;
+    }
     const existing = p.statuses.findIndex(s => s.id === statusId);
     if (existing !== -1) {
       if (def.stackBehavior === 'stack') {
@@ -811,6 +862,9 @@ const GameState = (() => {
       }
       p.statuses.push({ ...def, remainingDuration: def.duration, stacks: 1 });
     }
+    if ((options.shareCaptain ?? true) && _POSITIVE_SHARED_STATUS_IDS.has(statusId)) {
+      _sharePositiveStatusToCaptain(playerId, statusId);
+    }
     if (options.splashCaptain && _NEGATIVE_STATUS_IDS.has(statusId)) {
       _splashStatusToCaptain(playerId, statusId);
     }
@@ -821,10 +875,16 @@ const GameState = (() => {
   function _splashStatusToCaptain(playerId, statusId) {
     const captain = getCaptain(playerId);
     if (!captain) return;
-    const applied = applyStatus(captain.instanceId, statusId);
+    const applied = applyStatus(captain.instanceId, statusId, { sharePlayer: false });
     if (applied) {
       try { showToast?.(`${captain.name} shares ${_data.statusEffects.find(s => s.id === statusId)?.name ?? 'status'}.`, 'combat'); } catch (_) {}
     }
+  }
+
+  function _sharePositiveStatusToCaptain(playerId, statusId) {
+    const captain = getCaptain(playerId);
+    if (!captain) return;
+    applyStatus(captain.instanceId, statusId, { sharePlayer: false });
   }
 
   function hasPlayerStatus(playerId, statusId) {
@@ -841,6 +901,13 @@ const GameState = (() => {
   }
 
   function isPlayerImmuneToStatus(playerId, statusId) {
+    if (!playerId) return false;
+    if (_NEGATIVE_STATUS_IDS.has(statusId) && getCaptain(playerId)?._statusImmune) return true;
+    return ['status_charmed', 'status_drunk'].includes(statusId)
+      && hasPlayerStatus(playerId, 'status_abstaining');
+  }
+
+  function _playerStatusBlocksCharacterStatus(playerId, statusId) {
     return !!playerId
       && ['status_charmed', 'status_drunk'].includes(statusId)
       && hasPlayerStatus(playerId, 'status_abstaining');
@@ -896,7 +963,7 @@ const GameState = (() => {
   }
 
   // Damage-over-time statuses: id → damage per stack per tick
-  const _DOT_STATUSES = { status_poisoned: 1, status_example_timed: 1 };
+  const _DOT_STATUSES = { status_poisoned: 2, status_burning: 3, status_haunted: 2, status_example_timed: 1 };
 
   function applyTurnStartStatuses(char) {
     // Apply damage-over-time effects at the start of the affected player's turn.
@@ -953,15 +1020,18 @@ const GameState = (() => {
     if (!char) return 0;
     let atk = char.baseAttack ?? 0;
     for (const s of char.statuses ?? []) {
-      if (s.id === 'status_augmented') atk += 2 * (s.stacks ?? 1);
+      if (s.id === 'status_augmented') atk *= 2;
+      if (s.id === 'status_blessed') atk *= 2;
+      if (s.id === 'status_stimulated') atk *= 3;
+      if (s.id === 'status_cursed') atk = Math.ceil(atk / 2);
       if (s.id === 'status_impaired') atk -= (char.baseAttack ?? 0) === 2 ? 1 : 2;
     }
     return Math.max(1, atk);
   }
 
   // Statuses that prevent a character from attacking / using abilities
-  const _NO_ATTACK  = ['status_impeded', 'status_frozen'];
-  const _NO_ABILITY = ['status_impeded', 'status_frozen'];
+  const _NO_ATTACK  = ['status_impeded', 'status_frozen', 'status_charmed', 'status_haunted', 'status_edible', 'status_shocked'];
+  const _NO_ABILITY = ['status_impeded', 'status_frozen', 'status_charmed', 'status_haunted', 'status_edible', 'status_shocked'];
 
   function canCharacterAttack(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;

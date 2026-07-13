@@ -12,7 +12,7 @@ heroes: [
     "name": "Afrodisiac",
     "imageAsset": "DD_Afrodisiac.png",
     "stage": "S1",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 10,
     "baseAttack": 2,
     "role": "Support",
@@ -21,7 +21,7 @@ heroes: [
     "flavorText": "",
     "classType": "Balanced",
     "archetype": "Seducer",
-    "docAbility": "Chocolate & Clams (2 mana): Inflict enemy with Charmed status to prevent them from attacking caster for 3 turns. Message should display for Charmed status being inflicted and separate message telling an enemy player that they can’t attack enemy that Charmed them (if they try to attack player/Afrodisiac).",
+    "docAbility": "Ability: Chocolate Clams (3 mana): Inflict Charmed status on an enemy hero/player for 3 turns. Charmed (debuff): Enemy hero/player affected with Charmed status can’t attack, debuff, Safeguard or dodge attacks player and/or hero that inflicted it.",
     "rolePassive": {
       "name": "Enact",
       "description": "Roll 4-6 to draw and cast one free action."
@@ -41,10 +41,10 @@ heroes: [
     "flavorText": "",
     "classType": "IQ",
     "archetype": "Omniscient",
-    "docAbility": "Lapis Lazuli (3 mana): Deal 1 damage to player/hero & inflict Impaired and Crippled statuses (for up to 3 turns). There should be a message conveying that the enemy is both",
+    "docAbility": "Ability: Lapis Lazuli (4 mana): Deal 2 dmg, also inflicting Impaired & Crippled statuses to enemy hero/player for 3 turns. Impaired (debuff): Impaired heroes/player deal only half dmg for the duration. Cripple (debuff): Crippled heroes/player receive x2 damage for the duration.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Preview and buy from the next two shop rows."
+      "description": "Gain early 2-turn access to hero & action cards in the shop."
     }
   },
   {
@@ -61,10 +61,10 @@ heroes: [
     "flavorText": "",
     "classType": "Strength",
     "archetype": "Juggernaut",
-    "docAbility": "Roid Rage (4 mana): Deal 8 dmg to enemy & heal player/Aster Roid +6 HP (can overheal), but inflicted with",
+    "docAbility": "Ability: Roid Rage (4 mana): Stim player & Aster Roid for 3 turns. Stim (buff/debuff): Gain 50% overhealth & x3 attack damage, but you’re also inflicted with Anemic & Crippled statuses.",
     "rolePassive": {
-      "name": "Crit-Hit",
-      "description": "Twenty-five percent chance to double outgoing damage."
+      "name": "Crit-Hit Chance",
+      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
     }
   },
   {
@@ -81,10 +81,10 @@ heroes: [
     "flavorText": "",
     "classType": "Agility",
     "archetype": "Athlete",
-    "docAbility": "Basket-Ballad (2 mana): Duel enemy to deal 3 damage and gain Sidestep for player &",
+    "docAbility": "Ability: Basket-Ballad (2 mana): Duel enemy hero/player: deal 5 dmg & gain Sidestep if you win. Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by. Sidestep (dodge event): Incoming attack/debuff to a hero/player who activated Sidestep opens an event window. Rolling 1-3 results in a fail, rolling 4-6 results in a successful dodge.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Roll 4-6 to dodge damage while captain."
+      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
     }
   },
   {
@@ -101,10 +101,10 @@ heroes: [
     "flavorText": "",
     "classType": "Strength",
     "archetype": "Predator",
-    "docAbility": "Bearzerker Rampage (5 mana): Deal 8 damage to up to 2 enemies (up to 8 to player & do same to another enemy hero if it kills)). Player can only be damaged up to 8 (wording was intentional there). As with any potential multi-target ability with durability hero (while they are in other player’s captain slot), it will deal x1.5 dmg (with rounding up) to a blocking durability hero if they interrupt it from dealing dmg to multiple targets.",
+    "docAbility": "Ability: Bearzerker Rampage (6 mana): Deal 6 dmg to all enemy heroes/player & gain 1 HP for each killed.",
     "rolePassive": {
-      "name": "Crit-Hit",
-      "description": "Twenty-five percent chance to double outgoing damage."
+      "name": "Crit-Hit Chance",
+      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
     }
   },
   {
@@ -121,10 +121,10 @@ heroes: [
     "flavorText": "",
     "classType": "Agility",
     "archetype": "Insect",
-    "docAbility": "Stinging Barbs (3 mana): Deal 2 dmg to 2 enemies (4 dmg if debuffed). This ability allows you to select 2 enemies and debuffs are any negative status effects. The Cripple multiplier when an enemy inflicted with Cripple is attacked is slightly lowered to x1.5 for 6 dmg.",
+    "docAbility": "Ability: Stinging Barbs (4 mana): Deal 3 to 2 enemies (6 if they were debuffed).",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Roll 4-6 to dodge damage while captain."
+      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
     }
   },
   {
@@ -141,10 +141,10 @@ heroes: [
     "flavorText": "",
     "classType": "Technique",
     "archetype": "Brawler",
-    "docAbility": "Bust Thrust (3 mana): Duel enemy, dealing 5 dmg & inflict Cripple status if win. The Cripple takes effect for 2 turns after the initial dmg).",
+    "docAbility": "Ability: Bust Thrust (4 mana): Duel enemy hero/player: deal 6 dmg, Impede, & Cripple if you win. Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration. Crippled (debuff): Crippled heroes/player receive x2 damage for the duration.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "Win captain duels on rolls of 3-6."
+      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
     }
   },
   {
@@ -160,10 +160,10 @@ heroes: [
     "abilities": [],
     "flavorText": "",
     "classType": "Legendary",
-    "docAbility": "Chill Out (5 mana): Cleanse all debuffs & heal +4 HP to player/all heroes. Aplomb (Passive): 1 out of 2 chance to Cleanse player/hero & heal +1",
+    "docAbility": "Ability: Chill Out! (5 mana): Cleanse & heal 3 HP to all ally heroes/player. Aplomb (Hero Passive): 1 / 2 chance (roll 4-6 on reg die) to Cleanse & 2 HP to player/Aplombinable. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Roll 4-6 to draw a free hero card."
+      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
     }
   },
   {
@@ -180,10 +180,10 @@ heroes: [
     "flavorText": "",
     "classType": "Agility",
     "archetype": "Neurotic",
-    "docAbility": "Caffeine Rush (2 mana): Gain Accelerated status (for 2 turns) and deal 2 damage to an enemy (with your base attack also going up to 2 from 1 damage).",
+    "docAbility": "Ability: Caffeine Rush (3 mana): Gain Accelerate for 2 turns & Sidestep while dealing 2 dmg to enemy hero/player (+1 dmg to base attack). Accelerate (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast player). Sidestep (dodge event): Incoming attack/debuff to a hero/player who activated Sidestep opens an event window. Rolling 1-3 results in a fail, rolling 4-6 results in a successful dodge.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Roll 4-6 to dodge damage while captain."
+      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
     }
   },
   {
@@ -200,10 +200,10 @@ heroes: [
     "flavorText": "",
     "classType": "Speed",
     "archetype": "Thief",
-    "docAbility": "Cheetah Code (3 mana): Gain one free rule bypass within next 2 turns (this can include choosing to re-roll the die, bypass the 1 action and/or hero card cast limit, can bypass the 5 hero on field limit (with a 6th for an exception to rule), bypassing the 1 action/and or hero card shop purchase limit, clicking on health HUD or hero card to heal +2 HP (can overheal) before using ability or base attack, clicking on hero card or player to play ability or base attack after using ability or base attack, and bypassing the one strict discard limit). There should be a message that displays a player can bypass one rule. There should also be a variety of messages conveying what the player just did or if they already used a cheat, clicking on Cheatah should display a caption in the box: You already used a cheat within last 2 turns and can’t use it again right now. The one caveat is that Cheatah even when accelerated and having enough mana won’t be able to cheat again until the 2 turns passed. Cheats don’t bypass mana deficits (not having enough mana).",
+    "docAbility": "Ability: Cheetah Code (4 mana): Rulebreak once this turn. Rulebreak allows you to Draw extra action or hero card, extra hand discard, extra character on field, re-roll die during any die roll & negate previous fail damage, heal 2 HP to hero card or player icon/HUD.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action while captain."
+      "description": "Gain one extra action-card slot while this hero is captain."
     }
   },
   {
@@ -225,10 +225,10 @@ heroes: [
     "flavorText": "",
     "classType": "Passive",
     "archetype": "Boozer",
-    "docAbility": "Petite Petulance (passive): Any damage taken results in dealing double damage for 3 turns (only applies to Barstooli and player unless she’s in captain slot).",
+    "docAbility": "Petite Petulance (Hero Passive): Taking damage results in dealing x2 damage for 3 turns (only applies to Barstooli and player unless she’s in captain slot).",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Share this hero passive for at least three turns."
+      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
     }
   },
   {
@@ -245,10 +245,10 @@ heroes: [
     "flavorText": "",
     "classType": "Agility",
     "archetype": "Multiplier",
-    "docAbility": "Meowrox (1 mana): Copy & cast it action card for free or clone self (overrides the action card limit and Copy-Cat clone is an exception to the no-duplicate heroes rule). The clone (like having a second Copy-Cat on field) will be deployed and count towards the max 5 hero on field limit.",
+    "docAbility": "Ability: Meowrox (1 mana): Duplicate an action card to cast for free or click Copy-Cat to create Copy. Copy (spawn): Copy-Cat can copy himself to stay in the fray with his same Meowrox ability.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Roll 4-6 to dodge damage while captain."
+      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
     }
   },
   {
@@ -265,10 +265,10 @@ heroes: [
     "flavorText": "",
     "classType": "Technique",
     "archetype": "Thief",
-    "docAbility": "Booty Brawl (2 mana): Duel enemy, dealing 4 dmg, gain +2 mana, and purloin (steal) 1 action card (to cast for free if you win).",
+    "docAbility": "Ability: Booty Brawl (3 mana): Duel enemy: deal 4 dmg, Loot 2 mana & 1 action card from enemy if you win. Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by. Loot (theft): Choose to steal 1 action card from an enemy player’s hand & 2 mana from their mana pool.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "Win captain duels on rolls of 3-6."
+      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
     }
   },
   {
@@ -290,10 +290,10 @@ heroes: [
     "flavorText": "",
     "classType": "Durability",
     "archetype": "Mercenary",
-    "docAbility": "De-Termination (Passive): Avoid death once with 6 overhealth when you fall to critical (25% or less) HP (also applies 6 healable overhealth to player if they fall to 10 (25%) or less HP). De-Terminator falling to 0-3 activates this one time and not again. It won’t protect player unless if they fall 10 or below at same time De-Terminator falls below 25% HP and De-Terminator is in the captain slot.",
+    "docAbility": "De-Termination (Hero Passive): Avoid death once: gain 6 overhealth when you fall to critical HP.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Protect player and heroes; multi-target hits redirect harder."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
     }
   },
   {
@@ -310,10 +310,10 @@ heroes: [
     "flavorText": "",
     "classType": "Speed",
     "archetype": "Medic",
-    "docAbility": "Ambient Heal (2 mana): Heal player/all heroes for up to 3 HP. (can’t overheal, won’t heal Anemic heroes/player or spend ability if there is no one to heal).",
+    "docAbility": "Ability: Ambient Heal (3 mana): Heal player & all heroes for up to 4 HP.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action while captain."
+      "description": "Gain one extra action-card slot while this hero is captain."
     }
   },
   {
@@ -321,7 +321,7 @@ heroes: [
     "name": "Dread-Locks",
     "imageAsset": "DD_Dread_Locks.png",
     "stage": "S2",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 10,
     "baseAttack": 3,
     "role": "Control",
@@ -330,7 +330,7 @@ heroes: [
     "flavorText": "",
     "classType": "Balanced",
     "archetype": "Thief",
-    "docAbility": "Locked Out (3 mana): Lock the shop from an enemy for 2 turns. Display a message that tells victim player the shop is closed for the turn if they try accessing the shop.",
+    "docAbility": "Ability: Locked-Out (3 mana): Duel enemy, deal 3 dmg & lock shop from enemy player for up to 3 turns if you win. Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by. Lock (denial): Locks deny a player access to the shop for the duration.",
     "rolePassive": {
       "name": "Enact",
       "description": "Roll 4-6 to draw and cast one free action."
@@ -355,10 +355,10 @@ heroes: [
     "flavorText": "",
     "classType": "Legendary",
     "archetype": "Celestial",
-    "docAbility": "Swift Squall (6 mana): Accelerate all allies for next 3 turns.Stellar Stability (Passive): Cleanse up to 2 debuffs & heal 2 HP to all allies upon die roll success.",
+    "docAbility": "Ability: Swift Squall (6 mana): Accelerate & Augment all ally heroes/player for next 3 turns. Stellar Stability (Hero Passive): Cleanse & heal 3 HP to all ally heroes/player upon successful die roll. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Roll 4-6 to draw a free hero card."
+      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
     }
   },
   {
@@ -366,7 +366,7 @@ heroes: [
     "name": "Fry-Borg",
     "imageAsset": "DD_Fry-Borg.png",
     "stage": "S2",
-    "manaCost": 4,
+    "manaCost": 3,
     "hp": 12,
     "baseAttack": 4,
     "role": "Ranged",
@@ -375,10 +375,10 @@ heroes: [
     "flavorText": "",
     "classType": "Technique",
     "archetype": "Greaser",
-    "docAbility": "Sci-Fry (4 mana): Duel enemy, deal 3 dmg and inflicting Burning status (player/hero take 3 dmg & lose action card in hand each turn) for up to 2 turns. Display message for Burning status being inflicted and separate message one of enemy’s cards burning up losing a card when it happens.",
+    "docAbility": "Ability: Sci-Fry (4 mana): Duel enemy: deal 3 dmg & inflict Burning status to enemy player/hero if you win. Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by. Burning (debuff): Burning players/heroes take 3 damage every turn (friendly or enemy) & lose half their action cards. Frozen cancels this out.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "Win captain duels on rolls of 3-6."
+      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
     }
   },
   {
@@ -386,7 +386,7 @@ heroes: [
     "name": "Geezer Freezer",
     "imageAsset": "DD_Geezer_Freezer.png",
     "stage": "S2",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 10,
     "baseAttack": 2,
     "role": "Tank",
@@ -400,10 +400,10 @@ heroes: [
     "flavorText": "",
     "classType": "Passive",
     "archetype": "Subzero",
-    "docAbility": "Frozen Assets (Passive): Deal 2 damage & inflict Frozen status to enemy if debuffed/purloined.",
+    "docAbility": "Frozen Assets (Hero Passive): Deal 2 damage, also inflicting Frozen status to enemy hero/player if debuffed or looted. Frozen (debuff): Frozen heroes/player receive x2 dmg & can’t attack or use abilities.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Share this hero passive for at least three turns."
+      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
     }
   },
   {
@@ -420,10 +420,10 @@ heroes: [
     "flavorText": "",
     "classType": "Agility",
     "archetype": "Ghoul",
-    "docAbility": "Sonic Shreik (3 mana): Deal 3 damage & inflict Impeded status on player & up to 1 hero.",
+    "docAbility": "Ability: Ex-Hex (4 mana): Deal 3 dmg & inflict Haunted status on enemy hero/player for up to 3 turns. Haunted (debuffed): Haunted heroes/players take 2 dmg each turn (friendly turns only) & can’t attack or use abilities.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Roll 4-6 to dodge damage while captain."
+      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
     }
   },
   {
@@ -440,10 +440,10 @@ heroes: [
     "flavorText": "",
     "classType": "Strength",
     "archetype": "Kaiju",
-    "docAbility": "Titan Toss (4 mana): Deal 6 dmg to 2 enemies. A durability hero in captain slot and another hero get hit if durability hero card is captain (prioritizes first enemy selected by player if this occurs).",
+    "docAbility": "Ability: Titaness Toss: (4 mana): Deal 6 dmg to 2 enemies (Safeguarding hero protects 1).",
     "rolePassive": {
-      "name": "Crit-Hit",
-      "description": "Twenty-five percent chance to double outgoing damage."
+      "name": "Crit-Hit Chance",
+      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
     }
   },
   {
@@ -451,7 +451,7 @@ heroes: [
     "name": "Goose-Bump",
     "imageAsset": "DD_Goose_Bump.png",
     "stage": "S1",
-    "manaCost": 1,
+    "manaCost": 2,
     "hp": 4,
     "baseAttack": 3,
     "role": "Agile",
@@ -460,10 +460,10 @@ heroes: [
     "flavorText": "",
     "classType": "Speed",
     "archetype": "Infector",
-    "docAbility": "Serrated Bite (2 mana): Deal 3 damage & inflict Rabies status (Cripple that has 1 out of 2 chance to spread to another hero/player the next turn).",
+    "docAbility": "Ability: Avian Flu (3 mana): Deal 4 dmg & inflict Rabies status on enemy hero/player (Augmented next 2 turns). Rabies (buff/debuff): Heroes/players with Rabies can spread Rabies to enemies attacked, but can’t be healed, receive x2 damage, take Poison damage each turn, & have a 1 / 2 chance to spread it to other heroes/player. Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action while captain."
+      "description": "Gain one extra action-card slot while this hero is captain."
     }
   },
   {
@@ -480,10 +480,10 @@ heroes: [
     "flavorText": "",
     "classType": "Mana",
     "archetype": "Gourmand",
-    "docAbility": "Say Cheese! (4 mana): Impede & inflict Edible status (for next 2 turns) to enemy hero. Edible status heals hero or player for 50% of their damage to enemy (like a lifesteal).",
+    "docAbility": "Ability: Say Cheese! (4 mana): Deal 1 dmg, also inflicting Edible status to enemy hero/player for 3 turns. Edible (debuff): Edible heroes/player can’t attack or use abilities & enemies can attack them to heal 2 HP (4 on lethal hits).",
     "rolePassive": {
       "name": "Enchant",
-      "description": "Roll 4-6 to gain three mana beyond cap."
+      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
     }
   },
   {
@@ -500,10 +500,10 @@ heroes: [
     "flavorText": "",
     "classType": "Mana",
     "archetype": "Dancer",
-    "docAbility": "Breakback Breakdance (2 mana): Deal 3 dmg (that can’t be Safeguarded) to enemy player/all heroes if roll 4-6. Rolling 1-3 deals 3 dmg, Impedes Hip-Hop Papa, & prevents player from using base attack for next turn, displaying a message reading that You and Papa broke their backs attempting a breakdance.",
+    "docAbility": "Ability: Breakback Breakdance (3 mana):1 / 2 chance to deal 4 dmg (Unblockable) & Impede all enemy heroes/player; 1 / 2 chance for Papa/player to be Impeded 2 turns & take 4 dmg. Impede:",
     "rolePassive": {
       "name": "Enchant",
-      "description": "Roll 4-6 to gain three mana beyond cap."
+      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
     }
   },
   {
@@ -520,10 +520,10 @@ heroes: [
     "flavorText": "",
     "classType": "IQ",
     "archetype": "Investigator",
-    "docAbility": "Sleuth Seance (3 mana): Draw &/or cast any action card you want for free. This will open up a separate window (not the Shop) with all 20 current action cards in it. If hand limit reaches max 8, player will be forced to discard one of their other action cards. In-Specter can choose to cast this free action card at any time (unless purloined by Cut-Lass’s Booty Brawl duel).",
+    "docAbility": "Ability: Sleuth Seance (3 mana): Draw & cast any action card you want for free.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Preview and buy from the next two shop rows."
+      "description": "Gain early 2-turn access to hero & action cards in the shop."
     }
   },
   {
@@ -545,10 +545,10 @@ heroes: [
     "flavorText": "",
     "classType": "Durability",
     "archetype": "Caregiver",
-    "docAbility": "Vacuum Cleaner (Passive): Cleanse 2 debuffs & Absorb up to 6 dmg (a turn including during enemy turn). Absorbent status description should say when clicking on Iron Maid’s card that any absorbed dmg gets transferred to healing spread across team (lower heroes on field more healing per teammate). There should be separate messages for her cleansing debuffs, absorbing damage, and healing given to teammates.",
+    "docAbility": "Vacuum Cleaner (Hero Passive): Cleanse & Absorb debuffs, healing all other heroes/player 2 HP for each. Absorb (sustain): Absorbed debuffs convert to 2 HP heal for each.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Protect player and heroes; multi-target hits redirect harder."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
     }
   },
   {
@@ -565,10 +565,10 @@ heroes: [
     "flavorText": "",
     "classType": "Technique",
     "archetype": "Shaman",
-    "docAbility": "Vooduel (4 mana): Duel enemy, dealing 5 dmg & inflict Jinxed (player/hero dueled take 3 dmg if Juju-Jitsu is attacked for 3 turns). There should be a display message for Jinxed being inflicted & consequence for attacking",
+    "docAbility": "Ability: Vooduel (4 mana): Duel enemy, dealing 4 dmg & inflict Jinxed status to enemy hero/player if you win. Jinxed (debuff): Jinxed heroes/player take the amount of damage they dealt to the hero/player that inflicted the jinx.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "Win captain duels on rolls of 3-6."
+      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
     }
   },
   {
@@ -590,10 +590,10 @@ heroes: [
     "flavorText": "",
     "classType": "Durability",
     "archetype": "Gourmand",
-    "docAbility": "Lard Guard (Passive): Provides 8 armor (which halves base attack dmg) with 1 out of 3 chance to reflect damage. There should be separate messages displayed for reflecting damage back at an enemy hero or just the player if there are no heroes on field and armor halving damage received.",
+    "docAbility": "Lard Guard (Hero Passive): Hero has 8 armor & 1 out of 3 chance to Ricochet damage. Ricochet (deflection): Incoming damage activates die event window where 1-4 results in a fail taking damage, rolling 5-6 Ricochets successfully). Die event windows should have one die in the center instead of the two dies for duels.Die event windows when relevant should activate after reg die rolls at beginning of a player’s turn.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Protect player and heroes; multi-target hits redirect harder."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
     }
   },
   {
@@ -610,10 +610,10 @@ heroes: [
     "flavorText": "",
     "classType": "Strength",
     "archetype": "Conservator",
-    "docAbility": "Sass-Squash (4 mana): Impede & deal 8 dmg to enemy (12 dmg if player/Lassquatch half or less HP).",
+    "docAbility": "Ability Sass-Squash (4 mana): Deal 6 dmg & Impede enemy hero/player (deal 12 if below half HP). Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration. Crippled (debuff): Crippled heroes/player receive x2 damage for the duration.",
     "rolePassive": {
-      "name": "Crit-Hit",
-      "description": "Twenty-five percent chance to double outgoing damage."
+      "name": "Crit-Hit Chance",
+      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
     }
   },
   {
@@ -621,7 +621,7 @@ heroes: [
     "name": "Lone Wolf",
     "imageAsset": "DD_Lone_Wolf.png",
     "stage": "S2",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 8,
     "baseAttack": 2,
     "role": "Agile",
@@ -635,10 +635,10 @@ heroes: [
     "flavorText": "",
     "classType": "Passive",
     "archetype": "Mercenary",
-    "docAbility": "Solo El Lobo (Passive): Base attack deals x3 dmg if only hero on field. There should be a message communicating Lone Wolf’s base attack is more powerful due to being the only hero left.",
+    "docAbility": "Solo El Lobo (Hero Passive): Base attack & action card casts deal x2 dmg if only hero on field (x3 if player is 10 HP or below).",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Share this hero passive for at least three turns."
+      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
     }
   },
   {
@@ -646,7 +646,7 @@ heroes: [
     "name": "Marionetta",
     "imageAsset": "DD_Marionetta.png",
     "stage": "S3",
-    "manaCost": 2,
+    "manaCost": 4,
     "hp": 6,
     "baseAttack": 2,
     "role": "Control",
@@ -655,10 +655,10 @@ heroes: [
     "flavorText": "",
     "classType": "IQ",
     "archetype": "Schemer",
-    "docAbility": "Puppeteer (4 mana): Control an enemy hero card, gaining access to their abilities for 2 turns (the controlled enemy hero card appears on field on far right and is an exception to hero on field limit rule). The enemy stays controlled for the duration even if",
+    "docAbility": "Ability: Puppeteer (4 mana): Hypnotizing an enemy hero card, making them join your side for 2 turns.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Preview and buy from the next two shop rows."
+      "description": "Gain early 2-turn access to hero & action cards in the shop."
     }
   },
   {
@@ -675,10 +675,10 @@ heroes: [
     "flavorText": "",
     "classType": "Legendary",
     "archetype": "Boozer",
-    "docAbility": "Tapped Out (6 mana): All enemy heroes Impeded & enemy player/heroes take 3 dmg. Wasted: Any die event fail inflicts enemy with Drunk (Anemic, then Poison if already drunk) when deployed.",
+    "docAbility": "Ability:Tapped Out (6 mana): All enemy heroes & player are Impeded & take 3 dmg. Wasted (Hero Passive): Die event fails will inflict enemy player/captain hero with Drunk status when Don Vino is deployed. Drunk (debuff): Drunk enemy heroes/players have a 1 / 2 chance to take self-damage/debuff on base attack/ability casts or lose action cards they attempt to cast.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Roll 4-6 to draw a free hero card."
+      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
     }
   },
   {
@@ -700,10 +700,10 @@ heroes: [
     "flavorText": "",
     "classType": "Durability",
     "archetype": "Paragon",
-    "docAbility": "Immutability (Passive): Hero (& player while in captain slot) are immune to debuffs. Mr. Immutable at start of turn or next turn while in captain slot cleanses any debuffs a player would still have prior. Any multi-target debuff abilities will still be inflicted to other heroes. Single-target debuffs won’t work on Mr. Immutable and have to be spent on another enemy hero/player.",
+    "docAbility": "Immutability (Hero Passive): Hero (& player while in captain slot) are immune to debuffs.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Protect player and heroes; multi-target hits redirect harder."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
     }
   },
   {
@@ -725,10 +725,10 @@ heroes: [
     "flavorText": "",
     "classType": "Legendary",
     "archetype": "Cryptic",
-    "docAbility": "Out of the Tomb (6 mana): Baby deployed for 3 turns (4 HP & 1 base attack dmg), healing 3 HP and cleansing all debuffs from player/all heroes. Baby on field is exception to hero on field limit. Mummy Scorned (Passive): When baby dies, she deals 6 dmg (that can’t be Safeguarded or dodged) & inflicts Cursed status to all enemies. Cursed status makes player roll only 1-2 on die & enemies Impaired (dealing half dmg rounded up) for 3 turns.",
+    "docAbility": "Ability: Out of the Tomb (6 mana): Summon Baby which heals 3 HP and Cleanses from player/all heroes. Mummy Scorned (Hero Passive): When Baby is killed, deal 5 dmg (Unstoppable) & inflict Curse to all enemy heroes/player for 3 turns. Cursed (status): Player can only roll up to 3 on their die when Cursed, don’t recieve healing, tdeal half dmg, take x2 dmg, & die roll fails hurt all their heroes (Unstoppable).",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Roll 4-6 to draw a free hero card."
+      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
     }
   },
   {
@@ -745,7 +745,7 @@ heroes: [
     "flavorText": "",
     "classType": "Balanced",
     "archetype": "Pitcher",
-    "docAbility": "Claw Strikeout (3 mana): 2 out of 3 (roll 3-6) chance (die event window for this when ability is casted) to deal 4 dmg & Impede enemy hero (bypasses Safeguard).",
+    "docAbility": "Ability: Claw Strikeout (3 mana): 2 out of 3 chance to deal 4 dmg & Impede enemy hero (Unblockable).",
     "rolePassive": {
       "name": "Enact",
       "description": "Roll 4-6 to draw and cast one free action."
@@ -756,7 +756,7 @@ heroes: [
     "name": "Riff Wrath",
     "imageAsset": "DD_Riff_Wrath.png",
     "stage": "S2",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 10,
     "baseAttack": 3,
     "role": "Fighter",
@@ -765,7 +765,7 @@ heroes: [
     "flavorText": "",
     "classType": "Balanced",
     "archetype": "Amplifier",
-    "docAbility": "Strike a Chord (3 mana): Deal 3 dmg (along with Impede) to enemy (5 dmg & Impedes a Safeguarding durability hero).",
+    "docAbility": "Ability: Strike a Chord (3 mana): Deal 3 dmg (along with Impede) to enemy. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
       "description": "Roll 4-6 to draw and cast one free action."
@@ -785,10 +785,10 @@ heroes: [
     "flavorText": "",
     "classType": "IQ",
     "archetype": "Architect",
-    "docAbility": "Goldberg Chain (3 mana): Deal 2 dmg & Impair all enemy heroes on field for next turn (deals 3 dmg & Impairs durability hero if they’re Safeguarding). The ability will also damage the player if there are no heroes on the field to target.",
+    "docAbility": "Ability: Goldberg Chain: Unleash a Stack that deals a base 1 dmg (+1 for each enemy (heroes & player) & Impairs durability hero if they’re Safeguarding). Stack (denominator): A Stack when deployed deals base 1 (with 1 player) adding +1 dmg per hero on field to attack the number of player/heroes. Shell-Shock (should be in Mana roll): Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying (regardless of remaining HP) and player being able to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Preview and buy from the next two shop rows."
+      "description": "Gain early 2-turn access to hero & action cards in the shop."
     }
   },
   {
@@ -805,10 +805,10 @@ heroes: [
     "flavorText": "",
     "classType": "Mana",
     "archetype": "Marine",
-    "docAbility": "Static Splash (5 mana): Deal 4 dmg & Impede all enemy player/heroes. Durability hero Safeguarding takes 8 dmg &",
+    "docAbility": "Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying regardless of remaining HP and player being unable to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "Roll 4-6 to gain three mana beyond cap."
+      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
     }
   },
   {
@@ -816,7 +816,7 @@ heroes: [
     "name": "Shish-Ke-Bob",
     "imageAsset": "DD_Shish-Ke-Bob.png",
     "stage": "S1",
-    "manaCost": 2,
+    "manaCost": 3,
     "hp": 10,
     "baseAttack": 3,
     "role": "Ranged",
@@ -825,7 +825,7 @@ heroes: [
     "flavorText": "",
     "classType": "Balanced",
     "archetype": "Foodie",
-    "docAbility": "Kebab Skewer (3 mana): 2 out of 3 chance to deal 3 dmg & inflict Anemic (for 3 turns) on enemy hero/player.",
+    "docAbility": "Ability: Kebab Skewer (3 mana): 2 out of 3 chance to deal 3 dmg, also inflicting Anemic & Impede (for 3 turns) on enemy hero/player. Anemic (debuff): Anemic players/heroes can’t receive healing. Anemic players/heroes can’t receive healing. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
       "description": "Roll 4-6 to draw and cast one free action."
@@ -845,10 +845,10 @@ heroes: [
     "flavorText": "",
     "classType": "IQ",
     "archetype": "Chemist",
-    "docAbility": "Biotic Syringe (3 mana): Deal 3 dmg & inflict Anemic to enemy OR heal 3 HP & cleanse 1 debuff from player/hero. This move provides versatile utility.",
+    "docAbility": "Ability: Biotic Syringe (4 mana): Deal 4 dmg & inflict Anemic to enemy OR heal 4 HP & Cleanse player/hero. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Anemic (debuff): Anemic players/heroes can’t receive healing.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Preview and buy from the next two shop rows."
+      "description": "Gain early 2-turn access to hero & action cards in the shop."
     }
   },
   {
@@ -865,10 +865,10 @@ heroes: [
     "flavorText": "",
     "classType": "Speed",
     "archetype": "Conservator",
-    "docAbility": "Deer Dash (2 mana): Deal 3 dmg while Accelerating & Cleansing self (of one debuff).",
+    "docAbility": "Ability: Deer Dash (2 mana): Deal 3 dmg while Accelerating & Cleansing. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Accelerated (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast for player).",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action while captain."
+      "description": "Gain one extra action-card slot while this hero is captain."
     }
   },
   {
@@ -876,7 +876,7 @@ heroes: [
     "name": "Stall-Wart",
     "imageAsset": "DD_Stall-Wart.png",
     "stage": "S2",
-    "manaCost": 4,
+    "manaCost": 2,
     "hp": 10,
     "baseAttack": 1,
     "role": "Tank",
@@ -890,10 +890,10 @@ heroes: [
     "flavorText": "",
     "classType": "Durability",
     "archetype": "Guardian",
-    "docAbility": "Stalliwog (Passive): Provides 10 shield health (regenerates +2 each turn he’s not hit by enemy).",
+    "docAbility": "Stalliwog (Hero Passive): Hero has 10 shield health. Shield health regenerates 5 HP every 2 turns.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Protect player and heroes; multi-target hits redirect harder."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
     }
   },
   {
@@ -915,10 +915,10 @@ heroes: [
     "flavorText": "",
     "classType": "Passive",
     "archetype": "Provocateur",
-    "docAbility": "Troll-jan Virus (Passive): If enemy fails die roll/event after debuff, they get inflicted with Virus (disabling hero/action card casts in their hand for 2 turns). There should be a message displayed for an inflicted virus and a separate message displayed whenever a player tries to cast a hero or action card with",
+    "docAbility": "Trolljan Virus (Hero Passive): Hero & player immune to Impede & has 1 / 2 chance to inflict Virus when Reflecting debuff. Virus (debuff): Players infected by Virus can’t cast any cards or buy hero cards in shop. Reflect (deflection): Opens a die event window where other player rolls 1-3 to get reflected at or 4-6 to reflect back.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Share this hero passive for at least three turns."
+      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
     }
   },
   {
@@ -940,10 +940,10 @@ heroes: [
     "flavorText": "",
     "classType": "Passive",
     "archetype": "Fitness",
-    "docAbility": "Prized Possession (Passive): Draw action card that’s free to cast for successful die rolls (includes events).",
+    "docAbility": "Prized Possession (Hero Passive): Successful die rolls lead to gain 3 mana & drawing action card that’s free to cast.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Share this hero passive for at least three turns."
+      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
     }
   },
   {
@@ -960,10 +960,10 @@ heroes: [
     "flavorText": "",
     "classType": "Strength",
     "archetype": "Conqueror",
-    "docAbility": "Dino Dominion (6 mana): Deal 10 dmg to enemy player/hero, Trapping another enemy hero if it kills. A trapped enemy will be on the other player’s field appearing tapped. The trapped enemy hero will be killed in 3 turns if Tyrantosaurus isn’t killed by then. If Tyrantosaurus is killed, the trapped hero is set free. There should be messages to convey those extra circumstances.Tyrantosaurus",
+    "docAbility": "Ability: Dino Dominion (6 mana): Deal 8 dmg to enemy player/hero, Capturing another enemy hero if it kills. Capture (bondage): [Captured enemy will be on the other player’s field to the far left. A Captured enemy hero will be killed in 3 turns if Tyrantosaurus isn’t killed by then. If Tyrantosaurus is killed, the Captured hero is set free. Captures are an exception to the 5 hero on field limit.",
     "rolePassive": {
-      "name": "Crit-Hit",
-      "description": "Twenty-five percent chance to double outgoing damage."
+      "name": "Crit-Hit Chance",
+      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
     }
   },
   {
@@ -983,12 +983,12 @@ heroes: [
     ],
     "abilities": [],
     "flavorText": "",
-    "classType": "Legendary",
+    "classType": "Balanced",
     "archetype": "Volcan",
-    "docAbility": "Volcanic Volley: Deal 8 dmg to an enemy & inflict Burning status (3 turns). Temperature Tantrum (Passive): Deal 5 dmg to all enemies & inflict Burning status if critical (25% but not 0)",
+    "docAbility": "Ability: Volcanic Volley (6 mana): Deal 5 dmg & inflict Burning status to all enemy heroes & player (for 3 turns). Temperature Tantrum (Hero Passive): Deal 5 dmg to all enemies & inflict Burning status if critical (25% but not 0) HP. Burning (debuff): Burning players/heroes take 3 damage every turn (friendly or enemy) & lose half their action cards. Frozen cancels this out.",
     "rolePassive": {
-      "name": "Invocation",
-      "description": "Roll 4-6 to draw a free hero card."
+      "name": "Enact",
+      "description": "Roll 4-6 to draw and cast one free action."
     }
   },
   {
@@ -1005,10 +1005,10 @@ heroes: [
     "flavorText": "",
     "classType": "Technique",
     "archetype": "Ninja",
-    "docAbility": "Widow’s Fury (3 mana): Duel enemy, deal 3 dmg, Cripple, &",
+    "docAbility": "Ability: Měnghǔ chūjí (3 mana): Duel enemy, deal 3 dmg to enemy hero/player (or one-hit kill if at 25% or below). Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "Win captain duels on rolls of 3-6."
+      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
     }
   },
   {
@@ -1025,10 +1025,10 @@ heroes: [
     "flavorText": "",
     "classType": "Mana",
     "archetype": "Gaseous",
-    "docAbility": "Pass Gas (4 mana): Next turn die becomes 5 (bomb) & inflicts Poison to all enemy heroes/player if they fail. It deals 8 dmg & Impedes a Safeguarding durability hero. The bomb cancels/defuses if it goes back to player who casted Wind Breaker’s ability and player’s mana is half-refunded (2 mana back) if enemy player rolled 5-6. There should be a message that tells the enemy player about the gas bomb and a separate message if it would’ve gone back to the player who casted, bomb is cancelled and 2 mana was refunded back to them.",
+    "docAbility": "Ability Pass Gas (4 mana): Die becomes Bomb for enemy player, dealing 3 dmg, Poisoning,& Impeding all enemy heroes & player if they fail. Bomb (bomb): A Bomb die event will have a player roll a die where failing results in all player/heroes taking damage & Impeded. Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "Roll 4-6 to gain three mana beyond cap."
+      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
     }
   },
   {
@@ -1045,10 +1045,10 @@ heroes: [
     "flavorText": "",
     "classType": "Mana",
     "archetype": "Pious",
-    "docAbility": "Daily Bread (3 mana): Heal 3 HP & cleanse (1 debuff) from player/all heroes.",
+    "docAbility": "Ability: Daily Bread (3 mana): Heal 3 HP, Cleanse, & Bless player and all heroes for 3 turns. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Blessed (buff): Blessed player/heroes will heal 2 HP, deal double damage, can receive overhealing, take half dmg, roll 4-6 on all dice, and Cleansed of debuffs following turn. Bless and Curse cancel out.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "Roll 4-6 to gain three mana beyond cap."
+      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
     }
   },
   {
@@ -1065,10 +1065,10 @@ heroes: [
     "flavorText": "",
     "classType": "Speed",
     "archetype": "Infector",
-    "docAbility": "Accelero (3 mana): Accelerate player/all heroes & Impede all enemies (lasts 2 turns).",
+    "docAbility": "Ability: Ala Ka-Zoom (3 mana): Accelerate player/all heroes & Impede all enemies for 2 turns. Accelerate (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast player). Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action while captain."
+      "description": "Gain one extra action-card slot while this hero is captain."
     }
   }
 ],
@@ -1086,7 +1086,9 @@ actions: [
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "self",
-    "statusApplied": ["status_abstaining"],
+    "statusApplied": [
+      "status_abstaining"
+    ],
     "description": "Draw 2 action cards and become immune to Charmed, Love Potion, and Drunk until your next turn."
   },
   {
@@ -1100,7 +1102,9 @@ actions: [
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "single_enemy",
-    "statusApplied": ["status_anemic"],
+    "statusApplied": [
+      "status_anemic"
+    ],
     "description": "Inflict Anti-Heal — prevent this enemy from receiving healing for 2 turns."
   },
   {
@@ -1114,8 +1118,10 @@ actions: [
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "ally_any",
-    "statusApplied": ["status_augmented"],
-    "description": "Gain 2 mana and give a friendly hero or player +2 damage for 2 turns."
+    "statusApplied": [
+      "status_augmented"
+    ],
+    "description": "Gain 2 mana and give a friendly hero or player x2 attack damage for 2 turns."
   },
   {
     "id": "action_accelerate",
@@ -1128,22 +1134,24 @@ actions: [
     "rarity": "common",
     "stackable": false,
     "targetType": "ally_any",
-    "statusApplied": ["status_accelerated"],
-    "description": "Give a friendly hero or player +1 action for 3 turns. Cancels Impede."
+    "statusApplied": [
+      "status_accelerated"
+    ],
+    "description": "Give a friendly hero or player an extra action for 3 turns, untap them immediately, and cancel Impede."
   },
   {
     "id": "action_blood_mana",
     "name": "Blood Mana",
     "imageAsset": "Action_Card_Blood_Mana.jpg",
-    "manaCost": 0,
-    "type": "free",
-    "effect": "heal",
-    "effectValue": -5,
+    "manaCost": 1,
+    "type": "paid",
+    "effect": "gain_mana",
+    "effectValue": 5,
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "self",
     "statusApplied": [],
-    "description": "Sacrifice 5 HP to gain 5 mana. Cannot be used at 5 HP or less."
+    "description": "Spend 1 mana and sacrifice 5 HP to gain 5 mana. Blood Mana can exceed the 12 mana cap."
   },
   {
     "id": "action_bombs_away",
@@ -1156,8 +1164,10 @@ actions: [
     "rarity": "rare",
     "stackable": false,
     "targetType": "all_enemies",
-    "statusApplied": [],
-    "description": "Deal 4 damage to all enemy heroes and the enemy player. Safeguard cannot block it."
+    "statusApplied": [
+      "status_impeded"
+    ],
+    "description": "Deal 4 damage to all enemy heroes and the enemy player. Also Impedes the enemy captain, disarming Safeguard."
   },
   {
     "id": "action_cheese_potion",
@@ -1198,7 +1208,9 @@ actions: [
     "rarity": "rare",
     "stackable": false,
     "targetType": "enemy_any",
-    "statusApplied": ["status_crippled"],
+    "statusApplied": [
+      "status_crippled"
+    ],
     "description": "Cripple an enemy hero or player; they take double damage while Crippled."
   },
   {
@@ -1212,7 +1224,9 @@ actions: [
     "rarity": "rare",
     "stackable": false,
     "targetType": "self",
-    "statusApplied": ["status_frozen"],
+    "statusApplied": [
+      "status_frozen"
+    ],
     "description": "Roll a die. 4-6 grants frozen armor. 1-3 damages your team and freezes your next casts."
   },
   {
@@ -1240,7 +1254,9 @@ actions: [
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "enemy_player",
-    "statusApplied": ["status_drunk"],
+    "statusApplied": [
+      "status_drunk"
+    ],
     "description": "Inflict Drunk on the enemy player for their next 2 turns; their die can only roll 1-3."
   },
   {
@@ -1254,7 +1270,11 @@ actions: [
     "rarity": "rare",
     "stackable": false,
     "targetType": "enemy_any",
-    "statusApplied": ["status_rabies", "status_poisoned", "status_crippled"],
+    "statusApplied": [
+      "status_rabies",
+      "status_poisoned",
+      "status_crippled"
+    ],
     "description": "Poison and Cripple an enemy, then spread Rabies to another random enemy."
   },
   {
@@ -1268,7 +1288,9 @@ actions: [
     "rarity": "common",
     "stackable": false,
     "targetType": "single_enemy",
-    "statusApplied": ["status_poisoned"],
+    "statusApplied": [
+      "status_poisoned"
+    ],
     "description": "Poison an enemy — deal 1 damage at the start of each of their turns for 3 turns."
   },
   {
@@ -1282,7 +1304,9 @@ actions: [
     "rarity": "common",
     "stackable": false,
     "targetType": "single_enemy",
-    "statusApplied": ["status_impaired"],
+    "statusApplied": [
+      "status_impaired"
+    ],
     "description": "A mischievous imp weakens an enemy hero's base attack by 2, or by 1 if their base attack is 2. Cannot affect heroes already at 1 base attack."
   },
   {
@@ -1296,7 +1320,9 @@ actions: [
     "rarity": "rare",
     "stackable": false,
     "targetType": "enemy_any",
-    "statusApplied": ["status_impeded"],
+    "statusApplied": [
+      "status_impeded"
+    ],
     "description": "Slow an enemy — they cannot attack or use abilities until your next turn."
   },
   {
@@ -1310,7 +1336,9 @@ actions: [
     "rarity": "semi-common",
     "stackable": false,
     "targetType": "single_enemy",
-    "statusApplied": ["status_charmed"],
+    "statusApplied": [
+      "status_charmed"
+    ],
     "description": "An enemy falls head over heels — they immediately attack their own player, then swoon (tapped)."
   },
   {
@@ -1338,7 +1366,9 @@ actions: [
     "rarity": "common",
     "stackable": false,
     "targetType": "ally_any",
-    "statusApplied": ["status_sidestep"],
+    "statusApplied": [
+      "status_sidestep"
+    ],
     "description": "A friendly hero or player gets a 1/2 dodge chance against the next attack or debuff."
   },
   {
@@ -1558,6 +1588,86 @@ statusEffects: [
     "trigger": null,
     "symbol": "IMB",
     "description": "Shares passive pressure from a Passive captain."
+  },
+  {
+    "id": "status_burning",
+    "name": "Burning",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": "start_of_turn",
+    "symbol": "BRN",
+    "description": "Takes 3 damage each turn. Frozen cancels Burning."
+  },
+  {
+    "id": "status_haunted",
+    "name": "Haunted",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": "start_of_turn",
+    "symbol": "HNT",
+    "description": "Takes 2 damage on friendly turns and cannot attack or use abilities."
+  },
+  {
+    "id": "status_shocked",
+    "name": "Shocked",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": "after_roll",
+    "symbol": "SHK",
+    "description": "After the regular die roll, resolves a shock die event with severe failure outcomes."
+  },
+  {
+    "id": "status_cursed",
+    "name": "Cursed",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "CRS",
+    "description": "Rolls are capped, healing is blocked, damage dealt is halved, and incoming damage is doubled."
+  },
+  {
+    "id": "status_blessed",
+    "name": "Blessed",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": "start_of_turn",
+    "symbol": "BLS",
+    "description": "Heals, deals double damage, can receive overhealing, takes half damage, and cleanses debuffs next turn."
+  },
+  {
+    "id": "status_jinxed",
+    "name": "Jinxed",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": "on_damage_dealt",
+    "symbol": "JNX",
+    "description": "Takes the amount of damage dealt to the hero or player that inflicted Jinxed."
+  },
+  {
+    "id": "status_virus",
+    "name": "Virus",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "VIR",
+    "description": "Cannot cast cards or buy hero cards in the shop."
+  },
+  {
+    "id": "status_stimulated",
+    "name": "Stim",
+    "type": "timed",
+    "duration": 3,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "STM",
+    "description": "Gains 50% overhealth and x3 attack damage, but also gains Anemic and Crippled."
   }
 ],
 

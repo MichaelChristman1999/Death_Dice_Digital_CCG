@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Death Dice</title>
+  <link rel="icon" type="image/png" href="assets/cards/Action%20Card%20Test%20Export/DD_die_favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
@@ -66,6 +67,13 @@
       <li>Each player draws <strong>3 hero cards</strong> and <strong>4 action cards</strong>.</li>
       <li>Both players roll. Highest roll goes first. Ties re-roll.</li>
     </ul>
+    <h2>Core Mechanics</h2>
+    <ul>
+      <li><strong>Mana</strong> is spent to deploy heroes, use hero abilities, buy from the shop, and play paid action cards.</li>
+      <li>Your mana pool carries over between turns and normally caps at <strong>12</strong>. Some effects, such as Blood Mana or Mana-role bonuses, can exceed that cap.</li>
+      <li>The <strong>captain slot</strong> activates that hero's role passive. A Durability captain can Safeguard, taking damage or debuffs for the player or other heroes.</li>
+      <li><strong>Status icons</strong> show active buffs and debuffs. Timed statuses count down on the affected player's turns unless a card says otherwise.</li>
+    </ul>
     <h2>Phases</h2>
     <ul>
       <li><strong>Etiquette Phase</strong> — One round. Deploy and shop only. No attacks.</li>
@@ -74,17 +82,36 @@
     <h2>Roll Phase</h2>
     <ul>
       <li>Your turn starts with an <strong>automatic dice roll</strong> after a short countdown (press Roll Now to skip the wait).</li>
-      <li>Your roll = mana for this turn.</li>
+      <li>Your roll adds that much mana to your pool.</li>
       <li>If your roll is <em>lower</em> than the previous roll, you take damage equal to the difference.</li>
       <li>Rolling a 6 resets the requirement for the next player.</li>
+      <li>If the required roll was 5 and you fail it, the Bomb rule can also damage your field.</li>
     </ul>
     <h2>Your Turn</h2>
     <ul>
       <li><strong>Drag</strong> a hero from your hand into your zone to deploy it.</li>
+      <li>Drag a deployed hero into the captain slot to turn on its role passive. Move deployed heroes to rearrange your field.</li>
+      <li>Your player can make a <strong>2 damage base attack</strong> by targeting an enemy hero or the enemy HP icon.</li>
       <li>Each hero may perform <strong>one action per turn</strong> — attack OR ability.</li>
       <li>Play <strong>one paid action card</strong> per turn. Free cards are unlimited.</li>
+      <li>Accelerate and some Speed-role effects can grant extra action-card or action opportunities.</li>
+      <li><strong>Locked Out</strong> disables shop access while it lasts.</li>
       <li>Buy <strong>one card</strong> from the shop per turn (hero: 2◆, action: 1◆).</li>
       <li><strong>Right-click</strong> a hand card to discard it for its mana value (1 hero + 1 action per turn).</li>
+    </ul>
+    <h2>Status Basics</h2>
+    <ul>
+      <li><strong>Accelerate</strong> grants extra action potential and cancels Impede. <strong>Impede</strong> blocks attacks and abilities and cancels Accelerate.</li>
+      <li><strong>Cripple</strong> makes incoming damage hurt more. <strong>Anemic</strong> blocks healing. <strong>Impaired</strong> lowers damage output.</li>
+      <li><strong>Poison</strong>, <strong>Burning</strong>, and <strong>Haunted</strong> deal damage over time. Burning and Frozen cancel each other.</li>
+      <li><strong>Sidestep</strong> gives a dodge roll against the next incoming attack or debuff.</li>
+      <li><strong>Blessed</strong> and <strong>Cursed</strong> are opposite swing statuses and cancel each other when applied.</li>
+    </ul>
+    <h2>Card Reading</h2>
+    <ul>
+      <li>Hero cards show cost, attack, HP, role icon, and ability or passive text.</li>
+      <li>Click a hand card or deployed hero to read its details, including role passive information.</li>
+      <li>If a rule on a card conflicts with this reference, use the card text for that playtest.</li>
     </ul>
     <h2>Combat</h2>
     <ul>
@@ -93,6 +120,7 @@
       <li><strong>Click</strong> an action card to play it — the game tells you what to target.</li>
       <li>Statuses are shown on cards with turns remaining (☠ poison ticks every turn!).</li>
       <li>Attacking or using an ability taps the character (turns sideways) until your next turn.</li>
+      <li>Damage and debuffs aimed at the player can also affect the captain. Safeguard redirects them to a Durability captain unless that captain is disabled.</li>
       <li>0 HP → graveyard. Reduce the enemy player to 0 HP to win!</li>
     </ul>
     <button id="btn-rules-back" class="menu-btn secondary" style="margin-top:28px;width:auto;">← Back</button>

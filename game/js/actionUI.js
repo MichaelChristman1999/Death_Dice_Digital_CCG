@@ -64,24 +64,37 @@ const ActionUI = (() => {
   // Opened by clicking (not dragging) one of your deployed characters.
   function openCharPanel(char, owner) {
     closeCharPanel();
-    if (owner !== GameState.currentTurn) return; // enemy cards: no panel
 
+    const isOwnerTurn = owner === GameState.currentTurn;
+    const src     = char._sourceCard ?? {};
     const ability = char.abilities?.[0];
-    const mana    = GameState.getMana();
+    const mana    = GameState.getMana(owner);
     const acted   = char.tapped || char.hasAttackedThisTurn || char.hasUsedAbilityThisTurn;
-    const inCombat = PhaseManager.canUseAbilities();
+    const inCombat = isOwnerTurn && PhaseManager.canUseAbilities();
     const gate    = GameState.canCharacterUseAbility(char);
     const atk     = GameState.getEffectiveAttack(char);
-    const passives = (char.passives?.length ? char.passives : char._sourceCard?.passives) ?? [];
+    const passives = (char.passives?.length ? [...char.passives] : [...(src.passives ?? [])]);
+    const passiveOnly = /^(Passive|Durability)$/i.test(char.classType || src.classType || '');
+    if (passiveOnly && src.docAbility && passives.length === 0) {
+      passives.push({ name: 'Hero Passive', description: src.docAbility });
+    }
     const passiveHtml = passives.map(p => `
       <div class="cp-ability passive">
         <div class="cp-ability-name">${p.name ?? 'Passive'}</div>
         <div class="cp-ability-desc">${p.description ?? ''}</div>
       </div>`).join('');
+    const role = char.classType || src.classType || '';
+    const rolePassive = src.rolePassive;
+    const roleHtml = role ? `
+      <div class="cp-ability role">
+        <div class="cp-ability-name">${role}${rolePassive?.name ? ` - ${rolePassive.name}` : ''}</div>
+        ${rolePassive?.description ? `<div class="cp-ability-desc">${rolePassive.description}</div>` : ''}
+      </div>` : '';
 
-    const canUse = ability && !acted && inCombat && gate.ok && mana >= ability.manaCost;
+    const canUse = isOwnerTurn && ability && !acted && inCombat && gate.ok && mana >= ability.manaCost;
     let hint = '';
-    if (!ability && !passives.length)   hint = 'No active ability.';
+    if (!isOwnerTurn)                   hint = '';
+    else if (!ability && !passives.length)   hint = 'No active ability.';
     else if (acted)                     hint = 'Already acted this turn.';
     else if (!inCombat)                 hint = 'Abilities unlock in the Combat phase (after rolling).';
     else if (!gate.ok)                  hint = gate.reason;
@@ -99,13 +112,14 @@ const ActionUI = (() => {
         <div class="cp-ability-name">◆${ability.manaCost} — ${ability.abilityName}</div>
         <div class="cp-ability-desc">${ability.description}</div>
       </div>` : ''}
+      ${roleHtml}
       ${passiveHtml || (!ability ? '<div class="cp-ability-desc">This character has no active ability.</div>' : '')}
       ${hint ? `<div class="cp-hint">${hint}</div>` : ''}
       <div class="cp-actions">
-        ${ability ? `<button id="cp-use" class="menu-btn primary" ${canUse ? '' : 'disabled'}>⚡ Use Ability</button>` : ''}
+        ${isOwnerTurn && ability ? `<button id="cp-use" class="menu-btn primary" ${canUse ? '' : 'disabled'}>⚡ Use Ability</button>` : ''}
         <button id="cp-close" class="menu-btn secondary">✕</button>
       </div>
-      <div class="cp-tip">💡 Drag this card onto an enemy to attack</div>`;
+      ${isOwnerTurn ? '<div class="cp-tip">Drag this card onto an enemy to attack</div>' : ''}`;
     document.body.appendChild(panel);
 
     panel.querySelector('#cp-close')?.addEventListener('click', closeCharPanel);

@@ -171,8 +171,9 @@ const PhaseManager = (() => {
     if (required !== null && roll < required) {
       const baseDamage = required - roll;
       const before = GameState.getPlayerState?.(activePlayer)?.hp ?? 0;
-      const hp = GameState.damagePlayer(activePlayer, baseDamage);
-      damage = Math.max(0, before - Math.max(0, hp ?? before));
+      const hit = GameState.damageTarget?.({ type: 'player', id: activePlayer }, baseDamage)
+        ?? { hp: GameState.damagePlayer(activePlayer, baseDamage), actualDamage: 0 };
+      damage = hit.actualDamage ?? Math.max(0, before - Math.max(0, hit.hp ?? before));
       if (GameData.rules.dice?.roll5Bomb && required === 5) {
         bombDamage = baseDamage;
         [...GameState.getPlayerState(activePlayer).board].forEach(char => {

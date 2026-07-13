@@ -12,11 +12,9 @@ const PixiBoard = (() => {
   // Encode spaces in filenames so browser fetches succeed
   const _encAsset = (s) => s ? s.replace(/ /g, '%20') : s;
 
-  // Text factory — sets .resolution on every PIXI.Text so text is crisp at 2.5× zoom
-  // (resolution must be set on the object, NOT inside TextStyle, in PixiJS v7)
-  // Capped at 3: still crisp at the 2.5× hover zoom but ~halves text-texture cost vs the
-  // old cap of 5 on HiDPI displays (a major source of GPU memory + upload lag).
-  const TXT_RES = Math.min(Math.ceil((window.devicePixelRatio || 1) * 2), 3);
+  // Text factory — sets .resolution on every PIXI.Text so text is crisp at card zoom.
+  // Capped at 4 to keep text readable on laptops without letting texture memory run wild.
+  const TXT_RES = Math.min(Math.ceil((window.devicePixelRatio || 1) * 2.5), 4);
   const _PixiText = PIXI.Text;
   const _T = (str, style) => { const t = new _PixiText(str, style); t.resolution = TXT_RES; return t; };
 
@@ -160,9 +158,8 @@ const PixiBoard = (() => {
       resizeTo:        container,
       backgroundColor: P.bg,
       antialias:       true,
-      // Cap at 2: HiDPI displays sometimes report DPR 2.5–3, which renders 6–9× the
-      // pixels and tanks the framerate. 2 is visually indistinguishable here.
-      resolution:      Math.min(window.devicePixelRatio || 1, 2),
+      // Keep the canvas sharper on laptop/tablet screens while still capping GPU cost.
+      resolution:      Math.min(window.devicePixelRatio || 1, 3),
       autoDensity:     true,
     });
     container.appendChild(_app.view);
@@ -524,8 +521,6 @@ const PixiBoard = (() => {
     g.beginFill(0x0b0216, 0.94);
     g.drawCircle(0, 0, 28);
     g.endFill();
-    g.lineStyle(1, 0xdcb8ff, 0.42);
-    g.drawCircle(-7, -8, 9 + fullness * 5);
     g.lineStyle(2, 0x3c0d65, 0.72);
     g.drawCircle(0, 0, 36);
   }
@@ -554,11 +549,11 @@ const PixiBoard = (() => {
     ct.addChild(manaNum);
 
     const capLbl = _T('/12', {
-      fontFamily: "'Rajdhani', sans-serif", fontSize: 10, fontWeight: '800',
-      fill: 0xb984ff,
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 13, fontWeight: '900',
+      fill: 0xd7b6ff,
     });
     capLbl.anchor.set(0.5, 0);
-    capLbl.position.set(gCX, 21);
+    capLbl.position.set(gCX, 17);
     ct.addChild(capLbl);
 
     for (let i = 0; i < MAX_MANA; i++) {
@@ -602,10 +597,10 @@ const PixiBoard = (() => {
 
     // MANA label below dots
     const manaLbl = _T('MANA', {
-      fontFamily: "'Rajdhani', sans-serif", fontSize: 8, fontWeight: '700',
-      fill: 0x8f5cff, letterSpacing: 3,
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 10, fontWeight: '900',
+      fill: 0xcaa5ff, letterSpacing: 2,
     });
-    manaLbl.anchor.set(0.5, 0); manaLbl.position.set(gCX, 36);
+    manaLbl.anchor.set(0.5, 0); manaLbl.position.set(gCX, 31);
     ct.addChild(manaLbl);
 
     // ── Spinning skull-pip dice — above the action buttons (right rail) ──────────
@@ -1543,6 +1538,9 @@ const PixiBoard = (() => {
       ct._handIndex = i;
       ct._handN     = n;
       ct._handPid   = pid;
+      ct.visible = true;
+      ct.renderable = true;
+      ct.alpha = 1;
 
       _L.hand.addChild(ct); _hand[pid].push(ct);
     });
@@ -1595,10 +1593,9 @@ const PixiBoard = (() => {
       ct._baseX = ct.x;
       ct._baseY = ct.y;
 
-      ct.alpha = 0;
-      const slideFrom = ct.y + 18;
-      ct.y = slideFrom;
-      gsap.to(ct, { alpha: 1, y: ct._baseY, duration: 0.32, ease: 'back.out(1.3)', delay: i * 0.06 });
+      ct.visible = true;
+      ct.renderable = true;
+      ct.alpha = 1;
       _L.cards.addChild(ct); _board[pid].push(ct);
     });
   }
@@ -1897,8 +1894,9 @@ const PixiBoard = (() => {
 
     if (isChar) {
       if (_inCaptainSlot(pos)) {
+        const previousCaptainId = GameState?.getPlayerState?.(owner)?.captainId;
         const assigned = GameState?.setCaptain?.(owner, ct._charData?.instanceId);
-        if (assigned?.ok) showToast('Captain assigned.', 'info');
+        if (assigned?.ok && previousCaptainId !== ct._charData?.instanceId) showToast('Captain assigned.', 'info');
         renderBoard(); return;
       }
 
@@ -1908,7 +1906,7 @@ const PixiBoard = (() => {
         }
         const targetIndex = _boardDropIndex(owner, pos.x, ct._charData?.instanceId);
         const moved = GameState?.reorderBoardCharacter?.(owner, ct._charData?.instanceId, targetIndex);
-        if (moved?.ok) showToast('Hero repositioned.', 'info');
+        if (moved?.ok) showToast('Hero shuffled.', 'info');
         renderBoard(); return;
       }
 
@@ -2562,8 +2560,19 @@ const PixiBoard = (() => {
     // Boards first (lower layer), then all hands on top
     for (const pid of ['p1', 'p2']) _layoutBoard(pid);
     for (const pid of ['p1', 'p2']) _layoutHand(pid);
+    _forceVisibleCards();
     _updateHUD();
     _applyTurnFlip();
+  }
+
+  function _forceVisibleCards() {
+    [_L.cards, _L.hand].forEach(layer => {
+      layer?.children?.forEach(ct => {
+        ct.visible = true;
+        ct.renderable = true;
+        ct.alpha = 1;
+      });
+    });
   }
 
   return { init, render, animateManaGain, showDiceRoll, showHitEffect,

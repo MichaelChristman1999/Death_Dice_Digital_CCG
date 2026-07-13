@@ -67,8 +67,9 @@ const RollEngine = (() => {
     if (playerId && previousRequired !== null && roll < previousRequired) {
       const baseDamage = previousRequired - roll;
       const playerBefore = GameState.getPlayerState?.(playerId)?.hp ?? 0;
-      const playerHp = GameState.damagePlayer(playerId, baseDamage);
-      result.playerDamage = Math.max(0, playerBefore - Math.max(0, playerHp ?? playerBefore));
+      const hit = GameState.damageTarget?.({ type: 'player', id: playerId }, baseDamage)
+        ?? { hp: GameState.damagePlayer(playerId, baseDamage), actualDamage: 0 };
+      result.playerDamage = hit.actualDamage ?? Math.max(0, playerBefore - Math.max(0, hit.hp ?? playerBefore));
 
       if (_rules.dice?.roll5Bomb && previousRequired === 5) {
         const board = [...(GameState.getPlayerState?.(playerId)?.board ?? [])];
@@ -104,8 +105,9 @@ const RollEngine = (() => {
     if (req === null || roll >= req) return 0;
     const dmg = req - roll;
     const before = GameState.getPlayerState?.(targetPlayerId)?.hp ?? 0;
-    const hp = GameState.damagePlayer(targetPlayerId, dmg);
-    return Math.max(0, before - Math.max(0, hp ?? before));
+    const hit = GameState.damageTarget?.({ type: 'player', id: targetPlayerId }, dmg)
+      ?? { hp: GameState.damagePlayer(targetPlayerId, dmg), actualDamage: 0 };
+    return hit.actualDamage ?? Math.max(0, before - Math.max(0, hit.hp ?? before));
   }
 
   // ── Duel Roll (used by DuelSystem) ────────────────────────────────────────
