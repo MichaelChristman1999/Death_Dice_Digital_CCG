@@ -54,6 +54,7 @@ const PhaseManager = (() => {
     if (!overlay) return;
     overlay.classList.remove('hidden');
     _updateRolloffUI();
+    AdventureMode?.onRolloffShown?.();
   }
 
   function handleRolloffRoll(playerId) {
@@ -64,6 +65,7 @@ const PhaseManager = (() => {
     GameState.setRolloffRoll(playerId, roll);
     _rolloffDone[playerId] = true;
     _updateRolloffUI();
+    AdventureMode?.onRolloffUpdate?.();
 
     // Both players have rolled
     if (_rolloffDone.p1 && _rolloffDone.p2) {
@@ -76,6 +78,7 @@ const PhaseManager = (() => {
           GameState.setRolloffRoll('p1', null);
           GameState.setRolloffRoll('p2', null);
           _updateRolloffUI();
+          AdventureMode?.onRolloffUpdate?.();
         }, 1200);
         return;
       }
@@ -105,8 +108,8 @@ const PhaseManager = (() => {
 
     if (p1Roll) p1Roll.textContent = rolls.p1 ?? '?';
     if (p2Roll) p2Roll.textContent = rolls.p2 ?? '?';
-    if (p1Btn)  p1Btn.disabled = _rolloffDone.p1;
-    if (p2Btn)  p2Btn.disabled = _rolloffDone.p2;
+    if (p1Btn)  p1Btn.disabled = _rolloffDone.p1 || (AdventureMode?.isCpuPlayer?.('p1') ?? false);
+    if (p2Btn)  p2Btn.disabled = _rolloffDone.p2 || (AdventureMode?.isCpuPlayer?.('p2') ?? false);
   }
 
   function _updateRolloffResult(msg) {
@@ -123,6 +126,7 @@ const PhaseManager = (() => {
     _updateUI();
     renderBoard();
     _startAutoRoll();
+    AdventureMode?.onPhaseStep?.();
   }
 
   // ── Auto-roll countdown ─────────────────────────────────────────────────────
@@ -207,6 +211,7 @@ const PhaseManager = (() => {
       _updateUI();
       renderBoard();
       _checkWinCondition();
+      AdventureMode?.onTurnReady?.();
     });
   }
 
@@ -268,6 +273,7 @@ const PhaseManager = (() => {
     _updateUI();
     renderBoard();
     _startAutoRoll();
+    AdventureMode?.onPhaseStep?.();
 
     // Report status ticks (poison damage, deaths) that fired on turn change
     const ticks = GameState.consumeTickEvents?.() ?? [];
@@ -352,9 +358,10 @@ const PhaseManager = (() => {
     const rollBtn = document.getElementById('btn-roll');
     const endBtn  = document.getElementById('btn-end-turn');
     const shopBtn = document.getElementById('btn-shop');
-    if (rollBtn) rollBtn.disabled = !canRoll();
-    if (endBtn)  endBtn.disabled  = !canEndTurn();
-    if (shopBtn) shopBtn.disabled = !canShop();
+    const cpuTurn = AdventureMode?.isCpuTurn?.() ?? false;
+    if (rollBtn) rollBtn.disabled = cpuTurn || !canRoll();
+    if (endBtn)  endBtn.disabled  = cpuTurn || !canEndTurn();
+    if (shopBtn) shopBtn.disabled = cpuTurn || !canShop();
   }
 
   return {

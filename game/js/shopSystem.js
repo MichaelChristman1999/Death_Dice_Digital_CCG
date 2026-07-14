@@ -245,5 +245,40 @@ const ShopSystem = (() => {
     renderBoard();
   }
 
-  return { init, open, close };
+  function getOffersForCpu(playerId = GameState.currentTurn) {
+    const foresight = GameState.hasIQCaptain?.(playerId) ?? false;
+    return _getOffersForTurn(foresight);
+  }
+
+  function buyForCpu(playerId = GameState.currentTurn, type = 'action', scoreFn = null) {
+    if (GameState.hasPlayerStatus?.(playerId, 'status_locked_out')) return { ok: false, error: 'Shop closed' };
+    const cost = type === 'hero' ? (_rules.shopCosts?.hero ?? 2) : (_rules.shopCosts?.action ?? 1);
+    const limit = type === 'hero' ? (_rules.shopLimits?.heroPerTurn ?? 1) : (_rules.shopLimits?.actionPerTurn ?? 1);
+    if (GameState.getShopPurchasesThisTurn(type) >= limit) return { ok: false, error: 'Turn limit reached' };
+    if (GameState.getMana(playerId) < cost) return { ok: false, error: 'Not enough mana' };
+
+    const p = GameState.getPlayerState(playerId);
+    const handLimit = _rules.handLimits?.[type] ?? 8;
+    const hand = type === 'hero' ? p.hand.heroes : p.hand.actions;
+    if (hand.length >= handLimit) return { ok: false, error: 'Hand full' };
+
+    const offers = getOffersForCpu(playerId);
+    const list = type === 'hero' ? offers.heroes : offers.actions;
+    const usedHeroes = GameState.getAllHeroIdsInUse?.({ includeGraveyard: true }) ?? new Set();
+    const candidates = list.filter(card => {
+      if (type === 'hero') return !usedHeroes.has(card.id);
+      return (p.hand.actions?.filter(c => c.id === card.id).length ?? 0) < 2;
+    });
+    if (!candidates.length) return { ok: false, error: 'No legal offers' };
+
+    const pick = candidates
+      .map(card => ({ card, score: Number(scoreFn?.(card, type) ?? 0) }))
+      .sort((a, b) => b.score - a.score)[0]?.card;
+    if (!pick) return { ok: false, error: 'No pick' };
+
+    _buy(pick, type, cost, playerId);
+    return { ok: true, card: pick };
+  }
+
+  return { init, open, close, getOffersForCpu, buyForCpu };
 })();

@@ -159,6 +159,42 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 }
 .menu-buttons { display: flex; flex-direction: column; gap: 10px; width: 310px; }
 
+.adventure-box { max-width: 620px; }
+.adventure-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0;
+}
+.adventure-persona {
+  min-height: 104px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  text-align: left;
+}
+.adventure-persona span {
+  font-size: .68rem;
+  color: rgba(255,255,255,.78);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.adventure-persona strong {
+  font-size: 1rem;
+  color: #fff;
+}
+.adventure-persona small {
+  color: rgba(255,255,255,.72);
+  font-size: .76rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .adventure-list { grid-template-columns: 1fr; }
+}
+
 /* ═══════════════════════════════════════════════════════════
    GAME SCREEN — PixiJS fills it all
    ═══════════════════════════════════════════════════════════ */

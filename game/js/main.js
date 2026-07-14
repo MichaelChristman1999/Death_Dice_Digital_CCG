@@ -74,6 +74,7 @@ function hideGameOverlays() {
     'overlay-options',
     'overlay-exit-confirm',
     'overlay-save-choice',
+    'overlay-adventure',
     'overlay-shop',
     'modal-card',
     'modal-discard',
@@ -89,21 +90,33 @@ function hideGameOverlays() {
 function bindMenuButtons() {
   // Play â†’ optional name entry â†’ start
   document.getElementById('btn-play')?.addEventListener('click', () => {
+    AdventureMode?.reset?.();
     if (hasResumableSavedGame()) {
       document.getElementById('overlay-save-choice')?.classList.remove('hidden');
     } else {
       openNamePrompt();
     }
   });
+  document.getElementById('btn-adventure')?.addEventListener('click', () => {
+    AdventureMode?.openMenu?.();
+  });
+  document.querySelectorAll('[data-cpu-persona]').forEach(btn => {
+    btn.addEventListener('click', () => AdventureMode?.start?.(btn.dataset.cpuPersona));
+  });
+  document.getElementById('btn-adventure-back')?.addEventListener('click', () => {
+    AdventureMode?.closeMenu?.();
+  });
   document.getElementById('btn-names-start')?.addEventListener('click', () => {
     document.getElementById('overlay-names')?.classList.add('hidden');
     startGame();
   });
   document.getElementById('btn-save-choice-continue')?.addEventListener('click', () => {
+    AdventureMode?.reset?.();
     document.getElementById('overlay-save-choice')?.classList.add('hidden');
     startGame({ resume: true });
   });
   document.getElementById('btn-save-choice-new')?.addEventListener('click', () => {
+    AdventureMode?.reset?.();
     document.getElementById('overlay-save-choice')?.classList.add('hidden');
     try { localStorage.removeItem('gameState'); } catch (_) {}
     openNamePrompt();
@@ -133,6 +146,7 @@ function promptAdmin() {
 function startGame(options = {}) {
   const data = window.GameData ?? GAME_DATA_INLINE;
   let resumeMode = !!options.resume;
+  const adventureMode = !!options.adventure;
 
   GameState.init(data, { skipSave: resumeMode });
   if (resumeMode) {
@@ -141,7 +155,9 @@ function startGame(options = {}) {
   }
 
   // Optional player names from the pre-game prompt
-  if (!resumeMode) {
+  if (!resumeMode && adventureMode) {
+    AdventureMode?.configureGame?.(options.cpuPersonaId);
+  } else if (!resumeMode) {
     const n1 = document.getElementById('input-name-p1')?.value;
     const n2 = document.getElementById('input-name-p2')?.value;
     if (n1) GameState.setPlayerLabel('p1', n1);
@@ -179,6 +195,7 @@ function startGame(options = {}) {
     void container.clientWidth; // force layout
     PixiBoard.init(container, {
       onDeploy: ({ card, owner }) => {
+        if (AdventureMode?.isCpuPlayer?.(owner)) return;
         if (!PhaseManager.canDeploy?.()) return showToast('Cannot deploy now', 'warn');
         if (GameState.getMana() < (card.manaCost ?? 0)) return showToast('Not enough mana', 'warn');
         const r = GameState.deployHero(owner, card.id);
@@ -186,6 +203,7 @@ function startGame(options = {}) {
         else showToast(r?.error ?? 'Deploy failed', 'warn');
       },
       onAttack: ({ char, owner, target }) => {
+        if (AdventureMode?.isCpuPlayer?.(owner)) return;
         if (!target) return;
         if (target.type === 'char') {
           CombatEngine?.resolveDirectAttack?.(char.instanceId, 'character', target.char.instanceId);
@@ -195,10 +213,12 @@ function startGame(options = {}) {
       },
       // Action card clicked in hand â†’ full play flow (phase check, targeting, resolve)
       onActionPlay: ({ card, owner }) => {
+        if (AdventureMode?.isCpuPlayer?.(owner)) return;
         AbilityDispatcher?.playCard?.(card, owner);
       },
       // Right-click a hand card â†’ discard it for its mana value
       onDiscardMana: ({ card, type, owner }) => {
+        if (AdventureMode?.isCpuPlayer?.(owner)) return;
         const r = GameState?.discardForMana?.(owner, card.id, type);
         if (r?.ok) {
           showToast(`â™» Discarded ${card.name} for ${r.refund} mana`, 'info');
@@ -212,6 +232,7 @@ function startGame(options = {}) {
     if (resumeMode) PhaseManager.resumeFromState?.();
     else PhaseManager.start();
     renderBoard();
+    AdventureMode?.onGameStarted?.();
   }
 }
 
@@ -220,12 +241,19 @@ function bindGameButtons() {
   if (bindGameButtons._done) return;
   bindGameButtons._done = true;
 
-  document.getElementById('btn-roll')    ?.addEventListener('click', () => PhaseManager.handleRoll());
+  document.getElementById('btn-roll')    ?.addEventListener('click', () => {
+    if (AdventureMode?.isCpuTurn?.()) return;
+    PhaseManager.handleRoll();
+  });
   document.getElementById('btn-end-turn')?.addEventListener('click', () => {
+    if (AdventureMode?.isCpuTurn?.()) return;
     PhaseManager.handleEndTurn();
     renderBoard();
   });
-  document.getElementById('btn-shop')?.addEventListener('click', () => ShopSystem.open());
+  document.getElementById('btn-shop')?.addEventListener('click', () => {
+    if (AdventureMode?.isCpuTurn?.()) return;
+    ShopSystem.open();
+  });
   document.getElementById('btn-options')?.addEventListener('click', () => {
     document.getElementById('overlay-options')?.classList.remove('hidden');
   });
@@ -235,6 +263,7 @@ function bindGameButtons() {
   });
   document.getElementById('btn-options-save-exit')?.addEventListener('click', () => {
     hideGameOverlays();
+    AdventureMode?.reset?.();
     showScreen(SCREENS.MENU);
   });
   document.getElementById('btn-options-exit-nosave')?.addEventListener('click', () => {
@@ -248,6 +277,7 @@ function bindGameButtons() {
   document.getElementById('btn-exit-confirm-yes')?.addEventListener('click', () => {
     try { localStorage.removeItem('gameState'); } catch (_) {}
     hideGameOverlays();
+    AdventureMode?.reset?.();
     showScreen(SCREENS.MENU);
   });
 
@@ -256,6 +286,7 @@ function bindGameButtons() {
 
   document.getElementById('btn-win-menu')?.addEventListener('click', () => {
     document.getElementById('overlay-win')?.classList.add('hidden');
+    AdventureMode?.reset?.();
     showScreen(SCREENS.MENU);
   });
 

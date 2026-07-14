@@ -20,6 +20,7 @@
     <div class="menu-tagline">Two Players. One Survives.</div>
     <div class="menu-buttons">
       <button id="btn-play"  class="menu-btn primary">  <span>⚔</span> Play Hot-Seat</button>
+      <button id="btn-adventure" class="menu-btn primary"><span>CPU</span> Adventure Mode (PvE)</button>
       <button id="btn-rules" class="menu-btn secondary"><span>📖</span> Rules</button>
       <button id="btn-admin" class="menu-btn secondary"><span>⚙</span>  Admin</button>
     </div>
@@ -202,6 +203,39 @@
   </div>
 </div>
 
+<!-- Adventure Mode CPU Select -->
+<div id="overlay-adventure" class="overlay-bg hidden">
+  <div class="modal-box adventure-box">
+    <h2>Adventure Mode (PvE)</h2>
+    <p class="muted">Choose a CPU opponent for a one-player match.</p>
+    <div class="adventure-list">
+      <button class="menu-btn primary adventure-persona" data-cpu-persona="little_timmy">
+        <span>Easy</span>
+        <strong>Little Timmy</strong>
+        <small>Low strategy, misses obvious tempo plays.</small>
+      </button>
+      <button class="menu-btn primary adventure-persona" data-cpu-persona="average_joe">
+        <span>Medium</span>
+        <strong>Average Joe</strong>
+        <small>Balanced sequencing with some adaptation.</small>
+      </button>
+      <button class="menu-btn primary adventure-persona" data-cpu-persona="quick_rick">
+        <span>Speed</span>
+        <strong>Quick Rick</strong>
+        <small>Pushes Speed heroes, Accelerate, and board pressure.</small>
+      </button>
+      <button class="menu-btn primary adventure-persona" data-cpu-persona="clean_gene">
+        <span>Sustain</span>
+        <strong>Clean Gene</strong>
+        <small>Looks for Cleanse, healing, Sidestep, and tanks.</small>
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-adventure-back" class="menu-btn secondary">Back</button>
+    </div>
+  </div>
+</div>
+
 <!-- Roll-Off -->
 <div id="overlay-rolloff" class="overlay-bg hidden">
   <div class="modal-box rolloff-box">
@@ -313,6 +347,9 @@
 <script src="js/diceAnimation.js"></script>
 <script src="js/actionUI.js"></script>
 <script src="js/pixiBoard.js"></script>
+<script src="js/cpuPersonas.js"></script>
+<script src="js/cpuController.js"></script>
+<script src="js/adventureMode.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
