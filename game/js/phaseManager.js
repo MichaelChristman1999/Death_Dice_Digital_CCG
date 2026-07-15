@@ -1,5 +1,5 @@
 // ─── Phase Manager ────────────────────────────────────────────────────────────
-// Flow: Roll-Off → Etiquette (one round) → Combat (until winner)
+// Flow: Roll-Off -> Order (one round) -> Chaos (until winner)
 
 const PhaseManager = (() => {
   const STEPS = {
@@ -85,6 +85,8 @@ const PhaseManager = (() => {
 
       const winner = rolls.p1 >= rolls.p2 ? 'p1' : 'p2';
       GameState.setFirstPlayer(winner);
+      GameState.setMana(rolls.p1, 'p1');
+      GameState.setMana(rolls.p2, 'p2');
 
       const winnerLabel = GameState.getPlayerLabel(winner);
       _updateRolloffResult(`${winnerLabel} goes first!`);
@@ -117,15 +119,14 @@ const PhaseManager = (() => {
     if (el) el.textContent = msg;
   }
 
-  // ── Begin Etiquette ────────────────────────────────────────────────────────
+  // ── Begin Order ────────────────────────────────────────────────────────────
   function _beginEtiquette() {
     GameState.setPhase('etiquette');
-    _setStep(STEPS.AWAIT_ROLL);
+    _setStep(STEPS.MAIN);
     _etiquetteRoundDone = { p1: false, p2: false };
-    showToast('Etiquette Phase begins. Deploy characters and use the shop.', 'phase');
+    showToast('Order Phase begins. Deploy heroes and use the shop.', 'phase');
     _updateUI();
     renderBoard();
-    _startAutoRoll();
     AdventureMode?.onPhaseStep?.();
   }
 
@@ -172,7 +173,7 @@ const PhaseManager = (() => {
     let damage = 0;
     let bombDamage = 0;
 
-    if (required !== null && roll < required) {
+    if (GameState.currentPhase === 'combat' && required !== null && roll < required) {
       const baseDamage = required - roll;
       const before = GameState.getPlayerState?.(activePlayer)?.hp ?? 0;
       const hit = GameState.damageTarget?.({ type: 'player', id: activePlayer }, baseDamage)
@@ -191,7 +192,9 @@ const PhaseManager = (() => {
 
     // Mana pool carries over, capped by rules. Mana captains can Enchant beyond cap.
     const rollManaGained = GameState.gainMana(roll, activePlayer);
-    const roleResults = _resolveCaptainRollPassives(activePlayer);
+    const roleResults = GameState.currentPhase === 'combat'
+      ? _resolveCaptainRollPassives(activePlayer)
+      : { enchantMana: 0, messages: [] };
     const enchantMana = roleResults.enchantMana;
     const manaGained = rollManaGained + enchantMana;
 
@@ -264,19 +267,21 @@ const PhaseManager = (() => {
       _etiquetteRoundDone[currentPlayer] = true;
       if (_etiquetteRoundDone.p1 && _etiquetteRoundDone.p2) {
         GameState.setPhase('combat');
-        showToast('Combat Phase begins!', 'phase');
+        showToast('Chaos Phase begins!', 'phase');
       }
     }
 
     GameState.advanceTurn();
-    _setStep(STEPS.AWAIT_ROLL);
+    const nextStep = GameState.currentPhase === 'etiquette' ? STEPS.MAIN : STEPS.AWAIT_ROLL;
+    _setStep(nextStep);
     _updateUI();
     renderBoard();
-    _startAutoRoll();
+    const ticks = GameState.consumeTickEvents?.() ?? [];
+    const defeatedByStatus = ticks.some(ev => ev.targetType === 'player' && ev.died);
+    if (!defeatedByStatus && nextStep === STEPS.AWAIT_ROLL) _startAutoRoll();
     AdventureMode?.onPhaseStep?.();
 
     // Report status ticks (poison damage, deaths) that fired on turn change
-    const ticks = GameState.consumeTickEvents?.() ?? [];
     ticks.forEach((ev, i) => {
       setTimeout(() => {
         showToast(
@@ -285,9 +290,16 @@ const PhaseManager = (() => {
             : `${ev.symbol ?? ''} ${ev.charName} takes ${ev.damage} ${ev.statusName} damage`,
           'combat'
         );
-        if (!ev.died) PixiBoard?.showHitEffect?.('character', ev.instanceId, ev.damage);
+        if (!ev.died) {
+          const hitType = ev.targetType === 'player' ? 'player' : 'character';
+          const hitId = ev.targetType === 'player' ? ev.playerId : ev.instanceId;
+          PixiBoard?.showHitEffect?.(hitType, hitId, ev.damage);
+        }
       }, 400 + i * 500);
     });
+    if (defeatedByStatus) {
+      setTimeout(_checkWinCondition, 500 + ticks.length * 500);
+    }
   }
 
   // ── Guards ─────────────────────────────────────────────────────────────────
@@ -305,9 +317,7 @@ const PhaseManager = (() => {
   }
 
   function canPlayFreeActionCards() {
-    // Free action cards can be played any time (including opponent's turn),
-    // but not during roll-off
-    return _step !== STEPS.ROLLOFF && _step !== STEPS.ENDED;
+    return canAct() && GameState.currentPhase === 'combat';
   }
 
   function canAttack() {

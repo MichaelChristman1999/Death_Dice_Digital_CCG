@@ -11,14 +11,15 @@ const AdventureMode = (() => {
   function openMenu() {
     reset({ keepOverlay: true });
     document.getElementById('overlay-adventure')?.classList.remove('hidden');
+    document.getElementById('input-adventure-name')?.focus();
   }
 
   function closeMenu() {
     document.getElementById('overlay-adventure')?.classList.add('hidden');
   }
 
-  function start(personaId) {
-    const persona = CpuPersonas.get(personaId);
+  function start(personaId = null) {
+    const persona = personaId ? CpuPersonas.get(personaId) : _randomPersona();
     reset({ keepOverlay: true });
     state.active = true;
     state.persona = persona;
@@ -32,7 +33,8 @@ const AdventureMode = (() => {
     state.active = true;
     state.persona = persona;
 
-    const nameInput = document.getElementById('input-name-p1')?.value?.trim();
+    const nameInput = document.getElementById('input-adventure-name')?.value?.trim()
+      || document.getElementById('input-name-p1')?.value?.trim();
     GameState.setPlayerLabel(state.humanPlayerId, nameInput || 'You');
     GameState.setPlayerLabel(state.cpuPlayerId, persona.name);
     CpuController.configure({ playerId: state.cpuPlayerId, persona });
@@ -117,6 +119,11 @@ const AdventureMode = (() => {
     clearTimeout(state.turnTimer);
     state.rolloffTimer = null;
     state.turnTimer = null;
+  }
+
+  function _randomPersona() {
+    const list = CpuPersonas.all?.() ?? [CpuPersonas.get('little_timmy')];
+    return list[Math.floor(Math.random() * list.length)] ?? CpuPersonas.get('little_timmy');
   }
 
   return {

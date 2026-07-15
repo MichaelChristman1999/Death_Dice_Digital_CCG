@@ -19,7 +19,7 @@ const CombatEngine = (() => {
   function declareAttack(instanceId) {
     if (!PhaseManager.canAct()) return;
     if (GameState.currentPhase !== 'combat') {
-      showToast('Attacks are not allowed during the Etiquette phase.', 'warn');
+      showToast('Attacks are not allowed during the Order Phase.', 'warn');
       return;
     }
 
@@ -135,7 +135,7 @@ const CombatEngine = (() => {
   function resolveDirectAttack(attackerId, targetType, targetId) {
     if (!PhaseManager.canAct()) return;
     if (GameState.currentPhase !== 'combat') {
-      showToast('Attacks are not allowed during the Etiquette phase.', 'warn');
+      showToast('Attacks are not allowed during the Order Phase.', 'warn');
       return;
     }
     const attacker = GameState.getCharacter(attackerId);

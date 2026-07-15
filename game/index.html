@@ -16,11 +16,12 @@
 <!-- ═══════════════════════════════════════ MAIN MENU -->
 <div id="screen-menu" class="screen">
   <div class="menu-content">
+    <img class="menu-die-logo" src="assets/cards/Action%20Card%20Test%20Export/DD_die_logo.png" alt="Death Dice logo">
     <div class="menu-logo">DEATH DICE</div>
-    <div class="menu-tagline">Two Players. One Survives.</div>
+    <div class="menu-tagline">Death is guaranteed, so die or die trying!</div>
     <div class="menu-buttons">
-      <button id="btn-play"  class="menu-btn primary">  <span>⚔</span> Play Hot-Seat</button>
-      <button id="btn-adventure" class="menu-btn primary"><span>CPU</span> Adventure Mode (PvE)</button>
+      <button id="btn-play"  class="menu-btn primary">  <span>⚔</span> Play PvP (Player)</button>
+      <button id="btn-adventure" class="menu-btn primary"><span>CPU</span> Play PvE (CPU)</button>
       <button id="btn-rules" class="menu-btn secondary"><span>📖</span> Rules</button>
       <button id="btn-admin" class="menu-btn secondary"><span>⚙</span>  Admin</button>
     </div>
@@ -62,69 +63,79 @@
 <div id="screen-rules" class="screen rules-screen">
   <div class="rules-inner">
     <h1>Rules Reference</h1>
-    <h2>Setup</h2>
-    <ul>
-      <li>Each player starts with <strong>20 HP</strong>.</li>
-      <li>Each player draws <strong>3 hero cards</strong> and <strong>4 action cards</strong>.</li>
-      <li>Both players roll. Highest roll goes first. Ties re-roll.</li>
-    </ul>
-    <h2>Core Mechanics</h2>
-    <ul>
-      <li><strong>Mana</strong> is spent to deploy heroes, use hero abilities, buy from the shop, and play paid action cards.</li>
-      <li>Your mana pool carries over between turns and normally caps at <strong>12</strong>. Some effects, such as Blood Mana or Mana-role bonuses, can exceed that cap.</li>
-      <li>The <strong>captain slot</strong> activates that hero's role passive. A Durability captain can Safeguard, taking damage or debuffs for the player or other heroes.</li>
-      <li><strong>Status icons</strong> show active buffs and debuffs. Timed statuses count down on the affected player's turns unless a card says otherwise.</li>
-    </ul>
-    <h2>Phases</h2>
-    <ul>
-      <li><strong>Etiquette Phase</strong> — One round. Deploy and shop only. No attacks.</li>
-      <li><strong>Combat Phase</strong> — Repeat turns until one player reaches 0 HP.</li>
-    </ul>
-    <h2>Roll Phase</h2>
-    <ul>
-      <li>Your turn starts with an <strong>automatic dice roll</strong> after a short countdown (press Roll Now to skip the wait).</li>
-      <li>Your roll adds that much mana to your pool.</li>
-      <li>If your roll is <em>lower</em> than the previous roll, you take damage equal to the difference.</li>
-      <li>Rolling a 6 resets the requirement for the next player.</li>
-      <li>If the required roll was 5 and you fail it, the Bomb rule can also damage your field.</li>
-    </ul>
-    <h2>Your Turn</h2>
-    <ul>
-      <li><strong>Drag</strong> a hero from your hand into your zone to deploy it.</li>
-      <li>Drag a deployed hero into the captain slot to turn on its role passive. Move deployed heroes to rearrange your field.</li>
-      <li>Your player can make a <strong>2 damage base attack</strong> by targeting an enemy hero or the enemy HP icon.</li>
-      <li>Each hero may perform <strong>one action per turn</strong> — attack OR ability.</li>
-      <li>Play <strong>one paid action card</strong> per turn. Free cards are unlimited.</li>
-      <li>Accelerate and some Speed-role effects can grant extra action-card or action opportunities.</li>
-      <li><strong>Locked Out</strong> disables shop access while it lasts.</li>
-      <li>Buy <strong>one card</strong> from the shop per turn (hero: 2◆, action: 1◆).</li>
-      <li><strong>Right-click</strong> a hand card to discard it for its mana value (1 hero + 1 action per turn).</li>
-    </ul>
-    <h2>Status Basics</h2>
-    <ul>
-      <li><strong>Accelerate</strong> grants extra action potential and cancels Impede. <strong>Impede</strong> blocks attacks and abilities and cancels Accelerate.</li>
-      <li><strong>Cripple</strong> makes incoming damage hurt more. <strong>Anemic</strong> blocks healing. <strong>Impaired</strong> lowers damage output.</li>
-      <li><strong>Poison</strong>, <strong>Burning</strong>, and <strong>Haunted</strong> deal damage over time. Burning and Frozen cancel each other.</li>
-      <li><strong>Sidestep</strong> gives a dodge roll against the next incoming attack or debuff.</li>
-      <li><strong>Blessed</strong> and <strong>Cursed</strong> are opposite swing statuses and cancel each other when applied.</li>
-    </ul>
-    <h2>Card Reading</h2>
-    <ul>
-      <li>Hero cards show cost, attack, HP, role icon, and ability or passive text.</li>
-      <li>Click a hand card or deployed hero to read its details, including role passive information.</li>
-      <li>If a rule on a card conflicts with this reference, use the card text for that playtest.</li>
-    </ul>
-    <h2>Combat</h2>
-    <ul>
-      <li><strong>Drag</strong> your character onto an enemy card — or their HP icon — to attack.</li>
-      <li><strong>Click</strong> your character to open its ability panel, then pick a target.</li>
-      <li><strong>Click</strong> an action card to play it — the game tells you what to target.</li>
-      <li>Statuses are shown on cards with turns remaining (☠ poison ticks every turn!).</li>
-      <li>Attacking or using an ability taps the character (turns sideways) until your next turn.</li>
-      <li>Damage and debuffs aimed at the player can also affect the captain. Safeguard redirects them to a Durability captain unless that captain is disabled.</li>
-      <li>0 HP → graveyard. Reduce the enemy player to 0 HP to win!</li>
-    </ul>
-    <button id="btn-rules-back" class="menu-btn secondary" style="margin-top:28px;width:auto;">← Back</button>
+    <div class="rules-page" data-rules-page="0">
+      <h2>Setup</h2>
+      <ul>
+        <li>Each player starts with <strong>40 HP</strong>.</li>
+        <li>Each player draws the current default starting hand from the playtest settings.</li>
+        <li>Both players roll for first turn. Highest roll goes first. Ties re-roll.</li>
+        <li>In PvE, you enter your player name and the game randomly assigns a CPU opponent.</li>
+      </ul>
+      <h2>Goal</h2>
+      <ul>
+        <li>Reduce the enemy player to <strong>0 HP</strong>.</li>
+        <li>Heroes at 0 HP go to the graveyard. If a captain dies, another deployed hero can become captain.</li>
+      </ul>
+    </div>
+
+    <div class="rules-page hidden" data-rules-page="1">
+      <h2>Order Phase</h2>
+      <ul>
+        <li>The Order Phase replaces the old Etiquette Phase name.</li>
+        <li>Players may deploy heroes and buy from the shop.</li>
+        <li>No attacks, hero abilities, role-passive rolls, or action cards are allowed in Order Phase.</li>
+        <li>Roll-Off values provide starting mana for Order Phase setup; Death Die damage begins in Chaos Phase.</li>
+      </ul>
+      <h2>Chaos Phase</h2>
+      <ul>
+        <li>The Chaos Phase replaces the old Combat Phase name.</li>
+        <li>Turns repeat until one player reaches 0 HP.</li>
+        <li>Your turn starts with a Death Die roll after a short countdown. Roll Now skips the wait.</li>
+      </ul>
+    </div>
+
+    <div class="rules-page hidden" data-rules-page="2">
+      <h2>Mana And Shop</h2>
+      <ul>
+        <li>Mana is spent to deploy heroes, buy from the shop, use abilities, and play action cards.</li>
+        <li>Your mana pool carries over between turns and normally caps at <strong>12</strong>.</li>
+        <li>The shop currently limits purchases by card type each turn. Some effects can lock the shop or reveal extra offers.</li>
+        <li>Right-click a hand card to discard it for mana, within the current discard limits.</li>
+      </ul>
+      <h2>Card Timing</h2>
+      <ul>
+        <li>Action cards can only be played in the Chaos Phase after rolling the Death Die.</li>
+        <li>Free action cards still follow the same phase restriction.</li>
+      </ul>
+    </div>
+
+    <div class="rules-page hidden" data-rules-page="3">
+      <h2>Captains And Roles</h2>
+      <ul>
+        <li>Drag a deployed hero into the captain slot to activate that hero's role passive.</li>
+        <li>Durability captains can Safeguard, redirecting player or ally damage and debuffs when eligible.</li>
+        <li>Role passives are being revised toward dedicated die events in the 2.4 patch cycle.</li>
+        <li>Damage or debuffs aimed at the player can also affect the captain unless Safeguard changes the target.</li>
+      </ul>
+    </div>
+
+    <div class="rules-page hidden" data-rules-page="4">
+      <h2>Combat</h2>
+      <ul>
+        <li>Drag a hero onto an enemy hero or HP icon to attack.</li>
+        <li>Click your hero to open its ability panel, then choose a target if the ability is available.</li>
+        <li>Each hero normally performs one action per turn: attack or ability.</li>
+        <li>Accelerate and Speed-role effects can create extra action opportunities.</li>
+        <li>Statuses are shown on cards and player HUDs with turns remaining where applicable.</li>
+      </ul>
+    </div>
+
+    <div class="rules-pager">
+      <button id="btn-rules-prev" class="menu-btn secondary" type="button">Back</button>
+      <div id="rules-page-label" class="rules-page-label">Page 1 / 5</div>
+      <button id="btn-rules-next" class="menu-btn primary" type="button">Next</button>
+    </div>
+    <button id="btn-rules-back" class="menu-btn secondary rules-menu-back" type="button">Main Menu</button>
   </div>
 </div>
 
@@ -203,34 +214,19 @@
   </div>
 </div>
 
-<!-- Adventure Mode CPU Select -->
+<!-- PvE CPU start -->
 <div id="overlay-adventure" class="overlay-bg hidden">
   <div class="modal-box adventure-box">
-    <h2>Adventure Mode (PvE)</h2>
-    <p class="muted">Choose a CPU opponent for a one-player match.</p>
-    <div class="adventure-list">
-      <button class="menu-btn primary adventure-persona" data-cpu-persona="little_timmy">
-        <span>Easy</span>
-        <strong>Little Timmy</strong>
-        <small>Low strategy, misses obvious tempo plays.</small>
-      </button>
-      <button class="menu-btn primary adventure-persona" data-cpu-persona="average_joe">
-        <span>Medium</span>
-        <strong>Average Joe</strong>
-        <small>Balanced sequencing with some adaptation.</small>
-      </button>
-      <button class="menu-btn primary adventure-persona" data-cpu-persona="quick_rick">
-        <span>Speed</span>
-        <strong>Quick Rick</strong>
-        <small>Pushes Speed heroes, Accelerate, and board pressure.</small>
-      </button>
-      <button class="menu-btn primary adventure-persona" data-cpu-persona="clean_gene">
-        <span>Sustain</span>
-        <strong>Clean Gene</strong>
-        <small>Looks for Cleanse, healing, Sidestep, and tanks.</small>
-      </button>
+    <h2>Play PvE (CPU)</h2>
+    <p class="muted">Enter your name, then start a one-player match against a random CPU opponent.</p>
+    <div class="names-grid adventure-name-grid">
+      <label class="name-field">
+        <span>Your Name</span>
+        <input id="input-adventure-name" type="text" maxlength="16" placeholder="Player 1" autocomplete="off">
+      </label>
     </div>
     <div class="modal-actions">
+      <button id="btn-adventure-start" class="menu-btn primary">Start Game</button>
       <button id="btn-adventure-back" class="menu-btn secondary">Back</button>
     </div>
   </div>
@@ -300,7 +296,7 @@
     <div class="win-message" id="win-message">Player 1 Wins!</div>
     <div class="win-sub">Game Over</div>
     <div class="win-actions">
-      <button class="menu-btn primary"   onclick="location.reload()" style="width:auto;">Play Again</button>
+      <button class="menu-btn primary"   id="btn-win-again"          style="width:auto;">Play Again</button>
       <button class="menu-btn secondary" id="btn-win-menu"           style="width:auto;">Main Menu</button>
     </div>
   </div>

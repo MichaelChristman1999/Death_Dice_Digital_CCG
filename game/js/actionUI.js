@@ -96,7 +96,7 @@ const ActionUI = (() => {
     if (!isOwnerTurn)                   hint = '';
     else if (!ability && !passives.length)   hint = 'No active ability.';
     else if (acted)                     hint = 'Already acted this turn.';
-    else if (!inCombat)                 hint = 'Abilities unlock in the Combat phase (after rolling).';
+    else if (!inCombat)                 hint = 'Abilities unlock in the Chaos Phase after rolling the Death Die.';
     else if (!gate.ok)                  hint = gate.reason;
     else if (ability && mana < ability.manaCost) hint = `Need ${ability.manaCost} ◆ (you have ${mana}).`;
 

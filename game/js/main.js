@@ -100,6 +100,9 @@ function bindMenuButtons() {
   document.getElementById('btn-adventure')?.addEventListener('click', () => {
     AdventureMode?.openMenu?.();
   });
+  document.getElementById('btn-adventure-start')?.addEventListener('click', () => {
+    AdventureMode?.start?.();
+  });
   document.querySelectorAll('[data-cpu-persona]').forEach(btn => {
     btn.addEventListener('click', () => AdventureMode?.start?.(btn.dataset.cpuPersona));
   });
@@ -127,9 +130,31 @@ function bindMenuButtons() {
       if (e.key === 'Enter') document.getElementById('btn-names-start')?.click();
     });
   });
+  document.getElementById('input-adventure-name')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-adventure-start')?.click();
+  });
   document.getElementById('btn-admin')?.addEventListener('click', promptAdmin);
-  document.getElementById('btn-rules')?.addEventListener('click', () => showScreen(SCREENS.RULES));
+  document.getElementById('btn-rules')?.addEventListener('click', () => {
+    showRulesPage(0);
+    showScreen(SCREENS.RULES);
+  });
   document.getElementById('btn-rules-back')?.addEventListener('click', () => showScreen(SCREENS.MENU));
+  document.getElementById('btn-rules-prev')?.addEventListener('click', () => showRulesPage((showRulesPage.current ?? 0) - 1));
+  document.getElementById('btn-rules-next')?.addEventListener('click', () => showRulesPage((showRulesPage.current ?? 0) + 1));
+}
+
+function showRulesPage(index = 0) {
+  const pages = [...document.querySelectorAll('.rules-page')];
+  if (!pages.length) return;
+  const next = Math.max(0, Math.min(index, pages.length - 1));
+  showRulesPage.current = next;
+  pages.forEach((page, i) => page.classList.toggle('hidden', i !== next));
+  const label = document.getElementById('rules-page-label');
+  if (label) label.textContent = `Page ${next + 1} / ${pages.length}`;
+  const prev = document.getElementById('btn-rules-prev');
+  const btnNext = document.getElementById('btn-rules-next');
+  if (prev) prev.disabled = next === 0;
+  if (btnNext) btnNext.disabled = next === pages.length - 1;
 }
 
 function promptAdmin() {
@@ -288,6 +313,12 @@ function bindGameButtons() {
     document.getElementById('overlay-win')?.classList.add('hidden');
     AdventureMode?.reset?.();
     showScreen(SCREENS.MENU);
+  });
+  document.getElementById('btn-win-again')?.addEventListener('click', () => {
+    document.getElementById('overlay-win')?.classList.add('hidden');
+    try { localStorage.removeItem('gameState'); } catch (_) {}
+    if (AdventureMode?.isActive?.()) AdventureMode.start();
+    else startGame();
   });
 
   DiceAnimation.init();

@@ -43,11 +43,11 @@ const AdminPanel = (() => {
       <section>
         <h3>Player HP</h3>
         <div class="admin-row">
-          <label>Player 1 HP: <input type="number" id="adm-p1-hp" min="0" max="999" value="20"></label>
+          <label>Player 1 HP: <input type="number" id="adm-p1-hp" min="0" max="999" value="40"></label>
           <button class="btn-secondary" data-live-only="1" onclick="AdminPanel._setHP('p1')">Set</button>
         </div>
         <div class="admin-row">
-          <label>Player 2 HP: <input type="number" id="adm-p2-hp" min="0" max="999" value="20"></label>
+          <label>Player 2 HP: <input type="number" id="adm-p2-hp" min="0" max="999" value="40"></label>
           <button class="btn-secondary" data-live-only="1" onclick="AdminPanel._setHP('p2')">Set</button>
         </div>
       </section>
@@ -80,8 +80,8 @@ const AdminPanel = (() => {
       <section>
         <h3>Phase</h3>
         <div class="admin-row">
-          <button class="btn-secondary" onclick="AdminPanel._setPhase('etiquette')">→ Etiquette</button>
-          <button class="btn-secondary" onclick="AdminPanel._setPhase('combat')">→ Combat</button>
+          <button class="btn-secondary" onclick="AdminPanel._setPhase('etiquette')">→ Order</button>
+          <button class="btn-secondary" onclick="AdminPanel._setPhase('combat')">→ Chaos</button>
         </div>
       </section>
 

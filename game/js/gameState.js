@@ -17,7 +17,8 @@ const GameState = (() => {
   let _turnNumber = 1;
   // Per-turn trackers (reset in advanceTurn)
   let _actionCardsPlayedThisTurn = 0;
-  let _playerBaseAttackUsedThisTurn = false;
+  let _heroCardsDeployedThisTurn = 0;
+  let _playerBaseAttacksThisTurn = 0;
   let _shopPurchasesThisTurn = { hero: 0, action: 0 };
   const _MANA_CAP_EXCEPTION_SOURCES = new Set(['cheatah_reroll', 'augment', 'mana_enchant', 'blood_mana']);
   const _QUEUED_STATUS_IDS = new Set(['status_crippled', 'status_augmented']);
@@ -63,7 +64,8 @@ const GameState = (() => {
     _instanceCounter = 0;
     _turnNumber = 1;
     _actionCardsPlayedThisTurn = 0;
-    _playerBaseAttackUsedThisTurn = false;
+    _heroCardsDeployedThisTurn = 0;
+    _playerBaseAttacksThisTurn = 0;
     _shopPurchasesThisTurn = { hero: 0, action: 0 };
 
     if (!options.skipSave) _saveToStorage();
@@ -181,7 +183,8 @@ const GameState = (() => {
     _turnNumber++;
     _lastRoll = null;
     _actionCardsPlayedThisTurn = 0;
-    _playerBaseAttackUsedThisTurn = false;
+    _heroCardsDeployedThisTurn = 0;
+    _playerBaseAttacksThisTurn = 0;
     _shopPurchasesThisTurn = { hero: 0, action: 0 };
 
     // Reset per-turn state for new active player
@@ -198,7 +201,8 @@ const GameState = (() => {
 
     // Tick timed statuses for the new player's board.
     // Iterate over a COPY — poison deaths splice the live board array.
-    [...p.board].forEach(char => applyTurnStartStatuses(char));
+    applyPlayerTurnStartStatuses(_currentTurn);
+    if (p.hp > 0) [...p.board].forEach(char => applyTurnStartStatuses(char));
 
     _saveToStorage();
   }
@@ -283,6 +287,9 @@ const GameState = (() => {
 
     const card = p.hand.heroes[idx];
     const freeCast = card._freeCast === true;
+    if (_heroCardsDeployedThisTurn >= getHeroCardLimit(playerId)) {
+      return { ok: false, error: 'Only one hero card per turn' };
+    }
     if (!freeCast && getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
 
     if (!freeCast && !spendMana(card.manaCost, playerId)) return { ok: false, error: 'Mana spend failed' };
@@ -296,6 +303,7 @@ const GameState = (() => {
       instance.abilities = HeroAbilities.getFor(card);
     }
     p.board.push(instance);
+    _heroCardsDeployedThisTurn++;
 
     _saveToStorage();
     return { ok: true, instance };
@@ -353,6 +361,24 @@ const GameState = (() => {
       p.board.filter(c => c.instanceId !== captain.instanceId)
         .forEach(c => applyStatus(c.instanceId, 'status_imbued'));
     }
+  }
+
+  function _autoBackfillCaptain(playerId, playerState) {
+    const board = playerState?.board ?? [];
+    if (!board.length) {
+      playerState.captainId = null;
+      return null;
+    }
+
+    const durabilityHeroes = board.filter(c => /Durability/i.test(c.classType || c._sourceCard?.classType || ''));
+    const candidatePool = durabilityHeroes.length ? durabilityHeroes : board;
+    const highestMaxHp = Math.max(...candidatePool.map(c => Number(c.maxHp ?? c.hp ?? 0)));
+    const tiedCandidates = candidatePool.filter(c => Number(c.maxHp ?? c.hp ?? 0) === highestMaxHp);
+    const nextCaptain = tiedCandidates[Math.floor(Math.random() * tiedCandidates.length)] ?? null;
+
+    playerState.captainId = nextCaptain?.instanceId ?? null;
+    if (nextCaptain) _activateCaptainRolePassive(playerId, nextCaptain);
+    return nextCaptain;
   }
 
   function getCaptain(playerId) {
@@ -421,12 +447,27 @@ const GameState = (() => {
     if (!card) return { ok: false, error: 'Card not in hand' };
 
     const isFree = card._freeCast === true || card.manaCost === 0 || card.type === 'free';
+    const freeCardsUnlimited = _rules.combat?.freeActionCardsUnlimited !== false;
+    const countsAsAction = card._freeCast !== true && !(isFree && freeCardsUnlimited);
     const actionLimit = getActionCardLimit(playerId);
-    if (!isFree && _actionCardsPlayedThisTurn >= actionLimit) {
+    if (countsAsAction && _actionCardsPlayedThisTurn >= actionLimit) {
       return { ok: false, error: 'Only one action card per turn' };
     }
-    if (card.id === 'action_blood_mana' && p.hp <= 5) {
-      return { ok: false, error: 'Blood Mana needs more HP' };
+    if (card.id === 'action_blood_mana') {
+      const captain = getCaptain(playerId);
+      const wouldExceedSix = getMana(playerId) + (card.effectValue ?? 5) > 6;
+      if (hasManaCaptain(playerId)) {
+        return { ok: false, error: 'Blood Mana is disabled with a Mana captain' };
+      }
+      if (hasPlayerStatus(playerId, 'status_augmented') || (captain && hasStatus(captain.instanceId, 'status_augmented'))) {
+        return { ok: false, error: 'Blood Mana is disabled while Augmented' };
+      }
+      if (wouldExceedSix && p.hp <= 10) {
+        return { ok: false, error: 'Blood Mana would defeat you' };
+      }
+    }
+    if (card.id === 'action_cryofreeze' && p.hp <= previewPlayerDamage(playerId, 1)) {
+      return { ok: false, error: 'Cryofreeze fail damage would defeat you' };
     }
     if (hasPlayerStatus(playerId, 'status_frozen') && card.id !== 'action_accelerate') {
       return { ok: false, error: 'Frozen blocks cards' };
@@ -438,52 +479,60 @@ const GameState = (() => {
     if (!isFree) {
       if (getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
     }
-    return { ok: true, card, isFree };
+    return { ok: true, card, isFree, countsAsAction };
   }
 
   function getActionCardLimit(playerId = _currentTurn) {
     let limit = _rules.combat?.actionCardsPerTurn ?? 1;
-    if (hasPlayerStatus(playerId, 'status_accelerated')) limit++;
+    const captain = getCaptain(playerId);
+    if (hasPlayerStatus(playerId, 'status_accelerated') || (captain && hasStatus(captain.instanceId, 'status_accelerated'))) limit++;
     if (hasSpeedCaptain(playerId)) limit++;
+    return limit;
+  }
+
+  function getHeroCardLimit(playerId = _currentTurn) {
+    let limit = _rules.combat?.heroCardsPerTurn ?? 1;
+    const captain = getCaptain(playerId);
+    if (hasPlayerStatus(playerId, 'status_accelerated') || (captain && hasStatus(captain.instanceId, 'status_accelerated'))) limit++;
     return limit;
   }
 
   function getPlayerBaseAttackDamage(playerId = _currentTurn) {
     let damage = _rules.combat?.playerBaseAttack ?? 2;
-    if (hasPlayerStatus(playerId, 'status_augmented')) damage *= 2;
+    if (hasPlayerStatus(playerId, 'status_augmented')) damage += 2;
     if (hasPlayerStatus(playerId, 'status_blessed')) damage *= 2;
     if (hasPlayerStatus(playerId, 'status_stimulated')) damage *= 3;
     if (hasPlayerStatus(playerId, 'status_cursed')) damage = Math.ceil(damage / 2);
+    if (hasPlayerStatus(playerId, 'status_impaired')) damage -= damage === 2 ? 1 : 2;
     if (hasPlayerStatus(playerId, 'status_anemic')) damage = Math.max(0, damage - 2);
-    return damage;
+    return Math.max(1, damage);
   }
 
-  function _baseAttackConsumesAction(playerId) {
-    return !(hasPlayerStatus(playerId, 'status_accelerated') || hasSpeedCaptain(playerId));
+  function getPlayerBaseAttackLimit(playerId = _currentTurn) {
+    let limit = 1;
+    if (hasPlayerStatus(playerId, 'status_accelerated')) limit++;
+    return limit;
   }
 
   function canPlayerBaseAttack(playerId = _currentTurn) {
     if (playerId !== _currentTurn) return { ok: false, error: 'Not your turn' };
     if (_currentPhase !== 'combat' || _phaseStep !== 'main') return { ok: false, error: 'Combat only' };
-    if (_playerBaseAttackUsedThisTurn) return { ok: false, error: 'Base attack already used' };
+    if ((_players[playerId]?.board?.length ?? 0) > 0) return { ok: false, error: 'Player base attack requires an empty field' };
+    if (_playerBaseAttacksThisTurn >= getPlayerBaseAttackLimit(playerId)) return { ok: false, error: 'Base attack already used' };
     const blocker = (_players[playerId]?.statuses ?? [])
       .find(s => ['status_frozen', 'status_impeded', 'status_charmed', 'status_haunted', 'status_edible', 'status_shocked'].includes(s.id));
     if (blocker) return { ok: false, error: `${blocker.name} blocks player attack` };
-    if (_baseAttackConsumesAction(playerId) && _actionCardsPlayedThisTurn >= (_rules.combat?.actionCardsPerTurn ?? 1)) {
-      return { ok: false, error: 'Player attack needs your action slot' };
-    }
     return {
       ok: true,
       damage: getPlayerBaseAttackDamage(playerId),
-      consumesAction: _baseAttackConsumesAction(playerId),
+      attacksRemaining: Math.max(0, getPlayerBaseAttackLimit(playerId) - _playerBaseAttacksThisTurn),
     };
   }
 
   function commitPlayerBaseAttack(playerId = _currentTurn) {
     const check = canPlayerBaseAttack(playerId);
     if (!check.ok) return check;
-    _playerBaseAttackUsedThisTurn = true;
-    if (check.consumesAction) _actionCardsPlayedThisTurn++;
+    _playerBaseAttacksThisTurn++;
     _saveToStorage();
     return check;
   }
@@ -501,7 +550,7 @@ const GameState = (() => {
     if (!check.isFree) {
       if (!spendMana(card.manaCost, playerId)) return { ok: false, error: 'Mana spend failed' };
     }
-    if (!check.isFree) _actionCardsPlayedThisTurn++;
+    if (check.countsAsAction) _actionCardsPlayedThisTurn++;
     p.hand.actions.splice(idx, 1);
     p.graveyard.push(card);
     _saveToStorage();
@@ -562,7 +611,7 @@ const GameState = (() => {
   // ── HP Manipulation ────────────────────────────────────────────────────────
   function damagePlayer(playerId, amount, options = {}) {
     const p = _players[playerId];
-    if (_tryPlayerSidestep(playerId, 'attack')) return p.hp;
+    if (!options.ignoreSidestep && _tryPlayerSidestep(playerId, 'attack')) return p.hp;
     if (options.roleEvasion && _tryRoleEvasion(playerId, 'player', playerId)) return p.hp;
     const dmg = previewPlayerDamage(playerId, amount);
     p.hp = Math.max(0, p.hp - dmg);
@@ -716,7 +765,7 @@ const GameState = (() => {
   }
 
   function _killCharacter(instanceId) {
-    for (const p of Object.values(_players)) {
+    for (const [playerId, p] of Object.entries(_players)) {
       const idx = p.board.findIndex(c => c.instanceId === instanceId);
       if (idx !== -1) {
         const char = p.board[idx];
@@ -729,7 +778,7 @@ const GameState = (() => {
           return;
         }
         const [dead] = p.board.splice(idx, 1);
-        if (p.captainId === dead.instanceId) p.captainId = null;
+        if (p.captainId === dead.instanceId) _autoBackfillCaptain(p.id ?? playerId, p);
         p.graveyard.push(dead._sourceCard ?? { id: dead.id, name: dead.name });
         return;
       }
@@ -839,9 +888,6 @@ const GameState = (() => {
     if (_NEGATIVE_STATUS_IDS.has(statusId) && _tryPlayerSidestep(playerId, 'debuff')) return false;
     p.statuses ??= [];
     _removeCancelingStatuses(p.statuses, statusId);
-    if (statusId === 'status_accelerated' && playerId === _currentTurn) {
-      _playerBaseAttackUsedThisTurn = false;
-    }
     const existing = p.statuses.findIndex(s => s.id === statusId);
     if (existing !== -1) {
       if (def.stackBehavior === 'stack') {
@@ -963,7 +1009,7 @@ const GameState = (() => {
   }
 
   // Damage-over-time statuses: id → damage per stack per tick
-  const _DOT_STATUSES = { status_poisoned: 2, status_burning: 3, status_haunted: 2, status_example_timed: 1 };
+  const _DOT_STATUSES = { status_poisoned: 3, status_burning: 3, status_haunted: 2, status_example_timed: 1 };
 
   function applyTurnStartStatuses(char) {
     // Apply damage-over-time effects at the start of the affected player's turn.
@@ -978,6 +1024,29 @@ const GameState = (() => {
         statusName: s.name, symbol: s.symbol, damage: dmg, died,
       });
       if (died) { _killCharacter(char.instanceId); return; } // dead — stop ticking
+    }
+  }
+
+  function applyPlayerTurnStartStatuses(playerId) {
+    const p = _players[playerId];
+    if (!p?.statuses?.length) return;
+    for (const s of p.statuses) {
+      const dot = _DOT_STATUSES[s.id];
+      if (!dot) continue;
+      const dmg = previewPlayerDamage(playerId, dot * (s.stacks ?? 1));
+      p.hp = Math.max(0, p.hp - dmg);
+      const died = p.hp <= 0;
+      _tickEvents.push({
+        targetType: 'player',
+        playerId,
+        instanceId: playerId,
+        charName: getPlayerLabel(playerId),
+        statusName: s.name,
+        symbol: s.symbol,
+        damage: dmg,
+        died,
+      });
+      if (died) return;
     }
   }
 
@@ -1020,7 +1089,7 @@ const GameState = (() => {
     if (!char) return 0;
     let atk = char.baseAttack ?? 0;
     for (const s of char.statuses ?? []) {
-      if (s.id === 'status_augmented') atk *= 2;
+      if (s.id === 'status_augmented') atk += 2;
       if (s.id === 'status_blessed') atk *= 2;
       if (s.id === 'status_stimulated') atk *= 3;
       if (s.id === 'status_cursed') atk = Math.ceil(atk / 2);
@@ -1087,6 +1156,8 @@ const GameState = (() => {
     return (_shopPurchasesThisTurn.hero ?? 0) + (_shopPurchasesThisTurn.action ?? 0);
   }
   function getActionCardsPlayedThisTurn() { return _actionCardsPlayedThisTurn; }
+  function getHeroCardsDeployedThisTurn() { return _heroCardsDeployedThisTurn; }
+  function getPlayerBaseAttacksThisTurn() { return _playerBaseAttacksThisTurn; }
   function getTurnNumber() { return _turnNumber; }
 
   // ── Roll-Off ──────────────────────────────────────────────────────────────
@@ -1153,7 +1224,8 @@ const GameState = (() => {
         instanceCounter: _instanceCounter,
         turnNumber: _turnNumber,
         actionCardsPlayedThisTurn: _actionCardsPlayedThisTurn,
-        playerBaseAttackUsedThisTurn: _playerBaseAttackUsedThisTurn,
+        heroCardsDeployedThisTurn: _heroCardsDeployedThisTurn,
+        playerBaseAttacksThisTurn: _playerBaseAttacksThisTurn,
         shopPurchasesThisTurn: _shopPurchasesThisTurn,
       }));
     } catch (_) { /* storage unavailable — non-fatal */ }
@@ -1196,7 +1268,9 @@ const GameState = (() => {
       _instanceCounter = saved.instanceCounter ?? 0;
       _turnNumber = saved.turnNumber ?? 1;
       _actionCardsPlayedThisTurn = saved.actionCardsPlayedThisTurn ?? 0;
-      _playerBaseAttackUsedThisTurn = saved.playerBaseAttackUsedThisTurn ?? false;
+      _heroCardsDeployedThisTurn = saved.heroCardsDeployedThisTurn ?? 0;
+      _playerBaseAttacksThisTurn = saved.playerBaseAttacksThisTurn
+        ?? (saved.playerBaseAttackUsedThisTurn ? 1 : 0);
       _shopPurchasesThisTurn = typeof saved.shopPurchasesThisTurn === 'object'
         ? { hero: saved.shopPurchasesThisTurn.hero ?? 0, action: saved.shopPurchasesThisTurn.action ?? 0 }
         : { hero: 0, action: saved.shopPurchasesThisTurn ?? 0 };
@@ -1242,7 +1316,9 @@ const GameState = (() => {
     canPlayAction,
     commitPlayAction,
     getActionCardLimit,
+    getHeroCardLimit,
     getPlayerBaseAttackDamage,
+    getPlayerBaseAttackLimit,
     canPlayerBaseAttack,
     commitPlayerBaseAttack,
     consumeTickEvents,
@@ -1278,6 +1354,8 @@ const GameState = (() => {
     recordShopPurchase,
     getShopPurchasesThisTurn,
     getActionCardsPlayedThisTurn,
+    getHeroCardsDeployedThisTurn,
+    getPlayerBaseAttacksThisTurn,
     getTurnNumber,
     setRolloffRoll,
     getRolloffRolls,

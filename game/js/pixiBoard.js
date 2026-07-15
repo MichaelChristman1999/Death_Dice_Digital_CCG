@@ -36,6 +36,7 @@ const PixiBoard = (() => {
     accent:  0xff3300,   // ember red
     mana:    0x8b35ff,   // arcane purple
     gold:    0xd4af37,   // bone gold
+    yellow:  0xffd23f,   // vulnerable HP
     green:   0x1a5c28,   // dark forest
     red:     0xff2222,   // bright blood
     warn:    0xff6600,   // ember orange
@@ -100,6 +101,13 @@ const PixiBoard = (() => {
 
   function _isCompact() {
     return W() <= 760 || H() <= 680;
+  }
+
+  function _hpTierColor(pct) {
+    if (pct > 0.75) return 0x2ecc40;  // Robust
+    if (pct > 0.50) return 0xffd23f;  // Vulnerable
+    if (pct > 0.25) return 0xff8800;  // Critical
+    return 0xff3322;                  // Near-Death
   }
 
   function _isNarrow() {
@@ -368,8 +376,8 @@ const PixiBoard = (() => {
     _repositionHUD();
   }
 
-  // Opponent seat panel width — compact so 2–8 player seats can sit in a row
-  const SEAT_W = () => Math.min(_isCompact() ? W() - SAFE * 2 : 420, W() - SAFE * 2);
+  // Opponent HUD mirrors the active player's width for clearer HP/status reading.
+  const SEAT_W = () => W() - SAFE * 2;
   const SEAT_H = () => _isCompact() ? 54 : 58;
 
   function _makeInfoBar(pid) {
@@ -414,7 +422,7 @@ const PixiBoard = (() => {
       ct.addChild(hpNum); ct._hpNum = hpNum;
 
       // HP bar
-      const BX = 108, BY = 34, BW = Math.max(96, seatW - 238), BH = 9;
+      const BX = 108, BY = 34, BW = Math.min(430, W() * 0.36), BH = 9;
       const barBg = new PIXI.Graphics();
       barBg.beginFill(0x180818); barBg.drawRoundedRect(BX, BY, BW, BH, 4); barBg.endFill();
       ct.addChild(barBg);
@@ -424,7 +432,7 @@ const PixiBoard = (() => {
       ct._barFg = barFg;
       ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
       const statusLayer = new PIXI.Container();
-      statusLayer.position.set(BX, 48);
+      statusLayer.position.set(BX + BW + 12, 28);
       ct.addChild(statusLayer);
       ct._statusLayer = statusLayer;
 
@@ -483,7 +491,7 @@ const PixiBoard = (() => {
     ct._barFg = barFg;
     ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
     const statusLayer = new PIXI.Container();
-    statusLayer.position.set(BX, 8);
+    statusLayer.position.set(BX + BW + 12, 26);
     ct.addChild(statusLayer);
     ct._statusLayer = statusLayer;
 
@@ -714,7 +722,7 @@ const PixiBoard = (() => {
 
   function _repositionHUD() {
     if (_hud.p1bar)  _hud.p1bar.position.set(SAFE, H() - ACTIVE_BAR_H - SAFE);
-    if (_hud.p2bar)  _hud.p2bar.position.set(W() / 2 - SEAT_W() / 2, SAFE); // seat: top-center
+    if (_hud.p2bar)  _hud.p2bar.position.set(SAFE, SAFE);
     if (_hud.center) _hud.center.y = HUD_CENTER_Y(); // mana strip in the board gap
   }
 
@@ -749,7 +757,7 @@ const PixiBoard = (() => {
       const maxHp = GameData?.rules?.startingPlayerHP ?? 40;
       const pct = Math.max(0, Math.min(1, st.hp / maxHp));
       const { x, y, w, h } = bar._barSpec;
-      const col = pct > 0.5 ? P.green : pct > 0.2 ? P.warn : P.red;
+      const col = _hpTierColor(pct);
       bar._barFg.clear();
       bar._barFg.beginFill(col);
       bar._barFg.drawRoundedRect(x, y, Math.max(4, w * pct), h, 5);
@@ -1062,7 +1070,7 @@ const PixiBoard = (() => {
       ct.addChild(bg);
       const pct = info.hpBarPct;
       const fg = new PIXI.Graphics();
-      fg.beginFill(pct > 0.5 ? 0x2ecc40 : pct > 0.2 ? 0xff8800 : 0xff3322);
+      fg.beginFill(_hpTierColor(pct));
       fg.drawRoundedRect(bx, h - 14, Math.max(3, bw * pct), 5, 2); fg.endFill();
       ct.addChild(fg);
     }
