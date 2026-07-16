@@ -743,7 +743,11 @@ const PixiBoard = (() => {
       (GameState.getPlayerLabel?.(inactivePid) ?? 'OPPONENT').toUpperCase();
 
     // Phase + turn label (bottom bar right)
-    const phaseLabel = phase === 'rolloff' ? 'ROLL-OFF' : phase.toUpperCase() + ' PHASE';
+    const phaseLabel = phase === 'rolloff'
+      ? 'ROLL-OFF'
+      : phase === 'etiquette'
+        ? 'ORDER PHASE'
+        : `CHAOS PHASE - ROUND ${GameState.getChaosRound?.() ?? 1}`;
     const turnLabel  = `${GameState.getPlayerLabel?.(activePid) ?? activePid}'s Turn`;
     if (_hud.p1bar?._phaseTxt) _hud.p1bar._phaseTxt.text = phaseLabel;
     if (_hud.p1bar?._turnTxt)  _hud.p1bar._turnTxt.text  = turnLabel;

@@ -1159,6 +1159,15 @@ const GameState = (() => {
   function getHeroCardsDeployedThisTurn() { return _heroCardsDeployedThisTurn; }
   function getPlayerBaseAttacksThisTurn() { return _playerBaseAttacksThisTurn; }
   function getTurnNumber() { return _turnNumber; }
+  function getChaosRound() {
+    if (_currentPhase !== 'combat') return 0;
+    return Math.max(1, Math.floor(Math.max(0, _turnNumber - 3) / 2) + 1);
+  }
+
+  function getCardPoolProfile() {
+    if (_currentPhase !== 'combat') return { phase: 'order', round: 0 };
+    return { phase: 'chaos', round: getChaosRound() };
+  }
 
   // ── Roll-Off ──────────────────────────────────────────────────────────────
   function setRolloffRoll(playerId, roll) {
@@ -1357,6 +1366,8 @@ const GameState = (() => {
     getHeroCardsDeployedThisTurn,
     getPlayerBaseAttacksThisTurn,
     getTurnNumber,
+    getChaosRound,
+    getCardPoolProfile,
     setRolloffRoll,
     getRolloffRolls,
     setFirstPlayer,

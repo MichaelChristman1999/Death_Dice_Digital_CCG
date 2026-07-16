@@ -24,7 +24,7 @@ const HandManager = (() => {
     const available = _allHeroes.filter(h => !inUse.has(h.id));
     if (available.length === 0) return { ok: false, error: 'No new heroes available' };
 
-    const card = available[Math.floor(Math.random() * available.length)];
+    const card = _pickWeightedByManaCost(available, 'hero');
     return GameState.addCardToHand(playerId, card, 'hero');
   }
 
@@ -42,8 +42,57 @@ const HandManager = (() => {
     );
     if (available.length === 0) return { ok: false, error: 'No action copies available' };
 
-    const card = _pickWeightedAction(available);
+    const card = _pickWeightedByManaCost(available, 'action');
     return GameState.addCardToHand(playerId, card, 'action');
+  }
+
+  function _getCostBands(type) {
+    const profile = GameState.getCardPoolProfile?.() ?? { phase: 'order', round: 0 };
+    if (profile.phase !== 'chaos') {
+      return type === 'hero'
+        ? [{ min: 2, max: 3, weight: 1 }]
+        : [{ min: 0, max: 2, weight: 1 }];
+    }
+
+    const round = profile.round ?? 1;
+    if (type === 'action') {
+      return round <= 3
+        ? [{ min: 0, max: 2, weight: 80 }, { min: 3, max: 4, weight: 20 }]
+        : [{ min: 0, max: 2, weight: 50 }, { min: 3, max: 4, weight: 50 }];
+    }
+
+    if (round <= 3) return [{ min: 2, max: 3, weight: 80 }, { min: 4, max: 5, weight: 20 }];
+    if (round <= 6) return [{ min: 2, max: 3, weight: 60 }, { min: 4, max: 5, weight: 40 }];
+    if (round <= 9) return [{ min: 2, max: 3, weight: 50 }, { min: 4, max: 5, weight: 40 }, { min: 6, max: 7, weight: 10 }];
+    return [{ min: 2, max: 3, weight: 40 }, { min: 4, max: 5, weight: 40 }, { min: 6, max: 7, weight: 20 }];
+  }
+
+  function _pickWeightedByManaCost(cards, type) {
+    const bands = _getCostBands(type);
+    const rows = bands
+      .map(band => ({
+        band,
+        cards: cards.filter(card => (card.manaCost ?? 0) >= band.min && (card.manaCost ?? 0) <= band.max),
+      }))
+      .filter(row => row.cards.length);
+
+    if (!rows.length) {
+      return type === 'action'
+        ? _pickWeightedAction(cards)
+        : cards[Math.floor(Math.random() * cards.length)];
+    }
+
+    const total = rows.reduce((sum, row) => sum + row.band.weight, 0);
+    let roll = Math.random() * total;
+    let pickedRow = rows[rows.length - 1];
+    for (const row of rows) {
+      roll -= row.band.weight;
+      if (roll <= 0) { pickedRow = row; break; }
+    }
+
+    return type === 'action'
+      ? _pickWeightedAction(pickedRow.cards)
+      : pickedRow.cards[Math.floor(Math.random() * pickedRow.cards.length)];
   }
 
   function _pickWeightedAction(cards) {

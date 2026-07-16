@@ -30,35 +30,75 @@ const ShopSystem = (() => {
     document.getElementById('btn-shop-close')?.removeEventListener('click', close);
   }
 
-  function _shuffle(arr) {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
+  function _costBands(type) {
+    const profile = GameState.getCardPoolProfile?.() ?? { phase: 'order', round: 0 };
+    if (profile.phase !== 'chaos') {
+      return type === 'hero'
+        ? [{ min: 2, max: 3, weight: 1 }]
+        : [{ min: 0, max: 2, weight: 1 }];
     }
-    return a;
+
+    const round = profile.round ?? 1;
+    if (type === 'action') {
+      return round <= 3
+        ? [{ min: 0, max: 2, weight: 80 }, { min: 3, max: 4, weight: 20 }]
+        : [{ min: 0, max: 2, weight: 50 }, { min: 3, max: 4, weight: 50 }];
+    }
+
+    if (round <= 3) return [{ min: 2, max: 3, weight: 80 }, { min: 4, max: 5, weight: 20 }];
+    if (round <= 6) return [{ min: 2, max: 3, weight: 60 }, { min: 4, max: 5, weight: 40 }];
+    if (round <= 9) return [{ min: 2, max: 3, weight: 50 }, { min: 4, max: 5, weight: 40 }, { min: 6, max: 7, weight: 10 }];
+    return [{ min: 2, max: 3, weight: 40 }, { min: 4, max: 5, weight: 40 }, { min: 6, max: 7, weight: 20 }];
   }
 
-  function _weightedActionOffers(count) {
-    const weights = _rules.actionSpawnWeights ?? { common: 60, 'semi-common': 30, rare: 10 };
-    const pool = _actions.slice();
+  function _weightedCostOffers(cards, type, count) {
+    const pool = cards.slice();
     const picks = [];
     while (pool.length && picks.length < count) {
-      const rows = pool.map(card => ({
-        card,
-        weight: Math.max(1, weights[card.rarity ?? 'semi-common'] ?? 10),
-      }));
-      const total = rows.reduce((sum, row) => sum + row.weight, 0);
-      let roll = Math.random() * total;
-      let picked = rows[rows.length - 1].card;
-      for (const row of rows) {
-        roll -= row.weight;
-        if (roll <= 0) { picked = row.card; break; }
+      const rows = _costBands(type)
+        .map(band => ({
+          band,
+          cards: pool.filter(card => (card.manaCost ?? 0) >= band.min && (card.manaCost ?? 0) <= band.max),
+        }))
+        .filter(row => row.cards.length);
+
+      if (!rows.length) {
+        const fallback = type === 'action' ? _weightedActionPick(pool) : pool[Math.floor(Math.random() * pool.length)];
+        picks.push(fallback);
+        pool.splice(pool.findIndex(card => card.id === fallback.id), 1);
+        continue;
       }
+
+      const total = rows.reduce((sum, row) => sum + row.band.weight, 0);
+      let roll = Math.random() * total;
+      let pickedRow = rows[rows.length - 1];
+      for (const row of rows) {
+        roll -= row.band.weight;
+        if (roll <= 0) { pickedRow = row; break; }
+      }
+
+      const picked = type === 'action'
+        ? _weightedActionPick(pickedRow.cards)
+        : pickedRow.cards[Math.floor(Math.random() * pickedRow.cards.length)];
       picks.push(picked);
       pool.splice(pool.findIndex(card => card.id === picked.id), 1);
     }
     return picks;
+  }
+
+  function _weightedActionPick(cards) {
+    const weights = _rules.actionSpawnWeights ?? { common: 60, 'semi-common': 30, rare: 10 };
+    const rows = cards.map(card => ({
+      card,
+      weight: Math.max(1, weights[card.rarity ?? 'semi-common'] ?? 10),
+    }));
+    const total = rows.reduce((sum, row) => sum + row.weight, 0);
+    let roll = Math.random() * total;
+    for (const row of rows) {
+      roll -= row.weight;
+      if (roll <= 0) return row.card;
+    }
+    return rows[rows.length - 1].card;
   }
 
   function _renderShop() {
@@ -113,10 +153,11 @@ const ShopSystem = (() => {
     if (_offers.turnNumber !== offerKey) {
       const heroIdsInUse = GameState.getAllHeroIdsInUse?.({ includeGraveyard: true }) ?? new Set();
       const count = foresight ? 12 : 4;
+      const heroPool = _heroes.filter(h => !heroIdsInUse.has(h.id));
       _offers = {
         turnNumber: offerKey,
-        heroes: _shuffle(_heroes.filter(h => !heroIdsInUse.has(h.id))).slice(0, count),
-        actions: _weightedActionOffers(count),
+        heroes: _weightedCostOffers(heroPool, 'hero', count),
+        actions: _weightedCostOffers(_actions, 'action', count),
       };
       if (foresight) showToast('Foresight shop open.', 'info');
     }
