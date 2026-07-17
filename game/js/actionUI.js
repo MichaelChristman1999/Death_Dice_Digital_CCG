@@ -74,7 +74,7 @@ const ActionUI = (() => {
     const gate    = GameState.canCharacterUseAbility(char);
     const atk     = GameState.getEffectiveAttack(char);
     const passives = (char.passives?.length ? [...char.passives] : [...(src.passives ?? [])]);
-    const passiveOnly = /^(Passive|Durability)$/i.test(char.classType || src.classType || '');
+    const passiveOnly = /^(Passive|Durability)$/i.test(char.roleType || src.roleType || '');
     if (passiveOnly && src.docAbility && passives.length === 0) {
       passives.push({ name: 'Hero Passive', description: src.docAbility });
     }

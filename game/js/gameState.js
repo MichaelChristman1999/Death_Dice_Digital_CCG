@@ -232,7 +232,7 @@ const GameState = (() => {
       baseAttack: heroData.baseAttack,
       manaCost: heroData.manaCost ?? 0,
       role: heroData.role ?? '',
-      classType: heroData.classType ?? '',
+      roleType: heroData.roleType ?? '',
       archetype: heroData.archetype ?? '',
       abilities: heroData.abilities ?? [],
       passives: heroData.passives ?? [],
@@ -256,7 +256,7 @@ const GameState = (() => {
       instance._statusImmune = true;
     }
 
-    if (/Durability/i.test(heroData.classType ?? '')) {
+    if (/Durability/i.test(heroData.roleType ?? '')) {
       const overhealth = passiveText.match(/(\d+)\s*overhealth/i);
       if (overhealth) {
         const amount = Number(overhealth[1]);
@@ -273,7 +273,7 @@ const GameState = (() => {
   }
 
   function _shouldAutoAssignAbility(heroData) {
-    return !/^(Passive|Durability)$/i.test(heroData.classType ?? '');
+    return !/^(Passive|Durability)$/i.test(heroData.roleType ?? '');
   }
 
   // ── Deploy / Play ──────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ const GameState = (() => {
   }
 
   function _activateCaptainRolePassive(playerId, captain) {
-    const role = captain.classType || captain._sourceCard?.classType || '';
+    const role = captain.roleType || captain._sourceCard?.roleType || '';
     const names = {
       Agility: 'Evasive Maneuver',
       Balanced: 'Enact',
@@ -370,7 +370,7 @@ const GameState = (() => {
       return null;
     }
 
-    const durabilityHeroes = board.filter(c => /Durability/i.test(c.classType || c._sourceCard?.classType || ''));
+    const durabilityHeroes = board.filter(c => /Durability/i.test(c.roleType || c._sourceCard?.roleType || ''));
     const candidatePool = durabilityHeroes.length ? durabilityHeroes : board;
     const highestMaxHp = Math.max(...candidatePool.map(c => Number(c.maxHp ?? c.hp ?? 0)));
     const tiedCandidates = candidatePool.filter(c => Number(c.maxHp ?? c.hp ?? 0) === highestMaxHp);
@@ -387,16 +387,16 @@ const GameState = (() => {
     return p.board?.find(c => c.instanceId === p.captainId) ?? null;
   }
 
-  function getCaptainClassType(playerId) {
+  function getCaptainRoleType(playerId) {
     const captain = getCaptain(playerId);
-    return captain?.classType || captain?._sourceCard?.classType || '';
+    return captain?.roleType || captain?._sourceCard?.roleType || '';
   }
 
   function hasCaptainClass(playerId, roleName) {
     const captain = getCaptain(playerId);
     if (!captain) return false;
     if (hasStatus(captain.instanceId, 'status_impeded')) return false;
-    return new RegExp(roleName, 'i').test(captain.classType || captain._sourceCard?.classType || '');
+    return new RegExp(roleName, 'i').test(captain.roleType || captain._sourceCard?.roleType || '');
   }
 
   function hasSpeedCaptain(playerId) {
@@ -1255,7 +1255,7 @@ const GameState = (() => {
         p.board ??= [];
         p.captainId ??= null;
         p.board.forEach(c => {
-          c.classType ??= c._sourceCard?.classType ?? '';
+          c.roleType ??= c._sourceCard?.roleType ?? '';
           c.archetype ??= c._sourceCard?.archetype ?? '';
           c.role ??= c._sourceCard?.role ?? '';
           c.manaCost ??= c._sourceCard?.manaCost ?? 0;
@@ -1312,7 +1312,7 @@ const GameState = (() => {
     reorderBoardCharacter,
     setCaptain,
     getCaptain,
-    getCaptainClassType,
+    getCaptainRoleType,
     hasCaptainClass,
     hasSpeedCaptain,
     hasManaCaptain,

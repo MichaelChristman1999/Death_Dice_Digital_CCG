@@ -90,6 +90,7 @@ const RollEngine = (() => {
   }
 
   function rollEvent(playerId, maxSides = null) {
+    if (typeof SoundManager !== 'undefined') SoundManager.play?.('diceRoll');
     return resolveDieEvent(playerId, rollDie(maxSides));
   }
 

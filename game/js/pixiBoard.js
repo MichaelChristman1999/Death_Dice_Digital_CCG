@@ -1240,7 +1240,7 @@ const PixiBoard = (() => {
 
     // Cost badge overlaid top-left corner of art
     ct.addChild(_costBadge(card.manaCost ?? 0, 15, 15, free));
-    const roleIcon = _roleIcon(card.classType, w - 33, 7, 26);
+    const roleIcon = _roleIcon(card.roleType, w - 33, 7, 26);
     if (roleIcon) ct.addChild(roleIcon);
 
     // Stats + ability inside the card's WHITE TEXT BOX (matches the PNG art —
@@ -1370,7 +1370,7 @@ const PixiBoard = (() => {
       ph.beginFill(0x1a1550); ph.drawRoundedRect(2, 2, w - 4, h - 4, 10); ph.endFill();
       ct.addChild(ph);
     }
-    const roleIcon = _roleIcon(char.classType || src.classType, w - 34, 8, 26);
+    const roleIcon = _roleIcon(char.roleType || src.roleType, w - 34, 8, 26);
     if (roleIcon) ct.addChild(roleIcon);
 
     // Stats + ability in the white box. HP bar lives BETWEEN the corner gems at
@@ -2511,7 +2511,7 @@ const PixiBoard = (() => {
   /** Look up passive + ability names for a card from CHARACTER_ABILITIES or card data */
   function _getCardAbilities(card) {
     if (!card) return {};
-    const passiveOnly = /^(Passive|Durability)$/i.test(card.classType ?? '');
+    const passiveOnly = /^(Passive|Durability)$/i.test(card.roleType ?? '');
     const key = (card.name ?? '').toLowerCase().trim();
     const lookup = (typeof CHARACTER_ABILITIES !== 'undefined') ? CHARACTER_ABILITIES[key] : null;
     if (lookup) {

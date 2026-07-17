@@ -61,6 +61,7 @@ const PhaseManager = (() => {
     if (_step !== STEPS.ROLLOFF) return;
     if (_rolloffDone[playerId]) return;
 
+    if (typeof SoundManager !== 'undefined') SoundManager.play?.('diceRoll');
     const roll = RollEngine.rollDie();
     GameState.setRolloffRoll(playerId, roll);
     _rolloffDone[playerId] = true;

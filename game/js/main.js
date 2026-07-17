@@ -26,6 +26,7 @@ async function boot() {
 
   // Expose as global so phaseManager.js / rollEngine.js can reference GameData
   window.GameData = data;
+  if (typeof SoundManager !== 'undefined') SoundManager.init?.();
 
   bindMenuButtons();
   showScreen(SCREENS.MENU);
@@ -361,7 +362,7 @@ function expandCard(card, type) {
   if (type === 'hero') {
     const ip   = card.imageAsset ? `assets/cards/DD Character V7/${card.imageAsset}` : null;
     const name = card.name || card.imageAsset?.replace(/^DD_/,'').replace(/\.png$/i,'') || 'Hero';
-    const passiveOnly = /^(Passive|Durability)$/i.test(card.classType ?? '');
+    const passiveOnly = /^(Passive|Durability)$/i.test(card.roleType ?? '');
     const passiveRows = [...(card.passives ?? [])];
     if (passiveOnly && card.docAbility && passiveRows.length === 0) {
       passiveRows.push({ name: 'Passive', description: card.docAbility });
@@ -386,7 +387,7 @@ function expandCard(card, type) {
             <span class="meta-badge hp">â™¥ ${card.hp ?? '?'}</span>
             <span class="meta-badge atk">âš” ${card.baseAttack ?? '?'}</span>
             ${card.stage  ? `<span class="meta-badge stage">${card.stage}</span>`  : ''}
-            ${card.classType ? `<span class="meta-badge stage">${card.classType}</span>` : ''}
+            ${card.roleType ? `<span class="meta-badge stage">${card.roleType}</span>` : ''}
             ${card.archetype ? `<span class="meta-badge role">${card.archetype}</span>` : ''}
             ${card.role   ? `<span class="meta-badge role">${card.role}</span>`    : ''}
           </div>
@@ -459,7 +460,7 @@ function _statusGlossaryHtml(card) {
 }
 
 function _rolePassiveHtml(cardOrRole) {
-  const role = typeof cardOrRole === 'string' ? cardOrRole : cardOrRole?.classType;
+  const role = typeof cardOrRole === 'string' ? cardOrRole : cardOrRole?.roleType;
   const passive = typeof cardOrRole === 'object' ? cardOrRole?.rolePassive : null;
   const map = {
     Agility: ['Evasive Maneuver', 'Roll 4-6 to dodge captain/player damage.'],
@@ -494,4 +495,3 @@ function initTouchControls() { /* TOUCH_ENABLED = false */ }
 
 // â”€â”€â”€ Boot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 document.addEventListener('DOMContentLoaded', boot);
-

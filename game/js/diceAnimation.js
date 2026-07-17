@@ -5,6 +5,7 @@
 const DiceAnimation = (() => {
 
   function roll(result, label, onDone) {
+    if (typeof SoundManager !== 'undefined') SoundManager.play?.('diceRoll');
     // PixiBoard.showDiceRoll handles the in-canvas flash + calls onDone when done
     if (typeof PixiBoard !== 'undefined' && PixiBoard.showDiceRoll) {
       PixiBoard.showDiceRoll(result, label, onDone);
