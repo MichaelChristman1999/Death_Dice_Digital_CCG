@@ -14,7 +14,7 @@ heroes: [
     "stage": "S1",
     "manaCost": 4,
     "hp": 20,
-    "baseAttack": 2,
+    "baseAttack": 3,
     "role": "Support",
     "passives": [],
     "abilities": [],
@@ -132,8 +132,8 @@ heroes: [
     "name": "Breast Knuckle",
     "imageAsset": "DD_Breast_Knuckle.png",
     "stage": "S1",
-    "manaCost": 3,
-    "hp": 16,
+    "manaCost": 4,
+    "hp": 20,
     "baseAttack": 4,
     "role": "Fighter",
     "passives": [],
@@ -987,8 +987,8 @@ heroes: [
     "archetype": "Volcan",
     "docAbility": "Ability: Volcanic Volley (6 mana): Deal 5 dmg & inflict Burning status to all enemy heroes & player (for 3 turns). Temperature Tantrum (Hero Passive): Deal 5 dmg to all enemies & inflict Burning status if critical (25% but not 0) HP. Burning (debuff): Burning players/heroes take 3 damage every turn (friendly or enemy) & lose half their action cards. Frozen cancels this out.",
     "rolePassive": {
-      "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "name": "Invocation",
+      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
     }
   },
   {
