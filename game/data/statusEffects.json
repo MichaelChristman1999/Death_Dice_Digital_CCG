@@ -12,8 +12,8 @@
     {
         "id":  "status_example_conditional",
         "name":  "Retort",
-        "type":  "conditional",
-        "duration":  null,
+        "type":  "timed",
+        "duration":  3,
         "stackBehavior":  "replace",
         "trigger":  "on_attacked",
         "symbol":  "RET",
@@ -32,22 +32,22 @@
     {
         "id":  "status_edible",
         "name":  "Edible",
-        "type":  "conditional",
-        "duration":  null,
+        "type":  "timed",
+        "duration":  3,
         "stackBehavior":  "replace",
         "trigger":  "targeted_by_shish_ke_bob",
         "symbol":  "EDB",
-        "description":  "This character can be consumed by Shish-Ke-Bob\u0027s ability."
+        "description":  "Deals half base attack and ability damage. Sidestep and evasion are disabled. Successful base attacks against this target heal the attacker for half damage dealt, doubled with overheal if lethal."
     },
     {
         "id":  "status_accelerated",
         "name":  "Accelerated",
         "type":  "timed",
-        "duration":  1,
+        "duration":  3,
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "SPD",
-        "description":  "This character may use one additional action this turn."
+        "description":  "Hero: untaps and may act again. Player/captain: +1 action card, hero cast, player attack, draw, discard, and shop purchase while active. Cancels Impede, Frozen, and Drunk."
     },
     {
         "id":  "status_tapped",
@@ -63,7 +63,7 @@
         "id":  "status_anemic",
         "name":  "Anemic",
         "type":  "timed",
-        "duration":  2,
+        "duration":  3,
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "NOHEAL",
@@ -77,17 +77,37 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "+ATK",
-        "description":  "Base attack is increased by 2."
+        "description":  "Adds +2 base attack. On a player/captain, also prevents the next failed Death Die damage, then expires."
+    },
+    {
+        "id":  "status_cheatah_code",
+        "name":  "Cheetah Code",
+        "type":  "timed",
+        "duration":  3,
+        "stackBehavior":  "replace",
+        "trigger":  "next_failed_death_die",
+        "symbol":  "CC",
+        "description":  "Prevents the next failed Death Die damage and grants +4 mana, bypassing the mana cap."
     },
     {
         "id":  "status_crippled",
         "name":  "Crippled",
         "type":  "timed",
-        "duration":  1,
+        "duration":  2,
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "CRP",
         "description":  "Takes double damage."
+    },
+    {
+        "id":  "status_vitalized",
+        "name":  "Vitalized",
+        "type":  "timed",
+        "duration":  3,
+        "stackBehavior":  "replace",
+        "trigger":  null,
+        "symbol":  "VIT",
+        "description":  "Receives double healing from later heals. Reapplying Vitalize refreshes this duration without another initial heal or Cleanse."
     },
     {
         "id":  "status_drunk",
@@ -97,7 +117,7 @@
         "stackBehavior":  "replace",
         "trigger":  "on_roll",
         "symbol":  "DRK",
-        "description":  "Player die rolls are capped at 3."
+        "description":  "Player die rolls are capped at 3. Buffs are halted while active, Safeguard has a 1/2 chance to fail, and Sidestep is harder to trigger."
     },
     {
         "id":  "status_poisoned",
@@ -117,7 +137,7 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "IMP",
-        "description":  "Base attack is reduced by 2, or by 1 if base attack is 2."
+        "description":  "Outgoing damage from base attacks, abilities, and action cards is halved, rounded down."
     },
     {
         "id":  "status_impeded",
@@ -127,7 +147,7 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "STOP",
-        "description":  "Cannot attack or use abilities during its next turn."
+        "description":  "Sidestep, Evasive Maneuver, and Safeguard are disabled. Attacks and most abilities are still allowed."
     },
     {
         "id":  "status_charmed",
@@ -137,17 +157,17 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "LOVE",
-        "description":  "Temporarily turned against its own team."
+        "description":  "Cannot target the charmer or their captain; disables Safeguard, Sidestep, and Evasive Maneuver for 1 turn."
     },
     {
         "id":  "status_abstaining",
         "name":  "Abstaining",
         "type":  "timed",
-        "duration":  2,
+        "duration":  3,
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "NOLOVE",
-        "description":  "Immune to Charmed/Love Potion."
+        "description":  "Immune to Charmed, Drunk, and Hypnotized control effects."
     },
     {
         "id":  "status_taunt",
@@ -167,7 +187,37 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "LOCK",
-        "description":  "Cannot open the shop."
+        "description":  "Cannot open the shop or draw from the Draw Pile."
+    },
+    {
+        "id":  "status_damage_boost",
+        "name":  "Damage Boost",
+        "type":  "timed",
+        "duration":  3,
+        "stackBehavior":  "replace",
+        "trigger":  null,
+        "symbol":  "DMG",
+        "description":  "Base attack and ability damage are multiplied by x1.5 while active."
+    },
+    {
+        "id":  "status_sidestep",
+        "name":  "Sidestep",
+        "type":  "conditional",
+        "duration":  1,
+        "stackBehavior":  "replace",
+        "trigger":  "next_attack_or_debuff",
+        "symbol":  "SS",
+        "description":  "Guaranteed dodge against the next attack or debuff. Accelerated targets gain 2 charges. Drunk reduces the dodge to a 1/2 chance."
+    },
+    {
+        "id":  "status_rabies",
+        "name":  "Rabies",
+        "type":  "timed",
+        "duration":  3,
+        "stackBehavior":  "replace",
+        "trigger":  "start_of_turn",
+        "symbol":  "RAB",
+        "description":  "Takes 4 damage each turn, takes double damage from other sources, can spread Rabies each turn, and has a 1/2 chance to resist Cleanse when another debuff is present."
     },
     {
         "id":  "status_imbued",

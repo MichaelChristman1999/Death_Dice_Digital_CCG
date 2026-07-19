@@ -69,14 +69,18 @@ const ActionUI = (() => {
     const src     = char._sourceCard ?? {};
     const ability = char.abilities?.[0];
     const mana    = GameState.getMana(owner);
-    const acted   = char.tapped || char.hasAttackedThisTurn || char.hasUsedAbilityThisTurn;
     const inCombat = isOwnerTurn && PhaseManager.canUseAbilities();
     const gate    = GameState.canCharacterUseAbility(char);
+    const acted   = !gate.ok && /spent their action/i.test(gate.reason ?? '');
     const atk     = GameState.getEffectiveAttack(char);
-    const passives = (char.passives?.length ? [...char.passives] : [...(src.passives ?? [])]);
+    const sourcePassives = Array.isArray(src.heroPassive ?? src.passives)
+      ? (src.heroPassive ?? src.passives)
+      : ((src.heroPassive ?? src.passives) ? [src.heroPassive ?? src.passives] : []);
+    const passives = (char.passives?.length ? [...char.passives] : [...sourcePassives]);
     const passiveOnly = /^(Passive|Durability)$/i.test(char.roleType || src.roleType || '');
-    if (passiveOnly && src.docAbility && passives.length === 0) {
-      passives.push({ name: 'Hero Passive', description: src.docAbility });
+    const heroAbilityText = src.heroAbility ?? src.docAbility;
+    if (passiveOnly && heroAbilityText && passives.length === 0) {
+      passives.push({ name: 'Hero Passive', description: heroAbilityText });
     }
     const passiveHtml = passives.map(p => `
       <div class="cp-ability passive">

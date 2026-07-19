@@ -49,8 +49,10 @@ const CpuController = (() => {
         await _deployPhase(myToken);
         _assignCaptain();
         await _actionPhase(myToken, 'before_attacks');
+        await _abilityPhase(myToken, 'before_attacks');
         await _attackPhase(myToken);
         await _playerAttackPhase(myToken);
+        await _abilityPhase(myToken, 'after_attacks');
         await _actionPhase(myToken, 'after_attacks');
         await _shopPhase(myToken, 'late');
       } else {
@@ -147,6 +149,28 @@ const CpuController = (() => {
     return score;
   }
 
+  function _scoreAbility(char, ability) {
+    if (!char || !ability) return -999;
+    let score = 0;
+    const value = ability.effectValue ?? 0;
+    const cost = ability.manaCost ?? 0;
+    if (cost > GameState.getMana(_playerId)) return -999;
+    if (/damage|duel|impede|cripple|anemic|rabies|poison|burn|shock|charm/i.test(`${ability.effect} ${ability.description ?? ''}`)) {
+      score += 5 + value;
+    }
+    if (/heal|cleanse|vitalize|bless/i.test(`${ability.effect} ${ability.description ?? ''}`)) {
+      score += _persona?.id === 'clean_gene' ? 8 : 3;
+      if (!_mostWoundedAlly() && !_debuffedAlly()) score -= 4;
+    }
+    if (/accelerate|augment|mana|draw|zoom/i.test(`${ability.effect} ${ability.description ?? ''}`)) {
+      score += _persona?.id === 'quick_rick' ? 7 : 3;
+    }
+    if (ability.effect === 'shop_lock') score += 4;
+    if (_persona?.preferredHeroes?.some(name => _normName(char.name).includes(_normName(name)))) score += 2;
+    score -= cost * 0.35;
+    return score;
+  }
+
   async function _shopPhase(token, timing) {
     if (!_isLive(token) || !ShopSystem?.buyForCpu || !PhaseManager.canShop?.()) return;
     if (GameState.hasPlayerStatus?.(_playerId, 'status_locked_out')) return;
@@ -227,6 +251,36 @@ const CpuController = (() => {
     }
   }
 
+  async function _abilityPhase(token, timing) {
+    if (!_isLive(token) || GameState.currentPhase !== 'combat') return;
+    if (!_roll(_persona?.abilityChance ?? _persona?.actionChance ?? 0.55)) return;
+    const p = GameState.getPlayerState(_playerId);
+    if (!p?.board?.length) return;
+
+    const candidates = p.board
+      .map(char => ({ char, ability: char.abilities?.[0] }))
+      .filter(row => row.ability && (GameState.canCharacterUseAbility?.(row.char)?.ok ?? true))
+      .map(row => ({ ...row, score: _scoreAbility(row.char, row.ability) }))
+      .filter(row => row.score > -100)
+      .sort((a, b) => b.score - a.score);
+
+    let used = 0;
+    const budget = Math.max(1, _persona?.abilityBudget ?? 1);
+    for (const { char, ability } of candidates) {
+      if (!_isLive(token) || used >= budget) return;
+      if (_mistake() && used > 0) return;
+      const target = _targetForAbility(char, ability, timing);
+      if (target === false) continue;
+      const result = AbilityDispatcher.executeAbilityEffect?.(char.instanceId, 0, target, { silent: true });
+      if (!result?.ok) continue;
+      showToast(`${_persona.name} uses ${ability.abilityName}.`, 'info');
+      used++;
+      renderBoard?.();
+      if (PhaseManager.checkWin?.()) return;
+      await _sleep(_pace(560), token);
+    }
+  }
+
   function _targetForAction(card, timing) {
     const effect = card.effect;
     if (card.id === 'action_reveal') return null;
@@ -251,6 +305,31 @@ const CpuController = (() => {
     }
     if (['apply_status', 'rabies', 'control_character', 'deal_damage', 'multi_damage'].includes(effect)) {
       return _bestEnemyTarget({ preferPlayer: _persona?.faceBias > 0.55 });
+    }
+    return _bestEnemyTarget({ preferPlayer: false });
+  }
+
+  function _targetForAbility(char, ability, timing) {
+    if (!ability) return null;
+    if (['gain_mana', 'cheatah_reroll', 'cheatah_code', 'roid_rage', 'zoomstick', 'meowrox', 'swift_squall', 'breakback_breakdance', 'sleuth_seance'].includes(ability.effect)) {
+      return { type: 'character', id: char.instanceId };
+    }
+    if (ability.targetType === 'self') return { type: 'character', id: char.instanceId };
+    if (ability.targetType === 'all_allies' || ability.targetType === 'all_enemies') return null;
+    if (ability.targetType === 'enemy_player' || ability.effect === 'shop_lock' || ability.effect === 'apply_player_status') {
+      return { type: 'player', id: GameState.getOpponentId(_playerId) };
+    }
+    if (ability.effect === 'heal') {
+      return _mostWoundedAlly() ?? false;
+    }
+    if (ability.targetType === 'single_ally') {
+      return _bestAllyTarget(/attack|damage|accelerate|augment/i.test(ability.description ?? ''));
+    }
+    if (ability.effect === 'duel' || ability.effect === 'copy_enemy_ability') {
+      return _bestEnemyCharacterTarget() ?? false;
+    }
+    if (['deal_damage', 'deal_damage_apply_status', 'apply_status', 'stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese'].includes(ability.effect)) {
+      return _bestEnemyTarget({ preferPlayer: _persona?.faceBias > 0.5 || /player/i.test(ability.description ?? '') });
     }
     return _bestEnemyTarget({ preferPlayer: false });
   }
@@ -309,6 +388,18 @@ const CpuController = (() => {
     return target ? { type: 'character', id: target.instanceId } : { type: 'player', id: oppId };
   }
 
+  function _bestEnemyCharacterTarget() {
+    const oppId = GameState.getOpponentId(_playerId);
+    const enemy = GameState.getPlayerState(oppId);
+    if (!enemy?.board?.length) return null;
+    const target = [...enemy.board].sort((a, b) => {
+      const aScore = GameState.getEffectiveAttack(a) * 2 + (a.currentHp ?? 0) * 0.2 + (enemy.captainId === a.instanceId ? 4 : 0);
+      const bScore = GameState.getEffectiveAttack(b) * 2 + (b.currentHp ?? 0) * 0.2 + (enemy.captainId === b.instanceId ? 4 : 0);
+      return bScore - aScore;
+    })[0];
+    return target ? { type: 'character', id: target.instanceId } : null;
+  }
+
   async function _attackPhase(token) {
     if (!_isLive(token) || GameState.currentPhase !== 'combat') return;
     const p = GameState.getPlayerState(_playerId);
@@ -316,7 +407,7 @@ const CpuController = (() => {
     for (const char of attackers) {
       if (!_isLive(token)) return;
       const liveChar = GameState.getCharacter(char.instanceId);
-      if (!liveChar || liveChar.tapped || liveChar.hasAttackedThisTurn) continue;
+      if (!liveChar) continue;
       const gate = GameState.canCharacterAttack?.(liveChar) ?? { ok: true };
       if (!gate.ok) continue;
       if (_mistake() && _persona.id === 'little_timmy') continue;

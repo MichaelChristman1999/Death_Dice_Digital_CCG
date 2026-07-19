@@ -352,6 +352,15 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   border-color: var(--accent-hi); color: var(--accent-hi);
   box-shadow: 0 0 14px rgba(200,40,0,.4);
 }
+.grave-btn {
+  background: linear-gradient(135deg, rgba(34,34,38,.95), rgba(78,72,82,.88));
+  border-color: rgba(170,160,170,.45);
+  color: #d8d0d8;
+}
+.grave-btn:hover:not(:disabled) {
+  filter: brightness(1.18);
+  box-shadow: 0 0 18px rgba(180,170,190,.28);
+}
 
 /* ═══════════════════════════════════════════════════════════
    OVERLAY SYSTEM
@@ -642,6 +651,33 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   font-family: 'Rajdhani', sans-serif; letter-spacing: .06em; margin-bottom: 4px;
 }
 .shop-mana-line { font-size: .82rem; color: var(--mana-light); font-weight: 700; }
+.shop-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.shop-tab {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(20, 6, 8, .92);
+  color: var(--text-dim);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: .76rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.shop-tab.active {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+  box-shadow: inset 0 0 14px rgba(212,175,55,.12), 0 0 18px rgba(212,175,55,.12);
+}
+.shop-page { min-height: 260px; }
 .shop-section-label {
   font-size: .64rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
   color: var(--text-dim); margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
@@ -690,6 +726,29 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   border-radius: 50%; width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
 }
+.shop-info-btn {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 6;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(190,160,255,.82);
+  background: rgba(12,6,20,.92);
+  color: #d7c8ff;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.shop-info-btn:hover {
+  filter: brightness(1.18);
+  box-shadow: 0 0 16px rgba(139,53,255,.35);
+}
 /* Hero stat row just above the body */
 .shop-item-stats {
   display: flex; justify-content: space-between; padding: 3px 8px;
@@ -709,6 +768,123 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 }
 .shop-item-warn { font-size: 9px; color: var(--warn-hi); }
 .shop-item .menu-btn { font-size: 10px; padding: 5px; width: 100%; margin-top: auto; }
+
+/* -- Hero Graveyard ---------------------------------------- */
+.graveyard-panel {
+  width: min(94vw, 900px);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 22px;
+  border: 2px solid rgba(155,148,155,.58);
+  border-radius: 12px;
+  background:
+    linear-gradient(160deg, rgba(30,28,32,.98), rgba(8,7,9,.98)),
+    #121014;
+  box-shadow: var(--shadow), inset 0 0 34px rgba(210,210,220,.04);
+}
+.graveyard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.graveyard-header h2 {
+  color: #d8d0d8;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.22rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.graveyard-header .menu-btn {
+  width: auto;
+  padding-inline: 18px;
+}
+.graveyard-subtitle,
+.graveyard-page-label {
+  color: #9a909a;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.graveyard-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.graveyard-tab {
+  flex: 1;
+  min-height: 34px;
+  border: 1px solid rgba(155,148,155,.32);
+  border-radius: 8px;
+  background: rgba(10,9,12,.86);
+  color: #9a909a;
+  font-family: 'Exo 2', sans-serif;
+  font-size: .75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.graveyard-tab.active {
+  border-color: rgba(220,210,220,.72);
+  color: #f2edf2;
+  box-shadow: inset 0 0 18px rgba(255,255,255,.05);
+}
+.graveyard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 12px;
+  min-height: 180px;
+  align-items: start;
+}
+.graveyard-card {
+  min-height: 192px;
+  border: 1px solid rgba(170,160,170,.46);
+  border-radius: 8px;
+  background: rgba(12,11,14,.9);
+  overflow: hidden;
+  color: #e8e0e8;
+  text-align: left;
+}
+.graveyard-card img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  object-position: top center;
+  filter: grayscale(.85) contrast(1.08);
+}
+.graveyard-card span {
+  display: block;
+  padding: 8px;
+  font-size: .74rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graveyard-empty {
+  grid-column: 1 / -1;
+  align-self: center;
+  justify-self: center;
+  color: #9a909a;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: .95rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.graveyard-pager {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) auto minmax(96px, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+.graveyard-pager .menu-btn {
+  width: auto;
+}
 
 /* ── Win Screen ──────────────────────────────────────────── */
 .win-box { display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
@@ -1086,6 +1262,15 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 }
 
 @media (max-width: 700px) {
+  .shop-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .shop-tab {
+    width: 100%;
+  }
+
   .modal-card-box {
     width: min(94vw, 480px);
     max-height: 92vh;

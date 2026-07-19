@@ -67,15 +67,22 @@ const RollEngine = (() => {
     if (playerId && previousRequired !== null && roll < previousRequired) {
       const baseDamage = previousRequired - roll;
       const playerBefore = GameState.getPlayerState?.(playerId)?.hp ?? 0;
-      const hit = GameState.damageTarget?.({ type: 'player', id: playerId }, baseDamage)
-        ?? { hp: GameState.damagePlayer(playerId, baseDamage), actualDamage: 0 };
+      const hit = GameState.damageTarget?.(
+        { type: 'player', id: playerId },
+        baseDamage,
+        { source: 'death_die_failed_roll', ignoreSidestep: true }
+      ) ?? { hp: GameState.damagePlayer(playerId, baseDamage, { source: 'death_die_failed_roll', ignoreSidestep: true }), actualDamage: 0 };
       result.playerDamage = hit.actualDamage ?? Math.max(0, playerBefore - Math.max(0, hit.hp ?? playerBefore));
 
       if (_rules.dice?.roll5Bomb && previousRequired === 5) {
         const board = [...(GameState.getPlayerState?.(playerId)?.board ?? [])];
         board.forEach(char => {
           const before = char.currentHp ?? 0;
-          const hp = GameState.damageCharacter(char.instanceId, baseDamage);
+          const hp = GameState.damageCharacter(char.instanceId, baseDamage, {
+            source: 'bombs_away',
+            ignoreSidestep: true,
+            roleEvasion: false,
+          });
           const damage = Math.max(0, before - Math.max(0, hp ?? before));
           result.characterHits.push({ instanceId: char.instanceId, damage });
         });
@@ -106,8 +113,11 @@ const RollEngine = (() => {
     if (req === null || roll >= req) return 0;
     const dmg = req - roll;
     const before = GameState.getPlayerState?.(targetPlayerId)?.hp ?? 0;
-    const hit = GameState.damageTarget?.({ type: 'player', id: targetPlayerId }, dmg)
-      ?? { hp: GameState.damagePlayer(targetPlayerId, dmg), actualDamage: 0 };
+    const hit = GameState.damageTarget?.(
+      { type: 'player', id: targetPlayerId },
+      dmg,
+      { source: 'death_die_failed_roll', ignoreSidestep: true }
+    ) ?? { hp: GameState.damagePlayer(targetPlayerId, dmg, { source: 'death_die_failed_roll', ignoreSidestep: true }), actualDamage: 0 };
     return hit.actualDamage ?? Math.max(0, before - Math.max(0, hit.hp ?? before));
   }
 

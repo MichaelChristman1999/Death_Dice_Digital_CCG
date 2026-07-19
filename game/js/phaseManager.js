@@ -11,6 +11,7 @@ const PhaseManager = (() => {
 
   let _step = STEPS.ROLLOFF;
   let _rolloffDone = { p1: false, p2: false };
+  let _rolloffHadTie = false;
   let _etiquetteRoundDone = { p1: false, p2: false };
 
   function _setStep(step) {
@@ -22,6 +23,7 @@ const PhaseManager = (() => {
   function start() {
     _setStep(STEPS.ROLLOFF);
     _rolloffDone = { p1: false, p2: false };
+    _rolloffHadTie = false;
     _etiquetteRoundDone = { p1: false, p2: false };
     GameState.setPhase('rolloff');
     RollEngine.setRequired(null);
@@ -36,6 +38,7 @@ const PhaseManager = (() => {
 
     const rolls = GameState.getRolloffRolls();
     _rolloffDone = { p1: rolls.p1 != null, p2: rolls.p2 != null };
+    _rolloffHadTie = false;
     _etiquetteRoundDone = { p1: false, p2: false };
 
     if (_step === STEPS.ROLLOFF) {
@@ -74,6 +77,7 @@ const PhaseManager = (() => {
     if (_rolloffDone.p1 && _rolloffDone.p2) {
       const rolls = GameState.getRolloffRolls();
       if (rolls.p1 === rolls.p2) {
+        _rolloffHadTie = true;
         // Tie — reset and re-roll
         _updateRolloffResult("It's a tie! Roll again!", 'tie');
         setTimeout(() => {
@@ -90,6 +94,14 @@ const PhaseManager = (() => {
       GameState.setFirstPlayer(winner);
       GameState.setMana(rolls.p1, 'p1');
       GameState.setMana(rolls.p2, 'p2');
+      const rollDifferential = Math.abs((rolls.p1 ?? 0) - (rolls.p2 ?? 0));
+      if (_rolloffHadTie || rollDifferential > 2) {
+        const p1Setup = GameState.deploySetupCaptain?.('p1');
+        const p2Setup = GameState.deploySetupCaptain?.('p2');
+        if (p1Setup?.ok || p2Setup?.ok) {
+          showToast('Order setup: starting heroes moved to captain slots.', 'info');
+        }
+      }
 
       const winnerLabel = GameState.getPlayerLabel(winner);
       _updateRolloffResult(`${winnerLabel} goes first!`, 'winner');
@@ -173,25 +185,44 @@ const PhaseManager = (() => {
     const roll     = drunkCap ? Math.min(rawRoll, drunkCap) : rawRoll;
 
     GameState.setLastRoll(roll);
+    GameState.ensureRoundOneForceField?.(activePlayer);
 
     const required = RollEngine.getRequired();
     let damage = 0;
     let bombDamage = 0;
+    let pendingBombMessages = [];
+    let failedRollPassiveMessages = [];
 
     if (GameState.currentPhase === 'combat' && required !== null && roll < required) {
       const baseDamage = required - roll;
       const before = GameState.getPlayerState?.(activePlayer)?.hp ?? 0;
-      const hit = GameState.damageTarget?.({ type: 'player', id: activePlayer }, baseDamage)
-        ?? { hp: GameState.damagePlayer(activePlayer, baseDamage), actualDamage: 0 };
+      const hit = GameState.damageTarget?.(
+        { type: 'player', id: activePlayer },
+        baseDamage,
+        { source: 'death_die_failed_roll', ignoreSidestep: true }
+      ) ?? { hp: GameState.damagePlayer(activePlayer, baseDamage, { source: 'death_die_failed_roll', ignoreSidestep: true }), actualDamage: 0 };
       damage = hit.actualDamage ?? Math.max(0, before - Math.max(0, hit.hp ?? before));
       if (GameData.rules.dice?.roll5Bomb && required === 5) {
         bombDamage = baseDamage;
         [...GameState.getPlayerState(activePlayer).board].forEach(char => {
           const beforeHp = char.currentHp ?? 0;
-          const hpAfter = GameState.damageCharacter(char.instanceId, bombDamage);
+          const hpAfter = GameState.damageCharacter(char.instanceId, bombDamage, {
+            source: 'bombs_away',
+            ignoreSidestep: true,
+            roleEvasion: false,
+          });
           const actual = Math.max(0, beforeHp - Math.max(0, hpAfter ?? beforeHp));
           PixiBoard?.showHitEffect?.('character', char.instanceId, actual);
         });
+      }
+      failedRollPassiveMessages = GameState.resolveFailedRollHeroPassives?.(activePlayer)?.messages ?? [];
+    }
+
+    if (GameState.currentPhase === 'combat') {
+      const pendingBomb = _resolvePendingBomb(activePlayer, roll);
+      if (pendingBomb) {
+        damage += pendingBomb.playerDamage ?? 0;
+        pendingBombMessages = pendingBomb.messages ?? [];
       }
     }
 
@@ -200,6 +231,16 @@ const PhaseManager = (() => {
     const roleResults = GameState.currentPhase === 'combat'
       ? _resolveCaptainRollPassives(activePlayer)
       : { enchantMana: 0, messages: [] };
+    const aplombResult = GameState.resolveAplombPassive?.(activePlayer, roll);
+    if (aplombResult?.triggered) {
+      const healed = (aplombResult.healedPlayer ?? 0) + (aplombResult.healedHero ?? 0);
+      roleResults.messages.push(`Aplomb cleansed ${aplombResult.removed ?? 0} and healed ${healed} HP.`);
+    }
+    const equinoxResult = GameState.resolveEquinoxPassive?.(activePlayer, roll);
+    if (equinoxResult?.triggered) {
+      roleResults.messages.push(`Stellar Stability healed ${equinoxResult.healed ?? 0} HP.`);
+    }
+    failedRollPassiveMessages.forEach(msg => roleResults.messages.push(msg));
     const enchantMana = roleResults.enchantMana;
     const manaGained = rollManaGained + enchantMana;
 
@@ -214,6 +255,7 @@ const PhaseManager = (() => {
 
     DiceAnimation.roll(roll, info, () => {
       if (bombDamage) showToast('Bomb hits your field!', 'combat');
+      pendingBombMessages.forEach(msg => showToast(msg, 'combat'));
       roleResults.messages.forEach(msg => showToast(msg, 'info'));
       animateManaGain(manaGained);
       _updateUI();
@@ -231,8 +273,10 @@ const PhaseManager = (() => {
       const r = RollEngine.rollDie();
       if (r >= 4) {
         enchantMana = GameState.gainMana(3, playerId, { source: 'mana_enchant' });
+        GameState.markEnchantSucceeded?.(playerId, true);
         messages.push(`Enchant +${enchantMana} mana.`);
       } else {
+        GameState.markEnchantSucceeded?.(playerId, false);
         messages.push('Enchant failed.');
       }
     }
@@ -240,9 +284,13 @@ const PhaseManager = (() => {
     if (GameState.hasCaptainClass?.(playerId, 'Balanced')) {
       const r = RollEngine.rollDie();
       if (r >= 4) {
-        const drawn = HandManager.drawAction(playerId);
-        if (drawn.ok && drawn.card) drawn.card._freeCast = true;
-        messages.push(drawn.ok ? 'Enact drew action.' : 'Enact no room.');
+        if (GameState.hasPlayerOrCaptainStatus?.(playerId, 'status_locked_out')) {
+          messages.push('Enact blocked by Locked Out.');
+        } else {
+          const drawn = HandManager.drawAction(playerId);
+          if (drawn.ok && drawn.card) drawn.card._freeCast = true;
+          messages.push(drawn.ok ? 'Enact drew action.' : 'Enact no room.');
+        }
       } else {
         messages.push('Enact missed.');
       }
@@ -251,9 +299,13 @@ const PhaseManager = (() => {
     if (GameState.hasCaptainClass?.(playerId, 'Legendary')) {
       const r = RollEngine.rollDie();
       if (r >= 4) {
-        const drawn = HandManager.drawHero(playerId);
-        if (drawn.ok && drawn.card) drawn.card._freeCast = true;
-        messages.push(drawn.ok ? 'Invocation drew hero.' : 'Invocation no room.');
+        if (GameState.hasPlayerOrCaptainStatus?.(playerId, 'status_locked_out')) {
+          messages.push('Invocation blocked by Locked Out.');
+        } else {
+          const drawn = HandManager.drawHero(playerId);
+          if (drawn.ok && drawn.card) drawn.card._freeCast = true;
+          messages.push(drawn.ok ? 'Invocation drew hero.' : 'Invocation no room.');
+        }
       } else {
         messages.push('Invocation missed.');
       }
@@ -263,6 +315,53 @@ const PhaseManager = (() => {
   }
 
   // ── End Turn ───────────────────────────────────────────────────────────────
+  function _resolvePendingBomb(playerId, roll) {
+    const bomb = GameState.consumePendingBomb?.(playerId);
+    if (!bomb) return null;
+
+    const required = bomb.requiredRoll ?? 5;
+    const messages = [];
+    if (roll >= required) {
+      const refund = bomb.casterId ? GameState.gainMana?.(bomb.refundMana ?? 0, bomb.casterId) ?? 0 : 0;
+      const caster = bomb.casterId ? GameState.getPlayerLabel?.(bomb.casterId) : 'Caster';
+      messages.push(`Bomb defused. ${caster} refunded ${refund} mana.`);
+      return { playerDamage: 0, messages };
+    }
+
+    const bombDamage = Math.max(0, required - roll) * 2;
+    const safeguard = GameState.getSafeguardCaptain?.(playerId, { type: 'player', id: playerId });
+    if (safeguard) {
+      const before = safeguard.currentHp ?? 0;
+      const hpAfter = GameState.damageCharacter?.(safeguard.instanceId, bombDamage, { roleEvasion: false, source: 'bombs_away' });
+      const actual = Math.max(0, before - Math.max(0, hpAfter ?? before));
+      GameState.applyStatus?.(safeguard.instanceId, 'status_impeded', { sharePlayer: false });
+      PixiBoard?.showHitEffect?.('character', safeguard.instanceId, actual);
+      messages.push(`Bomb hits Safeguard for ${actual} and Impedes ${safeguard.name}.`);
+      return { playerDamage: 0, messages };
+    }
+
+    const beforePlayer = GameState.getPlayerState?.(playerId)?.hp ?? 0;
+    const hpAfter = GameState.damagePlayer?.(playerId, bombDamage, {
+      ignoreSidestep: true,
+      roleEvasion: false,
+      splashCaptain: false,
+      source: 'bombs_away',
+    });
+    const playerDamage = Math.max(0, beforePlayer - Math.max(0, hpAfter ?? beforePlayer));
+    PixiBoard?.showHitEffect?.('player', playerId, playerDamage);
+    GameState.applyPlayerStatus?.(playerId, 'status_impeded', { splashCaptain: true });
+
+    [...(GameState.getPlayerState?.(playerId)?.board ?? [])].forEach(char => {
+      const before = char.currentHp ?? 0;
+      const nextHp = GameState.damageCharacter?.(char.instanceId, bombDamage, { roleEvasion: false, source: 'bombs_away' });
+      const actual = Math.max(0, before - Math.max(0, nextHp ?? before));
+      PixiBoard?.showHitEffect?.('character', char.instanceId, actual);
+    });
+
+    messages.push(`Bomb detonates for ${bombDamage} and Impedes ${GameState.getPlayerLabel?.(playerId) ?? 'player'}.`);
+    return { playerDamage, messages };
+  }
+
   function handleEndTurn() {
     if (_step !== STEPS.MAIN) return;
 
@@ -272,6 +371,7 @@ const PhaseManager = (() => {
       _etiquetteRoundDone[currentPlayer] = true;
       if (_etiquetteRoundDone.p1 && _etiquetteRoundDone.p2) {
         GameState.setPhase('combat');
+        GameState.ensureRoundOneForceFields?.();
         showToast('Chaos Phase begins!', 'phase');
       }
     }

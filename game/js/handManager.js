@@ -28,7 +28,7 @@ const HandManager = (() => {
     return GameState.addCardToHand(playerId, card, 'hero');
   }
 
-  function drawAction(playerId) {
+  function drawAction(playerId, options = {}) {
     const p     = GameState.getPlayerState(playerId);
     const limit = _rules.handLimits?.action ?? 8;
     if (p.hand.actions.length >= limit) {
@@ -37,13 +37,112 @@ const HandManager = (() => {
     }
     if (_allActions.length === 0) return { ok: false, error: 'No actions available' };
 
-    const available = _allActions.filter(card =>
+    let available = _allActions.filter(card =>
       p.hand.actions.filter(c => c.id === card.id).length < 2
     );
+    if (options.startingHand) {
+      const duplicateChance = options.duplicateChance ?? _rules.startingHand?.duplicateActionChance ?? 0.3;
+      if (Math.random() >= duplicateChance) {
+        const uniqueOnly = available.filter(card => !p.hand.actions.some(c => c.id === card.id));
+        if (uniqueOnly.length) available = uniqueOnly;
+      }
+    }
     if (available.length === 0) return { ok: false, error: 'No action copies available' };
 
     const card = _pickWeightedByManaCost(available, 'action');
     return GameState.addCardToHand(playerId, card, 'action');
+  }
+
+  function drawStartingAction(playerId) {
+    return drawAction(playerId, {
+      startingHand: true,
+      duplicateChance: _rules.startingHand?.duplicateActionChance ?? 0.3,
+    });
+  }
+
+  function drawFromPile(playerId) {
+    const check = GameState.canDrawFromPile?.(playerId);
+    if (!check?.ok) return check ?? { ok: false, error: 'Draw pile unavailable' };
+
+    const choice = _pickDrawPileCard(playerId);
+    if (!choice) return { ok: false, error: 'No drawable cards fit your hand' };
+
+    const paid = GameState.commitDrawFromPile?.(playerId);
+    if (!paid?.ok) return paid ?? { ok: false, error: 'Draw pile unavailable' };
+
+    const added = GameState.addCardToHand(playerId, choice.card, choice.type);
+    if (!added.ok) return added;
+
+    return { ok: true, card: added.card, type: choice.type, cost: paid.cost };
+  }
+
+  function _pickDrawPileCard(playerId) {
+    const p = GameState.getPlayerState(playerId);
+    const heroFull = (p.hand.heroes?.length ?? 0) >= (_rules.handLimits?.hero ?? 8);
+    const actionFull = (p.hand.actions?.length ?? 0) >= (_rules.handLimits?.action ?? 8);
+    const usedHeroes = GameState.getAllHeroIdsInUse?.({ includeGraveyard: true }) ?? new Set();
+    const availableHeroes = heroFull
+      ? []
+      : _allHeroes.filter(h => !usedHeroes.has(h.id));
+    const availableActions = actionFull
+      ? []
+      : _allActions.filter(card =>
+          card.id !== 'action_junk'
+          && !/^action_junk/.test(card.id ?? '')
+          && p.hand.actions.filter(c => c.id === card.id).length < 2
+        );
+
+    const lowActions = availableActions
+      .filter(card => (card.manaCost ?? 0) >= 0 && (card.manaCost ?? 0) <= 2)
+      .map(card => ({ type: 'action', card }));
+    const midCards = [
+      ...availableHeroes
+        .filter(card => (card.manaCost ?? 0) >= 2 && (card.manaCost ?? 0) <= 4)
+        .map(card => ({ type: 'hero', card })),
+      ...availableActions
+        .filter(card => (card.manaCost ?? 0) >= 3 && (card.manaCost ?? 0) <= 4)
+        .map(card => ({ type: 'action', card })),
+    ];
+    const rareCards = [
+      ...availableHeroes
+        .filter(card => (card.manaCost ?? 0) >= 5 && (card.manaCost ?? 0) <= 7)
+        .map(card => ({ type: 'hero', card })),
+    ];
+    if (!actionFull) rareCards.push({ type: 'action', card: _makeJunkCard() });
+
+    const rows = [
+      { weight: 60, cards: lowActions },
+      { weight: 30, cards: midCards },
+      { weight: 10, cards: rareCards },
+    ].filter(row => row.cards.length);
+    if (!rows.length) return null;
+
+    const total = rows.reduce((sum, row) => sum + row.weight, 0);
+    let roll = Math.random() * total;
+    let pickedRow = rows[rows.length - 1];
+    for (const row of rows) {
+      roll -= row.weight;
+      if (roll <= 0) { pickedRow = row; break; }
+    }
+    return pickedRow.cards[Math.floor(Math.random() * pickedRow.cards.length)];
+  }
+
+  function _makeJunkCard() {
+    return {
+      id: `action_junk_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+      _baseId: 'action_junk',
+      name: 'Junk',
+      imageAsset: 'Junk.png',
+      manaCost: 0,
+      type: 'free',
+      effect: 'junk_damage',
+      effectValue: 2,
+      rarity: 'junk',
+      stackable: true,
+      targetType: 'enemy_any',
+      statusApplied: [],
+      description: 'Free clutter. Deal 1-2 random damage to an enemy target.',
+    };
   }
 
   function _getCostBands(type) {
@@ -193,6 +292,8 @@ const HandManager = (() => {
     init,
     drawHero,
     drawAction,
+    drawStartingAction,
+    drawFromPile,
     discard,
     promptDiscardIfOverLimit,
     promptForcedActionDiscard,

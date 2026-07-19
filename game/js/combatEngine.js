@@ -25,11 +25,11 @@ const CombatEngine = (() => {
 
     const char = GameState.getCharacter(instanceId);
     if (!char) return;
-    if (char.tapped) { showToast('This character is already tapped.', 'warn'); return; }
-    if (char.hasAttackedThisTurn) { showToast('This character has already attacked this turn.', 'warn'); return; }
     if (GameState.getCharacterOwner(instanceId) !== GameState.currentTurn) {
       showToast('You can only attack with your own characters.', 'warn'); return;
     }
+    const gate = GameState.canCharacterAttack?.(char) ?? { ok: true };
+    if (!gate.ok) { showToast(gate.reason, 'warn'); return; }
 
     _pending.attackerId  = instanceId;
     _pending.attackOwner = GameState.currentTurn;
@@ -122,6 +122,25 @@ const CombatEngine = (() => {
     }
   }
 
+  function _resolveEdibleHeal(attacker, declaredTarget, hit) {
+    if (!hit || hit.actualDamage <= 0) return;
+    const actualTarget = { type: hit.type, id: hit.id };
+    const wasEdible = GameState.targetHasStatus?.(declaredTarget, 'status_edible')
+      || GameState.targetHasStatus?.(actualTarget, 'status_edible');
+    if (!wasEdible) return;
+
+    const lethal = hit.type === 'player'
+      ? (hit.hp ?? GameState.getPlayerState?.(hit.id)?.hp ?? 1) <= 0
+      : (hit.hp ?? GameState.getCharacter?.(hit.id)?.currentHp ?? 0) <= 0 || !GameState.getCharacter?.(hit.id);
+    const healed = GameState.resolveEdibleLifesteal?.(attacker, hit.actualDamage, { lethal }) ?? 0;
+    if (healed > 0) {
+      const attackerName = attacker.type === 'player'
+        ? GameState.getPlayerLabel(attacker.id)
+        : GameState.getCharacter(attacker.id)?.name;
+      showToast(`${attackerName ?? 'Attacker'} heals ${healed} from Edible.`, 'info');
+    }
+  }
+
   function _onBlockerClick(e) {
     const el = e.currentTarget;
     _pending.blockerId = el.dataset.charId;
@@ -140,13 +159,9 @@ const CombatEngine = (() => {
     }
     const attacker = GameState.getCharacter(attackerId);
     if (!attacker) return;
-    if (attacker.tapped || attacker.hasAttackedThisTurn) {
-      showToast('This character has already attacked this turn.', 'warn'); return;
-    }
     if (GameState.getCharacterOwner(attackerId) !== GameState.currentTurn) {
       showToast('You can only attack with your own characters.', 'warn'); return;
     }
-    // Status effects can block attacking (crippled, impeded, frozen)
     const gate = GameState.canCharacterAttack?.(attacker) ?? { ok: true };
     if (!gate.ok) { showToast(gate.reason, 'warn'); return; }
 
@@ -176,6 +191,14 @@ const CombatEngine = (() => {
       targetId   = pick.id;
     }
 
+    if (GameState.isCharmedActionBlocked?.(
+      { type: 'character', id: attackerId },
+      { type: targetType, id: targetId }
+    )) {
+      showToast(`${attacker.name} is Charmed and cannot target the charmer.`, 'warn');
+      return;
+    }
+
     _pending.attackerId  = attackerId;
     _pending.attackOwner = ownerId;
     _pending.targetType  = targetType;
@@ -203,8 +226,14 @@ const CombatEngine = (() => {
         const blockDamage = GameState.getEffectiveAttack?.(blocker) ?? blocker.baseAttack;
         const blockerBefore = blocker.currentHp ?? 0;
         const attackerBefore = attacker.currentHp ?? 0;
-        const blockerHp = GameState.damageCharacter(blockerId, attackDamage);
-        const attackerHp = GameState.damageCharacter(attackerId, blockDamage);
+        const blockerHp = GameState.damageCharacter(blockerId, attackDamage, {
+          source: 'base_attack',
+          attacker: { type: 'character', id: attackerId },
+        });
+        const attackerHp = GameState.damageCharacter(attackerId, blockDamage, {
+          source: 'base_attack',
+          attacker: { type: 'character', id: blockerId },
+        });
         const blockerActual = Math.max(0, blockerBefore - Math.max(0, blockerHp ?? blockerBefore));
         const attackerActual = Math.max(0, attackerBefore - Math.max(0, attackerHp ?? attackerBefore));
         PixiBoard?.showHitEffect?.('character', blockerId,  blockerActual);
@@ -213,29 +242,50 @@ const CombatEngine = (() => {
           `${attacker.name} attacks ${blocker.name}! ${blockerActual} vs ${attackerActual} damage.`,
           'combat'
         );
+        _resolveEdibleHeal(
+          { type: 'character', id: attackerId },
+          { type: 'character', id: blockerId },
+          { type: 'character', id: blockerId, actualDamage: blockerActual, hp: blockerHp }
+        );
       }
     } else if (targetType === 'player') {
       // ── Unblocked direct attack ───────────────────────────────────────────
-      const hit = GameState.damageTarget?.({ type: 'player', id: targetId }, attackDamage)
+      const hit = GameState.damageTarget?.({ type: 'player', id: targetId }, attackDamage, {
+        source: 'base_attack',
+        attacker: { type: 'character', id: attackerId },
+      })
         ?? { type: 'player', id: targetId, actualDamage: attackDamage, hp: GameState.damagePlayer(targetId, attackDamage, { splashCaptain: true }) };
       PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
       showToast(hit.safeguarded
         ? `${attacker.name} hits Safeguard.`
         : `${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${hit.actualDamage}! HP → ${hit.hp}`,
         'combat');
+      _resolveEdibleHeal(
+        { type: 'character', id: attackerId },
+        { type: 'player', id: targetId },
+        hit
+      );
     } else if (targetType === 'character') {
       // ── Unblocked character attack ────────────────────────────────────────
       const target = GameState.getCharacter(targetId);
       if (target) {
         // Retort-style statuses reflect damage back at the attacker
         const retort = target.statuses?.find(s => s.trigger === 'on_attacked');
-        const hit = GameState.damageTarget?.({ type: 'character', id: targetId }, attackDamage)
+        const hit = GameState.damageTarget?.({ type: 'character', id: targetId }, attackDamage, {
+          source: 'base_attack',
+          attacker: { type: 'character', id: attackerId },
+        })
           ?? { type: 'character', id: targetId, actualDamage: GameState.previewCharacterDamage?.(targetId, attackDamage) ?? attackDamage };
         PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
         showToast(hit.safeguarded
           ? `${attacker.name} hits Safeguard.`
           : `${attacker.name} attacks ${target.name} for ${hit.actualDamage}!`,
           'combat');
+        _resolveEdibleHeal(
+          { type: 'character', id: attackerId },
+          { type: 'character', id: targetId },
+          hit
+        );
         if (retort) {
           const before = attacker.currentHp ?? 0;
           const hp = GameState.damageCharacter(attackerId, 2);
@@ -246,10 +296,13 @@ const CombatEngine = (() => {
       }
     }
 
-    // Tap attacker and mark as attacked
-    attacker.tapped = true;
-    attacker.hasAttackedThisTurn = true;
-    GameState.tapCharacter(attackerId);
+    GameState.spreadRabiesFromTarget?.(
+      { type: 'character', id: attackerId },
+      { requireVitalized: true, chance: 1 }
+    );
+
+    // Tap attacker and mark as attacked.
+    GameState.tapCharacter(attackerId, { actionType: 'attack' });
 
     _reset();
     renderBoard();
@@ -259,6 +312,11 @@ const CombatEngine = (() => {
   function resolvePlayerBaseAttack(attackerPlayerId, target) {
     if (!target) {
       showToast('Player attack cancelled.', 'info');
+      return;
+    }
+
+    if (GameState.isCharmedActionBlocked?.({ type: 'player', id: attackerPlayerId }, target)) {
+      showToast(`${GameState.getPlayerLabel(attackerPlayerId)} is Charmed and cannot target the charmer.`, 'warn');
       return;
     }
 
@@ -275,22 +333,43 @@ const CombatEngine = (() => {
       : '';
     if (target?.type === 'character') {
       const targetChar = GameState.getCharacter(target.id);
-      const hit = GameState.damageTarget?.(target, damage)
+      const hit = GameState.damageTarget?.(target, damage, {
+        source: 'player_base_attack',
+        attacker: { type: 'player', id: attackerPlayerId },
+      })
         ?? { type: 'character', id: target.id, actualDamage: damage };
       PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
       showToast(hit.safeguarded
         ? `${GameState.getPlayerLabel(attackerPlayerId)} hits Safeguard.`
         : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${targetChar?.name ?? 'target'} for ${hit.actualDamage}.${hpBonusText}`,
         'combat');
+      _resolveEdibleHeal(
+        { type: 'player', id: attackerPlayerId },
+        target,
+        hit
+      );
     } else if (target?.type === 'player') {
-      const hit = GameState.damageTarget?.(target, damage)
+      const hit = GameState.damageTarget?.(target, damage, {
+        source: 'player_base_attack',
+        attacker: { type: 'player', id: attackerPlayerId },
+      })
         ?? { type: 'player', id: target.id, actualDamage: damage, hp: GameState.damagePlayer(target.id, damage, { splashCaptain: true }) };
       PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
       showToast(hit.safeguarded
         ? `${GameState.getPlayerLabel(attackerPlayerId)} hits Safeguard.`
         : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${GameState.getPlayerLabel(target.id)} for ${hit.actualDamage}. HP → ${hit.hp}`,
         'combat');
+      _resolveEdibleHeal(
+        { type: 'player', id: attackerPlayerId },
+        target,
+        hit
+      );
     }
+
+    GameState.spreadRabiesFromTarget?.(
+      { type: 'player', id: attackerPlayerId },
+      { requireVitalized: true, chance: 1 }
+    );
 
     renderBoard();
     PhaseManager.checkWin?.();

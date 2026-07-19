@@ -36,9 +36,10 @@
   <!-- HTML action buttons — centered overlay strip -->
   <div id="game-actions">
     <button id="btn-roll"     class="gd-btn roll-btn">🎲 Roll Now</button>
-    <button id="btn-shop"     class="gd-btn shop-btn">🛒 Shop</button>
+    <button id="btn-shop"     class="gd-btn shop-btn">Card Shop</button>
     <button id="btn-resolve"  class="gd-btn resolve-btn hidden">⚔ Resolve</button>
     <button id="btn-end-turn" class="gd-btn end-btn">End Turn ▶</button>
+    <button id="btn-graveyard" class="gd-btn grave-btn">Graveyard</button>
   </div>
   <button id="btn-options" class="options-btn">Options</button>
 </div>
@@ -67,7 +68,7 @@
       <h2>Setup</h2>
       <ul>
         <li>Each player starts with <strong>40 HP</strong>.</li>
-        <li>Each player draws the current default starting hand from the playtest settings.</li>
+        <li>Each player starts with <strong>1 hero card</strong> and <strong>3 action cards</strong>.</li>
         <li>Both players roll for first turn. Highest roll goes first. Ties re-roll.</li>
         <li>In PvE, you enter your player name and the game randomly assigns a CPU opponent.</li>
       </ul>
@@ -85,12 +86,15 @@
         <li>Players may deploy heroes and buy from the shop.</li>
         <li>No attacks, hero abilities, role-passive rolls, or action cards are allowed in Order Phase.</li>
         <li>Roll-Off values provide starting mana for Order Phase setup; Death Die damage begins in Chaos Phase.</li>
+        <li>If Roll-Off has a tie or the final rolls differ by more than 2, each player moves their starting hero into the captain slot for free.</li>
+        <li>Drawing from the Draw Pile costs 0 mana during Order Phase.</li>
       </ul>
       <h2>Chaos Phase</h2>
       <ul>
         <li>The Chaos Phase replaces the old Combat Phase name.</li>
         <li>Turns repeat until one player reaches 0 HP.</li>
         <li>Your turn starts with a Death Die roll after a short countdown. Roll Now skips the wait.</li>
+        <li>Lower HP ranges and major HP deficits improve a player's Card Shop offer tier until they heal back up.</li>
       </ul>
     </div>
 
@@ -99,13 +103,33 @@
       <ul>
         <li>Mana is spent to deploy heroes, buy from the shop, use abilities, and play action cards.</li>
         <li>Your mana pool carries over between turns and normally caps at <strong>12</strong>.</li>
-        <li>The shop currently limits purchases by card type each turn. Some effects can lock the shop or reveal extra offers.</li>
+        <li>The Card Shop limits purchases by card type each turn. Hero offers deploy immediately for their card cost; action offers cast immediately for their card cost when action cards are legal.</li>
+        <li>Accelerated players or captains gain one extra shop purchase of each type while Accelerated.</li>
+        <li>Some effects can lock the shop or reveal extra offers.</li>
         <li>Right-click a hand card to discard it for mana, within the current discard limits.</li>
       </ul>
       <h2>Card Timing</h2>
       <ul>
         <li>Action cards can only be played in the Chaos Phase after rolling the Death Die.</li>
         <li>Free action cards still follow the same phase restriction.</li>
+        <li>Abstain is free, but it must be played before your major actions for the turn. It draws 2 action cards, strips buffs from your player/captain, prevents player/captain attacks for the turn, and locks further shop/cast actions.</li>
+        <li>Accelerate can target a friendly hero or player unless that target is Charmed. It cancels Impede, Frozen, and Drunk.</li>
+        <li>Augment targets your player/captain or a friendly hero, grants +2 mana, and gives +2 base attack for 3 turns. Player/captain Augment also prevents one failed Death Die damage instance, then expires.</li>
+        <li>Blood Mana grants up to 4 mana, doubled while Crippled or Rabid, then deals scaling backlash. It cannot be cast if the backlash would defeat you.</li>
+        <li>Bombs Away passes a bomb to the enemy's next Death Die roll. Rolling 5-6 defuses it; failing detonates for double the difference and applies Impede.</li>
+        <li>Cheese Potion targets an enemy hero or player, deals 3 damage, and inflicts Edible.</li>
+        <li>Cleanse removes debuffs from a friendly hero or player/captain, then heals based on the number removed.</li>
+        <li>Cripple costs 3 mana, deals 2 initial damage, and inflicts Crippled for 2 turns unless the target is Rabid.</li>
+        <li>Cryofreeze rolls a d6: 4-6 grants +12 Verglas to your player/captain; 1-3 damages and may Freeze only your player/captain.</li>
+        <li>Damage Potion rolls one d6 after hitting up to two targets. On 6, hit targets Burn and your player/captain gain Damage Boost.</li>
+        <li>Drunk Potion targets an enemy hero or player/captain, deals 3 damage, and inflicts Drunk.</li>
+        <li>Gas Potion deals 1 initial damage, Poisons, has a 1/2 chance to spread Poison, and can detonate already Poisoned targets.</li>
+        <li>Impede deals 2 initial damage and disables Sidestep, Evasive Maneuver, and Safeguard without blocking normal attacks or most abilities.</li>
+        <li>Imp-Paired deals 2 initial damage and halves outgoing attack, ability, and action-card damage, rounded down.</li>
+        <li>Love Potion inflicts Charmed. Charmed targets cannot target the charmer or their captain, lose dodge/Safeguard defenses, and successful charms heal the caster 1 HP.</li>
+        <li>Rabies costs 4 mana, deals 4 damage each turn, doubles other incoming damage, can spread each turn, and does not stack separate Poison or Cripple effects.</li>
+        <li>Sidestep grants a guaranteed dodge against the next attack or debuff. Accelerated targets get 2 charges; Safeguard disables Sidestep.</li>
+        <li>Vitalize costs 3 mana, heals 8 HP or 12 HP when critical, cleanses up to 2 non-Rabies debuffs, and grants Vitalized for doubled later healing.</li>
       </ul>
     </div>
 
@@ -125,7 +149,7 @@
         <li>Drag a hero onto an enemy hero or HP icon to attack.</li>
         <li>Click your hero to open its ability panel, then choose a target if the ability is available.</li>
         <li>Each hero normally performs one action per turn: attack or ability.</li>
-        <li>Accelerate and Speed-role effects can create extra action opportunities.</li>
+        <li>Accelerate and Speed-role effects can create extra action opportunities. Player or captain Accelerate also increases action-card, hero-cast, player-attack, draw-pile, discard-for-mana, and shop limits by 1.</li>
         <li>Statuses are shown on cards and player HUDs with turns remaining where applicable.</li>
       </ul>
     </div>
@@ -279,13 +303,45 @@
       <div>
         <h2>🛒 Card Shop</h2>
         <div class="shop-mana-line">Available: <strong id="shop-mana-val">0</strong> ◆ mana</div>
+        <div class="shop-mana-line">Offer tier: <strong id="shop-profile-val">Order</strong></div>
       </div>
       <button id="btn-shop-close" class="menu-btn secondary" style="width:auto;">✕ Close</button>
     </div>
-    <div class="shop-section-label">Heroes — 2 ◆ each</div>
-    <div class="shop-grid" id="shop-heroes"></div>
-    <div class="shop-section-label" style="margin-top:20px;">Actions — 1 ◆ each</div>
-    <div class="shop-grid" id="shop-actions"></div>
+    <div class="shop-tabs" role="tablist" aria-label="Card Shop pages">
+      <button id="shop-tab-heroes" class="shop-tab active" type="button" data-shop-page="hero">Heroes</button>
+      <button id="shop-tab-actions" class="shop-tab" type="button" data-shop-page="action">Actions</button>
+    </div>
+    <div class="shop-page" data-shop-page-panel="hero">
+      <div class="shop-section-label">Heroes — deploy for card cost</div>
+      <div class="shop-grid" id="shop-heroes"></div>
+    </div>
+    <div class="shop-page hidden" data-shop-page-panel="action">
+      <div class="shop-section-label">Actions — cast for card cost</div>
+      <div class="shop-grid" id="shop-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Hero Graveyard -->
+<div id="overlay-graveyard" class="overlay-bg hidden">
+  <div class="graveyard-panel">
+    <div class="graveyard-header">
+      <div>
+        <h2>Hero Graveyard</h2>
+        <div id="graveyard-subtitle" class="graveyard-subtitle">Fallen heroes</div>
+      </div>
+      <button id="btn-graveyard-close" class="menu-btn secondary" type="button">Close</button>
+    </div>
+    <div class="graveyard-tabs">
+      <button class="graveyard-tab active" type="button" data-graveyard-player="p1">Player 1</button>
+      <button class="graveyard-tab" type="button" data-graveyard-player="p2">Player 2</button>
+    </div>
+    <div id="graveyard-grid" class="graveyard-grid"></div>
+    <div class="graveyard-pager">
+      <button id="btn-graveyard-prev" class="menu-btn secondary" type="button">Back</button>
+      <div id="graveyard-page-label" class="graveyard-page-label">Page 1 / 1</div>
+      <button id="btn-graveyard-next" class="menu-btn primary" type="button">Next</button>
+    </div>
   </div>
 </div>
 

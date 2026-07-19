@@ -13,13 +13,13 @@ const HeroAbilities = (() => {
     },
     Fighter: {
       abilityName: 'Strike', manaCost: 2, effect: 'deal_damage', effectValue: 3,
-      targetType: 'single_enemy', statusApplied: [],
-      description: 'Deal 3 damage to an enemy character.',
+      targetType: 'enemy_any', statusApplied: [],
+      description: 'Deal 3 damage to an enemy hero or player.',
     },
     Brute: {
       abilityName: 'Smash', manaCost: 2, effect: 'deal_damage', effectValue: 4,
-      targetType: 'single_enemy', statusApplied: [],
-      description: 'Deal 4 damage to an enemy character.',
+      targetType: 'enemy_any', statusApplied: [],
+      description: 'Deal 4 damage to an enemy hero or player.',
     },
     Ranged: {
       abilityName: 'Snipe', manaCost: 1, effect: 'deal_damage', effectValue: 2,
@@ -33,13 +33,13 @@ const HeroAbilities = (() => {
     },
     Control: {
       abilityName: 'Lockdown', manaCost: 2, effect: 'apply_status', effectValue: 0,
-      targetType: 'single_enemy', statusApplied: ['status_crippled'],
-      description: 'Cripple an enemy so it cannot attack next turn.',
+      targetType: 'enemy_any', statusApplied: ['status_crippled'],
+      description: 'Cripple an enemy hero or player.',
     },
     Trickster: {
       abilityName: 'Sabotage', manaCost: 1, effect: 'apply_status', effectValue: 0,
-      targetType: 'single_enemy', statusApplied: ['status_poisoned'],
-      description: 'Poison an enemy for 3 turns.',
+      targetType: 'enemy_any', statusApplied: ['status_poisoned'],
+      description: 'Poison an enemy hero or player.',
     },
     Agile: {
       abilityName: 'Adrenaline', manaCost: 1, effect: 'apply_status', effectValue: 0,
@@ -94,15 +94,39 @@ const HeroAbilities = (() => {
   }
 
   function _specialFor(card) {
+    if (card.id === 'hero_afrodisiac') {
+      return {
+        abilityName: 'Chocolate Clams',
+        manaCost: 3,
+        effect: 'apply_status',
+        effectValue: 0,
+        targetType: 'enemy_any',
+        statusApplied: ['status_charmed'],
+        description: card.heroAbility || card.docAbility || 'Inflict Charmed on an enemy hero or player for 1 turn.',
+      };
+    }
+
+    if (card.id === 'hero_aegalien') {
+      return {
+        abilityName: 'Lapis Lazuli',
+        manaCost: 4,
+        effect: 'lapis_lazuli',
+        effectValue: 3,
+        targetType: 'enemy_any',
+        statusApplied: ['status_impaired', 'status_crippled'],
+        description: card.heroAbility || card.docAbility || 'Deal 3 damage, Impair, then Cripple if possible.',
+      };
+    }
+
     if (card.id === 'hero_cheatah') {
       return {
         abilityName: 'Cheetah Code',
         manaCost: 4,
-        effect: 'cheatah_reroll',
+        effect: 'cheatah_code',
         effectValue: 0,
         targetType: 'self',
-        statusApplied: [],
-        description: 'Roll the event die and gain that much mana, bypassing the mana cap.',
+        statusApplied: ['status_accelerated', 'status_cheatah_code'],
+        description: card.heroAbility || card.docAbility || 'Accelerate Cheatah and your player, then block the next failed Death Die damage for +4 mana.',
       };
     }
 
@@ -110,35 +134,131 @@ const HeroAbilities = (() => {
       return {
         abilityName: 'Roid Rage',
         manaCost: 4,
-        effect: 'apply_status',
+        effect: 'roid_rage',
         effectValue: 0,
         targetType: 'self',
-        statusApplied: ['status_stimulated', 'status_anemic', 'status_crippled'],
-        description: card.docAbility || 'Stim Aster Roid for 3 turns.',
+        statusApplied: ['status_damage_boost', 'status_anemic'],
+        description: card.heroAbility || card.docAbility || 'Gain x1.5 damage, +8 overhealth cap, and cannot be healed for 3 turns.',
+      };
+    }
+
+    if (card.id === 'hero_baller_ina') {
+      return {
+        abilityName: 'Basket-Ballad',
+        manaCost: 2,
+        effect: 'duel',
+        effectValue: 5,
+        targetType: 'single_enemy',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. If Baller-ina wins, she and your player gain Sidestep.',
+      };
+    }
+
+    if (card.id === 'hero_bearzerk') {
+      return {
+        abilityName: 'Bearzerker Rampage',
+        manaCost: 6,
+        effect: 'bearzerk_rampage',
+        effectValue: 5,
+        targetType: 'all_enemies',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Deal 5 damage to all enemy heroes and player. Heal 2 HP for each enemy hero killed.',
+      };
+    }
+
+    if (card.id === 'hero_beeatrice') {
+      return {
+        abilityName: 'Stinging Barbs',
+        manaCost: 4,
+        effect: 'stinging_barbs',
+        effectValue: 3,
+        targetType: 'enemy_any',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Deal 3 damage to an enemy hero or player, or 6 if that target is debuffed.',
+      };
+    }
+
+    if (card.id === 'hero_breast_knuckle') {
+      return {
+        abilityName: 'Bust Thrust',
+        manaCost: 4,
+        effect: 'duel',
+        effectValue: 7,
+        targetType: 'single_enemy',
+        statusApplied: ['status_impeded', 'status_crippled'],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. If Breast Knuckle wins, Impede and Cripple the loser, then give Breast Knuckle and your player +4 armor.',
+      };
+    }
+
+    if (card.id === 'hero_bro_chill') {
+      return {
+        abilityName: 'Chill Out!',
+        manaCost: 5,
+        effect: 'heal',
+        effectValue: 3,
+        targetType: 'all_allies',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Cleanse and heal 3 HP to all allied heroes and player.',
+      };
+    }
+
+    if (card.id === 'hero_cath_eine') {
+      return {
+        abilityName: 'Caffeine Rush',
+        manaCost: 3,
+        effect: 'caffeine_rush',
+        effectValue: 4,
+        targetType: 'enemy_any',
+        statusApplied: ['status_accelerated', 'status_sidestep'],
+        description: card.heroAbility || card.docAbility || 'Cath-eine gains Accelerated and Sidestep, then deals 4 damage to an enemy hero or player.',
+      };
+    }
+
+    if (card.id === 'hero_cut_lass') {
+      return {
+        abilityName: 'Booty Brawl',
+        manaCost: 3,
+        effect: 'duel',
+        effectValue: 6,
+        targetType: 'single_enemy',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 6 damage and loot up to 2 mana plus 1 action card.',
+      };
+    }
+
+    if (card.id === 'hero_disc_jockey') {
+      return {
+        abilityName: 'Ambient Heal',
+        manaCost: 3,
+        effect: 'heal',
+        effectValue: 6,
+        targetType: 'all_allies',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Cleanse debuffed allies and heal all allied heroes and player for up to 6 HP.',
       };
     }
 
     if (card.id === 'hero_dread_locks') {
       return {
-        abilityName: 'Locked Out',
+        abilityName: 'Deadlock',
         manaCost: 3,
-        effect: 'shop_lock',
-        effectValue: 0,
-        targetType: 'enemy_player',
-        statusApplied: ['status_locked_out'],
-        description: 'Lock the enemy shop for 2 turns.',
+        effect: 'duel',
+        effectValue: 4,
+        targetType: 'single_enemy',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 4 damage and lock the enemy shop and Draw Pile for 3 turns.',
       };
     }
 
     if (card.id === 'hero_goosebump') {
       return {
         abilityName: 'Avian Flu',
-        manaCost: 3,
-        effect: 'deal_damage_apply_status',
-        effectValue: 4,
+        manaCost: 4,
+        effect: 'avian_flu',
+        effectValue: 5,
         targetType: 'enemy_any',
-        statusApplied: ['status_rabies'],
-        description: card.docAbility || 'Deal 4 damage and inflict Rabies on an enemy hero or player.',
+        statusApplied: ['status_rabies', 'status_damage_boost'],
+        description: card.heroAbility || card.docAbility || 'Gain +4 overhealth and Damage Boost, then deal 5 damage and inflict Rabies on an enemy hero or player.',
       };
     }
 
@@ -147,10 +267,106 @@ const HeroAbilities = (() => {
         abilityName: 'Tapped Out',
         manaCost: 6,
         effect: 'deal_damage_apply_status',
-        effectValue: 3,
+        effectValue: 4,
         targetType: 'all_enemies',
         statusApplied: ['status_impeded'],
-        description: 'Deal 3 damage and Impede all enemy heroes.',
+        description: card.heroAbility || card.docAbility || 'Deal 4 damage and Impede all enemy heroes and player.',
+      };
+    }
+
+    if (card.id === 'hero_equinox') {
+      return {
+        abilityName: 'Swift Squall',
+        manaCost: 6,
+        effect: 'swift_squall',
+        effectValue: 0,
+        targetType: 'all_allies',
+        statusApplied: ['status_accelerated', 'status_augmented', 'status_sidestep'],
+        description: card.heroAbility || card.docAbility || 'Give all allied heroes and player Accelerated, Augmented, and Sidestep for 3 turns.',
+      };
+    }
+
+    if (card.id === 'hero_fryborg') {
+      return {
+        abilityName: 'Sci-Fry',
+        manaCost: 5,
+        effect: 'duel',
+        effectValue: 5,
+        targetType: 'single_enemy',
+        statusApplied: ['status_burning'],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 5 damage and inflict Burning.',
+      };
+    }
+
+    if (card.id === 'hero_ghoulia') {
+      return {
+        abilityName: 'Ex-Hex',
+        manaCost: 4,
+        effect: 'deal_damage_apply_status',
+        effectValue: 4,
+        targetType: 'enemy_any',
+        statusApplied: ['status_haunted'],
+        description: card.heroAbility || card.docAbility || 'Deal 4 damage and inflict Haunted on an enemy hero or player.',
+      };
+    }
+
+    if (card.id === 'hero_giant_jess') {
+      return {
+        abilityName: 'Titaness Toss',
+        manaCost: 5,
+        effect: 'titaness_toss',
+        effectValue: 7,
+        targetType: 'enemy_any',
+        statusApplied: ['status_augmented'],
+        description: card.heroAbility || card.docAbility || 'Gain 4 overhealth and +2 base attack, then deal 7 damage to up to 2 enemies.',
+      };
+    }
+
+    if (card.id === 'hero_gorgon_zola') {
+      return {
+        abilityName: 'Say Cheese!',
+        manaCost: 5,
+        effect: 'say_cheese',
+        effectValue: 3,
+        targetType: 'enemy_any',
+        statusApplied: ['status_edible'],
+        description: card.heroAbility || card.docAbility || 'Deal 3 damage and inflict Edible on an enemy hero or player. Has a 1/3 chance to spread.',
+      };
+    }
+
+    if (card.id === 'hero_hip_hop_papa') {
+      return {
+        abilityName: 'Breakback Breakdance',
+        manaCost: 4,
+        effect: 'breakback_breakdance',
+        effectValue: 5,
+        targetType: 'self',
+        statusApplied: ['status_impeded'],
+        description: card.heroAbility || card.docAbility || '1/2 chance to deal 5 damage to all enemies and Impede enemy player/captain. On failure, Hip-Hop Papa and your player take 5 damage and are Impeded.',
+      };
+    }
+
+    if (card.id === 'hero_in_specter') {
+      return {
+        abilityName: 'Sleuth Seance',
+        manaCost: 3,
+        effect: 'sleuth_seance',
+        effectValue: 1,
+        targetType: 'self',
+        statusApplied: ['status_haunted'],
+        description: card.heroAbility || card.docAbility || 'Draw a free action card. If the enemy has that action in hand, inflict Haunted on the enemy player/captain.',
+      };
+    }
+
+    if (card.id === 'hero_juju_jitsu') {
+      return {
+        abilityName: 'Vooduel',
+        manaCost: 5,
+        effect: 'duel',
+        effectValue: 6,
+        targetType: 'single_enemy',
+        statusApplied: ['status_jinxed'],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. If Juju-Jitsu wins, the loser takes 6 damage and Jinxed.',
       };
     }
 
@@ -162,19 +378,19 @@ const HeroAbilities = (() => {
         effectValue: 0,
         targetType: 'self',
         statusApplied: ['status_accelerated', 'status_impeded'],
-        description: card.docAbility || 'Accelerate all allies and Impede all enemies for 2 turns.',
+        description: card.heroAbility || card.docAbility || 'Accelerate all allies and Impede all enemies for 2 turns.',
       };
     }
 
     if (card.id === 'hero_copy_cat') {
       return {
         abilityName: 'Meowrox',
-        manaCost: 1,
-        effect: 'copy_enemy_ability',
+        manaCost: 0,
+        effect: 'meowrox',
         effectValue: 0,
-        targetType: 'single_enemy',
+        targetType: 'self',
         statusApplied: [],
-        description: card.docAbility || 'Copy an enemy character ability and turn it back on them.',
+        description: card.heroAbility || card.docAbility || 'Gain 4 overhealth and create a Copy if there is room. If the field is full, your first action card becomes free to cast.',
       };
     }
 
@@ -190,7 +406,7 @@ const HeroAbilities = (() => {
   }
 
   function _sourceText(card) {
-    if (card.docAbility) return card.docAbility;
+    if (card.heroAbility || card.docAbility) return card.heroAbility || card.docAbility;
     const key = (card.name ?? '').toLowerCase().trim();
     const flavor = (typeof CHARACTER_ABILITIES !== 'undefined') ? CHARACTER_ABILITIES[key] : null;
     return flavor?.ability1 ?? flavor?.passive ?? '';
@@ -240,7 +456,7 @@ const HeroAbilities = (() => {
 
     if (damages) {
       ability.effect = status ? 'deal_damage_apply_status' : 'deal_damage';
-      ability.targetType = allEnemies ? 'all_enemies' : (enemyAny ? 'enemy_any' : 'single_enemy');
+      ability.targetType = allEnemies ? 'all_enemies' : 'enemy_any';
       return ability;
     }
 
@@ -268,7 +484,7 @@ const HeroAbilities = (() => {
     if (status) {
       ability.effect = 'apply_status';
       ability.effectValue = 0;
-      ability.targetType = selfBuff ? 'self' : (allAllies ? 'all_allies' : (allEnemies ? 'all_enemies' : (enemyAny ? 'enemy_any' : 'single_enemy')));
+      ability.targetType = selfBuff ? 'self' : (allAllies ? 'all_allies' : (allEnemies ? 'all_enemies' : 'enemy_any'));
       return ability;
     }
 

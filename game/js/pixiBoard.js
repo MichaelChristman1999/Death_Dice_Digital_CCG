@@ -54,6 +54,7 @@ const PixiBoard = (() => {
   let _drag = null;   // { ct, offX, offY, isChar }
   let _hand  = { p1: [], p2: [] };
   let _board = { p1: [], p2: [] };
+  let _pileTargets = {};
   let _cbs  = {};     // callbacks from main.js
   let _lastFlippedTurn = null; // track when to animate the turn flip
   let _playerIcons = {};       // { p1: Container, p2: Container }
@@ -704,6 +705,7 @@ const PixiBoard = (() => {
 
   function _updateDicePips(dc, value) {
     dc._pips.removeChildren();
+    dc._value = 0;
     if (!value || value < 1 || value > 6) return;
     const g = new PIXI.Graphics();
     const spread = 13;
@@ -786,7 +788,9 @@ const PixiBoard = (() => {
       bar._barFg.drawRoundedRect(x, y, Math.max(4, w * pct), h, 5);
       bar._barFg.endFill();
       if (bar._tierTxt) {
-        bar._tierTxt.text = (tier.label ?? _hpTierInfo(pct).label).toUpperCase();
+        const forceField = GameState?.getPlayerForceField?.(pid) ?? 0;
+        const tierLabel = (tier.label ?? _hpTierInfo(pct).label).toUpperCase();
+        bar._tierTxt.text = forceField > 0 ? `${tierLabel} +${forceField} FIELD` : tierLabel;
         bar._tierTxt.style.fill = col;
       }
       if (bar._stats?.text !== undefined) {
@@ -821,6 +825,14 @@ const PixiBoard = (() => {
         dot._fill.scale.set(filled ? 1 : 0.1);
         if (dot._glow) dot._glow.alpha = filled ? 0.85 : 0;
       });
+    }
+
+    const hudDieValue = phase === 'etiquette'
+      ? (GameState.getRolloffRolls?.()?.[activePid] ?? null)
+      : (GameState.getLastRoll?.() ?? null);
+    const hudDc = _hud.center?._diceContainer;
+    if (hudDc && hudDc._value !== (hudDieValue ?? 0)) {
+      _updateDicePips(hudDc, hudDieValue);
     }
 
     // HTML button states + roll pulse
@@ -1116,7 +1128,7 @@ const PixiBoard = (() => {
   function _statusPill(s) {
     const sid = (s.id ?? '').replace(/^status_/, '');
     const chip = new PIXI.Container();
-    const dur  = s.remainingDuration != null ? String(s.remainingDuration) : '';
+    const dur  = s.remainingCharges != null ? String(s.remainingCharges) : (s.remainingDuration != null ? String(s.remainingDuration) : '');
     const PW   = dur ? 34 : 22, PH = 18;
     chip._pw = PW;
 
@@ -1134,7 +1146,7 @@ const PixiBoard = (() => {
         icon.beginFill(0x33dd55); icon.drawCircle(cx, cy + 1.5, 4.5);
         icon.drawPolygon([cx, cy - 6.5, cx - 3.4, cy - 0.5, cx + 3.4, cy - 0.5]); icon.endFill();
         break;
-      case 'augmented': case 'accelerated': case 'buffed': case 'sidestep': // green up-arrow
+      case 'augmented': case 'accelerated': case 'buffed': case 'sidestep': case 'vitalized': // green up-arrow
         icon.beginFill(0x33ee66);
         icon.drawPolygon([cx, cy - 6, cx - 5.5, cy + 4, cx + 5.5, cy + 4]); icon.endFill();
         break;
@@ -1335,12 +1347,7 @@ const PixiBoard = (() => {
     ct.interactive = true; ct.cursor = canPlay ? 'pointer' : 'not-allowed';
     ct.on('pointerover', () => _setHandHover(ct, true));
     ct.on('pointerout',  () => _setHandHover(ct, false));
-    ct.on('pointerdown', (e) => {
-      if (_targetMode) return;
-      e.stopPropagation();
-      if (owner !== (GameState?.currentTurn ?? '')) return;
-      _cbs.onActionPlay?.({ card, owner });
-    });
+    ct.on('pointerdown', (e) => _dragStart(e, ct));
     ct.on('rightdown', (e) => {
       e.stopPropagation();
       if (owner !== (GameState?.currentTurn ?? '')) return;
@@ -1352,6 +1359,23 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   // BOARD CHARACTER CARD
   // ════════════════════════════════════════════════════════════════════════════
+  function _charHasStatus(char, statusId) {
+    return (char?.statuses ?? []).some(s => s.id === statusId);
+  }
+
+  function _charShuffleGate(char, owner) {
+    if (owner !== (GameState?.currentTurn ?? 'p1')) return { ok: false, reason: 'Not your turn' };
+    if (!(PhaseManager?.canAct?.() ?? false)) return { ok: false, reason: 'Roll the Death Die before moving heroes.' };
+    if (_charHasStatus(char, 'status_frozen')) return { ok: false, reason: `${char.name} is Frozen and cannot be shuffled.` };
+    return { ok: true };
+  }
+
+  function _charAttackDragGate(char, owner) {
+    if (owner !== (GameState?.currentTurn ?? 'p1')) return { ok: false, reason: 'Not your turn' };
+    if (!(PhaseManager?.canAttack?.() ?? false)) return { ok: false, reason: 'Attacks are not available right now.' };
+    return GameState?.canCharacterAttack?.(char) ?? { ok: true };
+  }
+
   function _charCard(char, owner) {
     const { w, h } = CC;
     const ct = new PIXI.Container();
@@ -1361,7 +1385,7 @@ const PixiBoard = (() => {
     const name  = src.name || _parseName(src) || char.name || '?';
     const hpPct = Math.max(0, Math.min(1, char.currentHp / (char.maxHp || 1)));
     const isOwn = owner === 'p1';
-    const isTap = char.tapped || char.hasAttackedThisTurn;
+    const isTap = char.tapped;
     const isCaptain = char.instanceId === GameState?.getPlayerState?.(owner)?.captainId;
     const bCol  = isCaptain ? P.gold : hpPct > 0.5 ? (isOwn ? P.own : P.opp) : hpPct > 0.2 ? P.warn : P.red;
 
@@ -1427,7 +1451,7 @@ const PixiBoard = (() => {
             glowCol = 0xff4400; hazeCol = 0xff4400; break;
           case 'frozen': case 'freeze':
             glowCol = 0x44aaff; hazeCol = 0x4488ff; break;
-          case 'buffed': case 'strengthen': case 'augmented': case 'accelerated': case 'sidestep':
+          case 'buffed': case 'strengthen': case 'augmented': case 'accelerated': case 'sidestep': case 'vitalized':
             glowCol = 0x9955ff; break;
           case 'anemic':
             hazeCol = 0x661122; break;
@@ -1472,17 +1496,16 @@ const PixiBoard = (() => {
     }
 
     const myTurn = owner === (GameState?.currentTurn ?? '');
-    const canAtk = myTurn && !isTap && (PhaseManager?.canAttack?.() ?? false);
-    const canDrag = myTurn && !isTap;
+    const shuffleGate = _charShuffleGate(char, owner);
+    const canShuffle = shuffleGate.ok;
 
     ct._cardType = 'char'; ct._charData = char;
-    ct.interactive = true; ct.cursor = canDrag ? 'grab' : 'default';
-    // Only add hover/drag when the card is usable
-    if (!isTap) {
+    ct.interactive = true; ct.cursor = canShuffle ? 'grab' : 'default';
+    if (myTurn && !isTap) {
       ct.on('pointerover', () => _hover(ct, true));
       ct.on('pointerout',  () => _hover(ct, false));
     }
-    if (canDrag) {
+    if (canShuffle) {
       ct.on('pointerdown', (e) => _dragStart(e, ct)); // drag=reposition/attack, click=panel
     }
     return ct;
@@ -1513,6 +1536,124 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   // HAND LAYOUT — fan arc for own turn, card backs for opponent
   // ════════════════════════════════════════════════════════════════════════════
+  function _layoutPiles() {
+    _pileTargets = {};
+    if (GameState?.currentPhase === 'rolloff') return;
+
+    const pid = GameState?.currentTurn ?? 'p1';
+    const pileW = Math.round(_clamp(HC.w * 0.54, 58, 82));
+    const pileH = Math.round(pileW * 1.38);
+    const y = Math.round(_clamp(
+      _handBaseY() + HC.h * 0.32,
+      SAFE + 120,
+      H() - ACTIVE_BAR_H - SAFE - pileH - 8
+    ));
+    const spread = _clamp(W() * (_isCompact() ? 0.36 : 0.32), 190, 420);
+    const leftX = Math.round(_clamp(W() / 2 - spread - pileW / 2, SAFE + 6, W() / 2 - pileW - 110));
+    const rightLimit = W() - SAFE - RIGHT_RAIL_W() - pileW - 8;
+    const rightX = Math.round(_clamp(W() / 2 + spread - pileW / 2, W() / 2 + 110, Math.max(W() / 2 + 112, rightLimit)));
+
+    const discardCount = GameState?.getDiscardPile?.(pid)?.length ?? 0;
+    const drawCheck = GameState?.canDrawFromPile?.(pid) ?? { ok: false, error: 'Unavailable' };
+    const drawCost = GameState?.getDrawPileCost?.(pid) ?? 1;
+    const drawsUsed = GameState?.getDrawPileDrawsThisTurn?.() ?? 0;
+    const drawsLimit = GameState?.getDrawPileLimit?.(pid) ?? 1;
+
+    const discard = _pileControl({
+      key: 'discard',
+      title: 'DISCARD',
+      subtitle: `${discardCount} cards`,
+      img: 'DD_Discard_Pile.png',
+      x: leftX,
+      y,
+      w: pileW,
+      h: pileH,
+      color: 0x888088,
+      enabled: PhaseManager?.canAct?.() ?? false,
+      onClick: () => showToast('Drag a hand card here or right-click it to discard.', 'info'),
+    });
+    const draw = _pileControl({
+      key: 'draw',
+      title: 'DRAW',
+      subtitle: drawsUsed >= drawsLimit ? 'used' : (drawCost > 0 ? `${drawCost} mana` : 'free'),
+      img: 'DD_Draw_Pile.png',
+      x: rightX,
+      y,
+      w: pileW,
+      h: pileH,
+      color: 0x8b35ff,
+      enabled: drawCheck.ok,
+      onClick: () => _cbs.onDrawPile?.({ owner: pid }),
+    });
+
+    _L.hand.addChild(discard);
+    _L.hand.addChild(draw);
+  }
+
+  function _pileControl({ key, title, subtitle, img, x, y, w, h, color, enabled, onClick }) {
+    const ct = new PIXI.Container();
+    ct.position.set(x, y);
+    ct.alpha = enabled ? 0.86 : 0.42;
+    ct.interactive = true;
+    ct.cursor = enabled ? 'pointer' : 'default';
+    ct.hitArea = new PIXI.Rectangle(0, 0, w, h);
+
+    const shadow = new PIXI.Graphics();
+    shadow.beginFill(0x000000, 0.45);
+    shadow.drawRoundedRect(4, 6, w, h, 9);
+    shadow.endFill();
+    ct.addChild(shadow);
+
+    const frame = new PIXI.Graphics();
+    frame.lineStyle(2, color, enabled ? 0.82 : 0.35);
+    frame.beginFill(0x09070a, 0.92);
+    frame.drawRoundedRect(0, 0, w, h, 9);
+    frame.endFill();
+    ct.addChild(frame);
+    ct._frame = frame;
+    ct._pileColor = color;
+    ct._pileEnabled = enabled;
+    ct._isPileControl = true;
+
+    ct.addChild(_artGroup(ACTION_DIR + _encAsset(img), 3, 3, w - 6, h - 6, 7, true));
+
+    const labelBg = new PIXI.Graphics();
+    labelBg.beginFill(0x050305, 0.78);
+    labelBg.drawRoundedRect(5, h - 30, w - 10, 25, 5);
+    labelBg.endFill();
+    ct.addChild(labelBg);
+
+    const lbl = _T(title, {
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 9, fontWeight: '900',
+      fill: 0xf0e0d0, letterSpacing: 1,
+    });
+    lbl.anchor.set(0.5, 0);
+    lbl.position.set(w / 2, h - 28);
+    ct.addChild(lbl);
+
+    const sub = _T(subtitle, {
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 8, fontWeight: '800',
+      fill: enabled ? 0xc8b8c8 : 0x776c77,
+    });
+    sub.anchor.set(0.5, 0);
+    sub.position.set(w / 2, h - 16);
+    ct.addChild(sub);
+
+    ct.on('pointerdown', (e) => {
+      e.stopPropagation();
+      if (!enabled) {
+        showToast(key === 'draw' ? 'Draw pile unavailable.' : 'Discard unavailable.', 'warn');
+        return;
+      }
+      onClick?.();
+    });
+    ct.on('pointerover', () => { if (!_drag && enabled) gsap.to(ct.scale, { x: 1.06, y: 1.06, duration: 0.12 }); });
+    ct.on('pointerout', () => { if (!_drag) gsap.to(ct.scale, { x: 1, y: 1, duration: 0.12 }); });
+
+    _pileTargets[key] = { x, y, w, h, ct };
+    return ct;
+  }
+
   function _layoutHand(pid) {
     _hand[pid].forEach(c => c.parent?.removeChild(c));
     _hand[pid] = [];
@@ -1613,7 +1754,7 @@ const PixiBoard = (() => {
       const ct = _charCard(char, pid);
       ct.scale.set(scale);
       ct._baseScale = scale; // hover/leave restores THIS, not 1
-      const isTap = char.tapped || char.hasAttackedThisTurn;
+      const isTap = char.tapped;
 
       if (isTap) {
         // Rotate 90° around card centre — set pivot to centre so rotation is in-place
@@ -1627,6 +1768,7 @@ const PixiBoard = (() => {
       }
       ct._baseX = ct.x;
       ct._baseY = ct.y;
+      ct._slotCenterX = cardCX;
 
       ct.visible = true;
       ct.renderable = true;
@@ -1714,7 +1856,7 @@ const PixiBoard = (() => {
       }
     }
     const pid = _targetPlayerPid();
-    if (pid && _hitTestIcon(pos, pid)) {
+    if (pid && _hitTestPlayerSlot(pos, pid)) {
       exitTargetMode();
       tm.onPick?.({ type: 'player', id: pid });
       return;
@@ -1832,12 +1974,28 @@ const PixiBoard = (() => {
   function _dragStart(event, ct) {
     if (_targetMode) return; // let the click bubble to the stage target-picker
     if (ct._owner !== (GameState?.currentTurn ?? 'p1')) return;
+    const isChar = ct._cardType === 'char';
+    if (isChar) {
+      const shuffleGate = _charShuffleGate(ct._charData, ct._owner);
+      if (!shuffleGate.ok) {
+        showToast(shuffleGate.reason, 'warn');
+        return;
+      }
+    } else if (ct._cardType === 'hero' && !(PhaseManager?.canDeploy?.() ?? false)) {
+      showToast('Roll before dragging hero cards.', 'warn');
+      return;
+    }
     event.stopPropagation();
     // Reset scale/rotation for a clean upright drag, but DRAG FROM WHERE THE CARD
     // CURRENTLY IS. Teleporting to the arc base (the old behaviour) made a hovered
     // card — which has spread far from its base — snap away from the cursor, so the
     // card tracked the pointer with a large wrong offset. That was the "broken drag".
     gsap.killTweensOf(ct); gsap.killTweensOf(ct.scale);
+    if (isChar && (ct.pivot.x || ct.pivot.y)) {
+      ct.x -= CC.w / 2;
+      ct.y -= CC.h / 2;
+      ct.pivot.set(0, 0);
+    }
     ct.scale.set(1);
     ct.rotation = 0;
     if (ct.parent === _L.fx)   _L.cards.addChild(ct);
@@ -1848,7 +2006,6 @@ const PixiBoard = (() => {
     if (_handCollapseTimer) { clearTimeout(_handCollapseTimer); _handCollapseTimer = null; }
     const pos = event.data.global;
     ct.alpha = 0.87;
-    const isChar = ct._cardType === 'char';
     _drag = {
       ct, offX: ct.x - pos.x, offY: ct.y - pos.y, isChar,
       t0: performance.now(), px0: pos.x, py0: pos.y, // for click-vs-drag detection
@@ -1865,25 +2022,34 @@ const PixiBoard = (() => {
     if (_drag.isChar) {
       // Highlight enemy cards and player icon as attack targets
       const oppPid = _drag.ct._owner === 'p1' ? 'p2' : 'p1';
-      _board[oppPid].forEach(c => {
-        const hit = _hitTest(pos, c);
-        c._frame?.clear();
-        c._frame?.lineStyle(3, hit ? 0xff3333 : (c._charData?.currentHp > c._charData?.maxHp/2 ? P.opp : P.warn), 0.9);
-        c._frame?.beginFill(P.card);
-        c._frame?.drawRoundedRect(0, 0, CC.w, CC.h, 12);
-        c._frame?.endFill();
-      });
-      // Highlight player icon
-      if (_playerIcons[oppPid]) {
-        _playerIcons[oppPid].alpha = _hitTestIcon(pos, oppPid) ? 1.2 : 0.7;
+      const attackGate = _charAttackDragGate(_drag.ct._charData, _drag.ct._owner);
+      if (attackGate.ok) {
+        _board[oppPid].forEach(c => {
+          const hit = _hitTest(pos, c);
+          c._frame?.clear();
+          c._frame?.lineStyle(3, hit ? 0xff3333 : (c._charData?.currentHp > c._charData?.maxHp/2 ? P.opp : P.warn), 0.9);
+          c._frame?.beginFill(P.card);
+          c._frame?.drawRoundedRect(0, 0, CC.w, CC.h, 12);
+          c._frame?.endFill();
+        });
+        // Highlight player icon
+        if (_playerIcons[oppPid]) {
+          _playerIcons[oppPid].alpha = _hitTestPlayerSlot(pos, oppPid) ? 1.2 : 0.7;
+        }
+      } else if (_playerIcons[oppPid]) {
+        _playerIcons[oppPid].alpha = 1.0;
       }
     } else {
-      // Hero deploy — highlight bottom zone (always the active player's deploy zone)
-      const inZone = _inZone(pos);
-      _L.zones.children.forEach((z, idx) => {
-        const isBottomZone = z._zoneRole === 'active' || z._zoneRole === 'active-captain';
-        z.alpha = (isBottomZone && inZone) ? 1.0 : 0.55;
-      });
+      const overDiscard = _hitTestPile(pos, 'discard');
+      if (_pileTargets.discard?.ct) _pileTargets.discard.ct.alpha = overDiscard ? 1 : (_pileTargets.discard.ct._pileEnabled ? 0.86 : 0.42);
+      if (_drag.ct._cardType === 'hero') {
+        // Hero deploy — highlight bottom zone (always the active player's deploy zone)
+        const inZone = _inZone(pos);
+        _L.zones.children.forEach((z, idx) => {
+          const isBottomZone = z._zoneRole === 'active' || z._zoneRole === 'active-captain';
+          z.alpha = (isBottomZone && inZone) ? 1.0 : 0.55;
+        });
+      }
     }
   }
 
@@ -1923,6 +2089,8 @@ const PixiBoard = (() => {
         ActionUI?.openCharPanel?.(ct._charData, owner);   // ability panel
       } else if (ct._cardType === 'hero') {
         expandCard?.(ct._cardData, 'hero');               // read the card
+      } else if (ct._cardType === 'action') {
+        _cbs.onActionPlay?.({ card: ct._cardData, owner });
       }
       return;
     }
@@ -1946,11 +2114,23 @@ const PixiBoard = (() => {
       }
 
       // Drag-to-attack: check if dropped on enemy char or player icon
+      const attackGate = _charAttackDragGate(ct._charData, owner);
+      const wantsEnemyDrop = _inOpponentZone(pos)
+        || _hitTestPlayerSlot(pos, oppPid)
+        || _board[oppPid].some(c => _hitTest(pos, c));
+      if (!attackGate.ok && wantsEnemyDrop) {
+        showToast(attackGate.reason ?? 'That hero can only shuffle right now.', 'warn');
+        renderBoard(); return;
+      }
+      if (!attackGate.ok) {
+        renderBoard(); return;
+      }
+
       let targetHit = null;
       _board[oppPid].forEach(c => {
         if (_hitTest(pos, c)) targetHit = { type: 'char', char: c._charData };
       });
-      if (!targetHit && _hitTestIcon(pos, oppPid)) {
+      if (!targetHit && _hitTestPlayerSlot(pos, oppPid)) {
         // Check for taunt — if any enemy has taunt, must target them
         const hasTaunt = _board[oppPid].some(c => c._charData?.statuses?.some?.(s => s.id === 'status_taunt'));
         if (hasTaunt) {
@@ -1971,6 +2151,11 @@ const PixiBoard = (() => {
       if (targetHit) {
         _cbs.onAttack?.({ char: ct._charData, owner, target: targetHit });
       }
+      renderBoard(); return;
+    }
+
+    if (!isChar && _hitTestPile(pos, 'discard')) {
+      _cbs.onDiscardMana?.({ card: ct._cardData, type: ct._cardType, owner });
       renderBoard(); return;
     }
 
@@ -2007,10 +2192,32 @@ const PixiBoard = (() => {
 
   function _boardDropIndex(pid, x, instanceId) {
     const cards = (_board[pid] ?? [])
-      .filter(c => c._charData?.instanceId !== instanceId)
-      .sort((a, b) => (a._baseX ?? a.x) - (b._baseX ?? b.x));
-    const idx = cards.findIndex(c => x < ((c._baseX ?? c.x) + (CC.w * (c._baseScale ?? 1)) / 2));
-    return idx === -1 ? cards.length : idx;
+      .filter(c => c._charData)
+      .sort((a, b) => _cardSlotCenterX(a) - _cardSlotCenterX(b));
+    if (!cards.length) return 0;
+
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+    cards.forEach((c, i) => {
+      const distance = Math.abs(x - _cardSlotCenterX(c));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
+      }
+    });
+
+    const captainId = GameState?.getPlayerState?.(pid)?.captainId;
+    const bestCard = cards[bestIndex];
+    if (captainId && bestCard?._charData?.instanceId === captainId && bestCard?._charData?.instanceId !== instanceId) {
+      bestIndex += x < _cardSlotCenterX(bestCard) ? -1 : 1;
+    }
+    return Math.max(0, Math.min(bestIndex, cards.length - 1));
+  }
+
+  function _cardSlotCenterX(ct) {
+    if (Number.isFinite(ct?._slotCenterX)) return ct._slotCenterX;
+    const scale = ct?._baseScale ?? 1;
+    return (ct?._baseX ?? ct?.x ?? 0) + (CC.w * scale) / 2;
   }
 
   function _inOpponentZone(pos) {
@@ -2034,6 +2241,19 @@ const PixiBoard = (() => {
     const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
     const dx = pos.x - cx, dy = pos.y - cy;
     return Math.sqrt(dx*dx + dy*dy) < 40;
+  }
+
+  function _hitTestPile(pos, key) {
+    const r = _pileTargets[key];
+    if (!r) return false;
+    return pos.x >= r.x && pos.x <= r.x + r.w && pos.y >= r.y && pos.y <= r.y + r.h;
+  }
+
+  function _hitTestPlayerSlot(pos, pid) {
+    if (_hitTestIcon(pos, pid)) return true;
+    const activePid = GameState?.currentTurn ?? 'p1';
+    const r = _captainSlotRect(pid === activePid);
+    return pos.x >= r.x && pos.x <= r.x + r.w && pos.y >= r.y && pos.y <= r.y + r.h;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -2309,6 +2529,7 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   function showHitEffect(targetType, targetId, damage) {
     if (!_app) return;
+    if (!Number.isFinite(Number(damage)) || Number(damage) <= 0) return;
     let x = W() / 2, y = H() / 2;
 
     if (targetType === 'player') {
@@ -2361,28 +2582,41 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   function _buildPlayerIcons() {
     const activePid = GameState?.currentTurn ?? 'p1';
+    const sig = [
+      activePid,
+      GameState?.getPhaseStep?.() ?? '',
+      GameState?.currentPhase ?? '',
+      GameState?.getPlayerBaseAttacksThisTurn?.() ?? 0,
+      GameState?.getPlayerState?.('p1')?.board?.length ?? 0,
+      GameState?.getPlayerState?.('p2')?.board?.length ?? 0,
+      GameState?.getPlayerForceField?.('p1') ?? 0,
+      GameState?.getPlayerForceField?.('p2') ?? 0,
+    ].join(':');
     // Skip rebuild if already built for this player's turn
-    if (_iconsBuiltTurn === activePid && _playerIcons.p1 && _playerIcons.p2) return;
-    _iconsBuiltTurn = activePid;
+    if (_iconsBuiltTurn === sig && _playerIcons.p1 && _playerIcons.p2) return;
+    _iconsBuiltTurn = sig;
 
     // Remove old icons from HUD layer
     ['p1','p2'].forEach(pid => {
-      if (_playerIcons[pid]) _L.hud.removeChild(_playerIcons[pid]);
+      if (_playerIcons[pid]?.parent) _playerIcons[pid].parent.removeChild(_playerIcons[pid]);
     });
     _playerIcons = {};
     ['p1','p2'].forEach(pid => {
       const col      = 0xff2200; // hellfire — same for both, it's demonic
       const isActive = pid === activePid;
+      const state = GameState?.getPlayerState?.(pid);
+      const hasBoard = (state?.board?.length ?? 0) > 0;
+      const forceField = GameState?.getPlayerForceField?.(pid) ?? 0;
+      const activeReady = isActive && !hasBoard && (GameState?.canPlayerBaseAttack?.(pid)?.ok ?? false);
       // Active player's icon at BOTTOM zone; inactive (opponent) icon at TOP zone
-      const zCY = isActive ? ZONE.p1Y() + ZONE.hOwn() / 2 : ZONE.p2Y() + ZONE.hOpp() / 2;
-      const zoneLeft = W() / 2 - ZONE.w() / 2;
-      const ix  = _isNarrow()
-        ? Math.max(SAFE + 30, zoneLeft - 34)
-        : Math.max(SAFE + 44, zoneLeft / 2);
-      const iy  = zCY;
+      const slot = _captainSlotRect(isActive);
+      const ix  = slot.x + slot.w / 2;
+      const iy  = slot.y + slot.h / 2;
 
       const ct = new PIXI.Container();
       ct.position.set(ix, iy);
+      ct.alpha = hasBoard ? 0.18 : 1;
+      ct.scale.set(hasBoard ? 0.78 : 1);
 
       // Glow ring
       const glow = new PIXI.Graphics();
@@ -2419,15 +2653,22 @@ const PixiBoard = (() => {
       ct.addChild(ret);
 
       // Tooltip text
-      const tip = _T(isActive ? 'click to\nattack' : 'drop here to\nattack player', {
+      const tip = _T(forceField > 0
+        ? `force field\n${forceField} hp`
+        : activeReady
+          ? 'click to\nattack'
+          : hasBoard
+            ? 'captain\nslot'
+            : 'drop here to\nattack player', {
         fontFamily: "'Rajdhani', sans-serif", fontSize: 7, fill: 0x775555, align: 'center',
       });
       tip.anchor.set(0.5, 0); tip.position.set(0, 44); ct.addChild(tip);
 
-      if (isActive) {
+      if (activeReady) {
         ct.interactive = true;
         ct.cursor = 'pointer';
         ct.on('pointertap', (event) => {
+          if (_targetMode) return;
           event.stopPropagation();
           _startPlayerBaseAttack(pid);
         });
@@ -2440,6 +2681,7 @@ const PixiBoard = (() => {
   }
 
   function _startPlayerBaseAttack(pid) {
+    if ((GameState?.getPlayerState?.(pid)?.board?.length ?? 0) > 0) return;
     const check = GameState?.canPlayerBaseAttack?.(pid);
     if (!check?.ok) {
       showToast(check?.error ?? 'Player attack unavailable.', 'warn');
@@ -2537,17 +2779,19 @@ const PixiBoard = (() => {
     const passiveOnly = /^(Passive|Durability)$/i.test(card.roleType ?? '');
     const key = (card.name ?? '').toLowerCase().trim();
     const lookup = (typeof CHARACTER_ABILITIES !== 'undefined') ? CHARACTER_ABILITIES[key] : null;
+    const rawPassives = card.heroPassive ?? card.passives ?? [];
+    const passives = Array.isArray(rawPassives) ? rawPassives : (rawPassives ? [rawPassives] : []);
     if (lookup) {
       return {
         ...lookup,
         ability1: passiveOnly ? null : lookup.ability1,
         ability2: passiveOnly ? null : lookup.ability2,
-        passive: lookup.passive ?? card.passives?.[0]?.name ?? null,
+        passive: lookup.passive ?? passives[0]?.name ?? null,
       };
     }
     // Fallback to inline card data
     return {
-      passive:  card.passives?.[0]?.name   ?? null,
+      passive:  passives[0]?.name   ?? null,
       ability1: passiveOnly ? null : (card.abilities?.[0]?.abilityName ?? null),
       ability2: passiveOnly ? null : (card.abilities?.[1]?.abilityName ?? null),
     };
@@ -2592,6 +2836,7 @@ const PixiBoard = (() => {
     _L.drag.removeChildren();
     _hand  = { p1: [], p2: [] };
     _board = { p1: [], p2: [] };
+    _layoutPiles();
     // Boards first (lower layer), then all hands on top
     for (const pid of ['p1', 'p2']) _layoutBoard(pid);
     for (const pid of ['p1', 'p2']) _layoutHand(pid);
@@ -2605,7 +2850,7 @@ const PixiBoard = (() => {
       layer?.children?.forEach(ct => {
         ct.visible = true;
         ct.renderable = true;
-        ct.alpha = 1;
+        if (!ct._isPileControl) ct.alpha = 1;
       });
     });
   }

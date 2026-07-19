@@ -1,8 +1,9 @@
 {
     "startingPlayerHP":  40,
     "startingHand":  {
-                         "hero":  3,
-                         "action":  4
+                         "hero":  1,
+                         "action":  3,
+                         "duplicateActionChance":  0.3
                      },
     "handLimits":  {
                        "hero":  8,
@@ -15,6 +16,11 @@
     "shopLimits":  {
                        "purchasesPerTurn":  1
                    },
+    "drawPile":  {
+                     "orderCost":  0,
+                     "chaosCost":  1,
+                     "maxPerTurn":  1
+                 },
     "dice":  {
                  "sides":  6,
                  "damageRule":  "difference",

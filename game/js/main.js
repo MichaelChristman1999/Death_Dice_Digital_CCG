@@ -77,6 +77,7 @@ function hideGameOverlays() {
     'overlay-save-choice',
     'overlay-adventure',
     'overlay-shop',
+    'overlay-graveyard',
     'modal-card',
     'modal-discard',
     'modal-duel',
@@ -205,7 +206,7 @@ function startGame(options = {}) {
     const sa = data.rules.startingHand?.action ?? 4;
     for (const pid of ['p1', 'p2']) {
       for (let i = 0; i < sh; i++) HandManager.drawHero(pid);
-      for (let i = 0; i < sa; i++) HandManager.drawAction(pid);
+      for (let i = 0; i < sa; i++) HandManager.drawStartingAction?.(pid) ?? HandManager.drawAction(pid);
     }
   }
 
@@ -245,13 +246,21 @@ function startGame(options = {}) {
       // Right-click a hand card â†’ discard it for its mana value
       onDiscardMana: ({ card, type, owner }) => {
         if (AdventureMode?.isCpuPlayer?.(owner)) return;
+        if (!(PhaseManager?.canAct?.() ?? false)) {
+          showToast('Discard after your turn starts.', 'warn');
+          return;
+        }
         const r = GameState?.discardForMana?.(owner, card.id, type);
         if (r?.ok) {
-          showToast(`â™» Discarded ${card.name} for ${r.refund} mana`, 'info');
+          showToast(`Discarded ${card.name} for ${r.refund} mana`, 'info');
           renderBoard();
         } else {
           showToast(r?.error ?? 'Cannot discard', 'warn');
         }
+      },
+      onDrawPile: ({ owner }) => {
+        if (AdventureMode?.isCpuPlayer?.(owner)) return;
+        handleDrawPile(owner);
       },
     });
 
@@ -280,6 +289,10 @@ function bindGameButtons() {
     if (AdventureMode?.isCpuTurn?.()) return;
     ShopSystem.open();
   });
+  document.getElementById('btn-graveyard')?.addEventListener('click', () => {
+    openGraveyardModal(GameState?.currentTurn ?? 'p1');
+  });
+  bindGraveyardModal();
   document.getElementById('btn-options')?.addEventListener('click', () => {
     document.getElementById('overlay-options')?.classList.remove('hidden');
   });
@@ -326,6 +339,118 @@ function bindGameButtons() {
 }
 
 // â”€â”€â”€ Render board â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Match Piles ────────────────────────────────────────────────────────────
+function handleDrawPile(owner = GameState.currentTurn) {
+  if (!(PhaseManager?.canAct?.() ?? false)) {
+    showToast('Draw after your turn starts.', 'warn');
+    return;
+  }
+  const result = HandManager.drawFromPile?.(owner);
+  if (result?.ok) {
+    const costText = result.cost > 0 ? ` for ${result.cost} mana` : ' for free';
+    showToast(`Draw Pile: drew ${result.card?.name ?? 'a card'}${costText}.`, 'info');
+    HandManager.promptDiscardIfOverLimit?.(owner);
+    renderBoard();
+  } else {
+    showToast(result?.error ?? 'Draw pile unavailable.', 'warn');
+  }
+}
+
+const GRAVEYARD_PAGE_SIZE = 8;
+const graveyardView = { playerId: 'p1', page: 0 };
+
+function bindGraveyardModal() {
+  if (bindGraveyardModal._done) return;
+  bindGraveyardModal._done = true;
+
+  document.getElementById('btn-graveyard-close')?.addEventListener('click', () => {
+    document.getElementById('overlay-graveyard')?.classList.add('hidden');
+  });
+  document.getElementById('btn-graveyard-prev')?.addEventListener('click', () => {
+    graveyardView.page = Math.max(0, graveyardView.page - 1);
+    renderGraveyardModal();
+  });
+  document.getElementById('btn-graveyard-next')?.addEventListener('click', () => {
+    graveyardView.page += 1;
+    renderGraveyardModal();
+  });
+  document.querySelectorAll('[data-graveyard-player]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      graveyardView.playerId = btn.dataset.graveyardPlayer;
+      graveyardView.page = 0;
+      renderGraveyardModal();
+    });
+  });
+}
+
+function openGraveyardModal(playerId = GameState.currentTurn) {
+  graveyardView.playerId = playerId;
+  graveyardView.page = 0;
+  renderGraveyardModal();
+  document.getElementById('overlay-graveyard')?.classList.remove('hidden');
+}
+
+function renderGraveyardModal() {
+  const playerId = graveyardView.playerId;
+  const cards = GameState.getHeroGraveyard?.(playerId) ?? [];
+  const pages = Math.max(1, Math.ceil(cards.length / GRAVEYARD_PAGE_SIZE));
+  graveyardView.page = Math.max(0, Math.min(graveyardView.page, pages - 1));
+  const pageCards = cards.slice(
+    graveyardView.page * GRAVEYARD_PAGE_SIZE,
+    (graveyardView.page + 1) * GRAVEYARD_PAGE_SIZE
+  );
+
+  document.querySelectorAll('[data-graveyard-player]').forEach(btn => {
+    const active = btn.dataset.graveyardPlayer === playerId;
+    btn.classList.toggle('active', active);
+    btn.textContent = GameState.getPlayerLabel?.(btn.dataset.graveyardPlayer) ?? btn.dataset.graveyardPlayer;
+  });
+
+  const subtitle = document.getElementById('graveyard-subtitle');
+  if (subtitle) subtitle.textContent = `${GameState.getPlayerLabel?.(playerId) ?? playerId}: ${cards.length} fallen hero${cards.length === 1 ? '' : 'es'}`;
+
+  const grid = document.getElementById('graveyard-grid');
+  if (grid) {
+    grid.innerHTML = '';
+    if (!pageCards.length) {
+      const empty = document.createElement('div');
+      empty.className = 'graveyard-empty';
+      empty.textContent = 'No fallen heroes yet';
+      grid.appendChild(empty);
+    } else {
+      pageCards.forEach(card => grid.appendChild(_graveyardCard(card)));
+    }
+  }
+
+  const label = document.getElementById('graveyard-page-label');
+  if (label) label.textContent = `Page ${graveyardView.page + 1} / ${pages}`;
+  const prev = document.getElementById('btn-graveyard-prev');
+  const next = document.getElementById('btn-graveyard-next');
+  if (prev) prev.disabled = graveyardView.page <= 0;
+  if (next) next.disabled = graveyardView.page >= pages - 1;
+}
+
+function _graveyardCard(card) {
+  const btn = document.createElement('button');
+  btn.className = 'graveyard-card';
+  btn.type = 'button';
+  const art = card.imageAsset
+    ? `<img src="assets/cards/DD Character V7/${card.imageAsset}" alt="${_escapeHtml(card.name ?? 'Hero')}">`
+    : '<div class="no-art-shop">Hero</div>';
+  btn.innerHTML = `${art}<span>${_escapeHtml(card.name ?? 'Hero')}</span>`;
+  btn.addEventListener('click', () => expandCard(card, 'hero'));
+  return btn;
+}
+
+function _escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function renderBoard() {
   ActionUI?.closeCharPanel?.(); // stale panel would show outdated state
   PixiBoard.render();
@@ -363,12 +488,14 @@ function expandCard(card, type) {
     const ip   = card.imageAsset ? `assets/cards/DD Character V7/${card.imageAsset}` : null;
     const name = card.name || card.imageAsset?.replace(/^DD_/,'').replace(/\.png$/i,'') || 'Hero';
     const passiveOnly = /^(Passive|Durability)$/i.test(card.roleType ?? '');
-    const passiveRows = [...(card.passives ?? [])];
-    if (passiveOnly && card.docAbility && passiveRows.length === 0) {
-      passiveRows.push({ name: 'Passive', description: card.docAbility });
+    const rawPassives = card.heroPassive ?? card.passives ?? [];
+    const passiveRows = Array.isArray(rawPassives) ? [...rawPassives] : [rawPassives];
+    const heroAbilityText = card.heroAbility ?? card.docAbility;
+    if (passiveOnly && heroAbilityText && passiveRows.length === 0) {
+      passiveRows.push({ name: 'Passive', description: heroAbilityText });
     }
-    const docAbilityHtml = card.docAbility && !passiveOnly ? `<div class="card-detail-section"><h3>Card Ability</h3>
-            <div class="ability-desc">${card.docAbility}</div>
+    const docAbilityHtml = heroAbilityText && !passiveOnly ? `<div class="card-detail-section"><h3>Card Ability</h3>
+            <div class="ability-desc">${heroAbilityText}</div>
           </div>` : '';
     const passiveHtml = passiveRows.length ? `<div class="card-detail-section"><h3>Passives</h3>
             ${passiveRows.map(p => `<div class="passive-row"><div class="passive-name">- ${p.name}</div><div class="passive-desc">${p.description}</div></div>`).join('')}
@@ -440,10 +567,14 @@ function _statusGlossaryHtml(card) {
   const defs = GameData?.statusEffects ?? [];
   const source = [
     card?.description,
+    card?.heroAbility,
     card?.docAbility,
     ...(card?.statusApplied ?? []),
     ...(card?.abilities ?? []).map(a => `${a.description ?? ''} ${(a.statusApplied ?? []).join(' ')}`),
-    ...(card?.passives ?? []).map(p => `${p.name ?? ''} ${p.description ?? ''}`),
+    ...((Array.isArray(card?.heroPassive ?? card?.passives)
+      ? (card?.heroPassive ?? card?.passives)
+      : ((card?.heroPassive ?? card?.passives) ? [card?.heroPassive ?? card?.passives] : []))
+      .map(p => `${p.name ?? ''} ${p.description ?? ''}`)),
   ].join(' ');
   const found = defs.filter(def => {
     const bare = (def.id ?? '').replace(/^status_/, '').replace(/_/g, ' ');
