@@ -1,5 +1,5 @@
 {
-    "startingPlayerHP":  20,
+    "startingPlayerHP":  40,
     "startingHand":  {
                          "hero":  3,
                          "action":  4
@@ -33,7 +33,7 @@
                  "maxPool":  12
              },
     "combat":  {
-                   "playerBaseAttack":  2,
+                   "playerBaseAttack":  4,
                    "actionsPerTurn":  1,
                    "baseAttackCountsAsAction":  true,
                    "abilityCountsAsAction":  true,

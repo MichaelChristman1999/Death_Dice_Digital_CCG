@@ -53,6 +53,7 @@ const PhaseManager = (() => {
     const overlay = document.getElementById('overlay-rolloff');
     if (!overlay) return;
     overlay.classList.remove('hidden');
+    _updateRolloffResult('');
     _updateRolloffUI();
     AdventureMode?.onRolloffShown?.();
   }
@@ -60,6 +61,7 @@ const PhaseManager = (() => {
   function handleRolloffRoll(playerId) {
     if (_step !== STEPS.ROLLOFF) return;
     if (_rolloffDone[playerId]) return;
+    if (!_rolloffDone.p1 && !_rolloffDone.p2) _updateRolloffResult('');
 
     if (typeof SoundManager !== 'undefined') SoundManager.play?.('diceRoll');
     const roll = RollEngine.rollDie();
@@ -73,7 +75,7 @@ const PhaseManager = (() => {
       const rolls = GameState.getRolloffRolls();
       if (rolls.p1 === rolls.p2) {
         // Tie — reset and re-roll
-        showToast('Tie! Roll again.', 'warn');
+        _updateRolloffResult("It's a tie! Roll again!", 'tie');
         setTimeout(() => {
           _rolloffDone = { p1: false, p2: false };
           GameState.setRolloffRoll('p1', null);
@@ -90,7 +92,7 @@ const PhaseManager = (() => {
       GameState.setMana(rolls.p2, 'p2');
 
       const winnerLabel = GameState.getPlayerLabel(winner);
-      _updateRolloffResult(`${winnerLabel} goes first!`);
+      _updateRolloffResult(`${winnerLabel} goes first!`, 'winner');
 
       setTimeout(() => {
         document.getElementById('overlay-rolloff')?.classList.add('hidden');
@@ -115,9 +117,11 @@ const PhaseManager = (() => {
     if (p2Btn)  p2Btn.disabled = _rolloffDone.p2 || (AdventureMode?.isCpuPlayer?.('p2') ?? false);
   }
 
-  function _updateRolloffResult(msg) {
+  function _updateRolloffResult(msg, tone = '') {
     const el = document.getElementById('rolloff-result');
-    if (el) el.textContent = msg;
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle('tie', tone === 'tie');
   }
 
   // ── Begin Order ────────────────────────────────────────────────────────────

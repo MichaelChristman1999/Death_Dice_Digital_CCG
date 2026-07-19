@@ -1695,7 +1695,7 @@ rules: {
     "rare": 10
   },
   "combat": {
-    "playerBaseAttack": 3,
+    "playerBaseAttack": 4,
     "actionsPerTurn": 1,
     "baseAttackCountsAsAction": false,
     "abilityCountsAsAction": true,

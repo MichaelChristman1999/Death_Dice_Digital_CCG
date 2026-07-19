@@ -268,8 +268,11 @@ const CombatEngine = (() => {
       return;
     }
 
-    const baseDamage = check.damage ?? GameState.getPlayerBaseAttackDamage?.() ?? 2;
+    const baseDamage = check.damage ?? GameState.getPlayerBaseAttackDamage?.() ?? 4;
     const damage = GameState.applyCaptainDamageBonus?.(attackerPlayerId, baseDamage) ?? baseDamage;
+    const hpBonusText = check.doubled
+      ? ` ${check.hpTierLabel ?? 'HP range'} pressure doubles the hit.`
+      : '';
     if (target?.type === 'character') {
       const targetChar = GameState.getCharacter(target.id);
       const hit = GameState.damageTarget?.(target, damage)
@@ -277,7 +280,7 @@ const CombatEngine = (() => {
       PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
       showToast(hit.safeguarded
         ? `${GameState.getPlayerLabel(attackerPlayerId)} hits Safeguard.`
-        : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${targetChar?.name ?? 'target'} for ${hit.actualDamage}.`,
+        : `${GameState.getPlayerLabel(attackerPlayerId)} attacks ${targetChar?.name ?? 'target'} for ${hit.actualDamage}.${hpBonusText}`,
         'combat');
     } else if (target?.type === 'player') {
       const hit = GameState.damageTarget?.(target, damage)

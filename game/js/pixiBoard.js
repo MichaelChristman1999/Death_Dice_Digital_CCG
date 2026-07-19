@@ -103,11 +103,15 @@ const PixiBoard = (() => {
     return W() <= 760 || H() <= 680;
   }
 
+  function _hpTierInfo(pct) {
+    if (pct > 0.75) return { label: 'Robust', color: 0x2ecc40 };
+    if (pct > 0.50) return { label: 'Vulnerable', color: 0xffd23f };
+    if (pct > 0.25) return { label: 'Critical', color: 0xff8800 };
+    return { label: 'Near-Death', color: 0xff3322 };
+  }
+
   function _hpTierColor(pct) {
-    if (pct > 0.75) return 0x2ecc40;  // Robust
-    if (pct > 0.50) return 0xffd23f;  // Vulnerable
-    if (pct > 0.25) return 0xff8800;  // Critical
-    return 0xff3322;                  // Near-Death
+    return _hpTierInfo(pct).color;
   }
 
   function _isNarrow() {
@@ -431,8 +435,15 @@ const PixiBoard = (() => {
       ct.addChild(barFg);
       ct._barFg = barFg;
       ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
+      const tierTxt = _T('ROBUST', {
+        fontFamily: "'Rajdhani', sans-serif", fontSize: 17, fontWeight: '900',
+        fill: 0x2ecc40, letterSpacing: 1,
+      });
+      tierTxt.position.set(BX + BW + 12, 12);
+      ct.addChild(tierTxt);
+      ct._tierTxt = tierTxt;
       const statusLayer = new PIXI.Container();
-      statusLayer.position.set(BX + BW + 12, 28);
+      statusLayer.position.set(BX + BW + 112, 28);
       ct.addChild(statusLayer);
       ct._statusLayer = statusLayer;
 
@@ -490,8 +501,15 @@ const PixiBoard = (() => {
     ct.addChild(barFg);
     ct._barFg = barFg;
     ct._barSpec = { x: BX, y: BY, w: BW, h: BH };
+    const tierTxt = _T('ROBUST', {
+      fontFamily: "'Rajdhani', sans-serif", fontSize: 19, fontWeight: '900',
+      fill: 0x2ecc40, letterSpacing: 1,
+    });
+    tierTxt.position.set(BX + BW + 12, 15);
+    ct.addChild(tierTxt);
+    ct._tierTxt = tierTxt;
     const statusLayer = new PIXI.Container();
-    statusLayer.position.set(BX + BW + 12, 26);
+    statusLayer.position.set(BX + BW + 124, 26);
     ct.addChild(statusLayer);
     ct._statusLayer = statusLayer;
 
@@ -760,12 +778,17 @@ const PixiBoard = (() => {
       bar._hpNum.text = String(st.hp);
       const maxHp = GameData?.rules?.startingPlayerHP ?? 40;
       const pct = Math.max(0, Math.min(1, st.hp / maxHp));
+      const tier = GameState?.getPlayerHpTier?.(pid) ?? _hpTierInfo(pct);
       const { x, y, w, h } = bar._barSpec;
-      const col = _hpTierColor(pct);
+      const col = tier.color ?? _hpTierInfo(pct).color;
       bar._barFg.clear();
       bar._barFg.beginFill(col);
       bar._barFg.drawRoundedRect(x, y, Math.max(4, w * pct), h, 5);
       bar._barFg.endFill();
+      if (bar._tierTxt) {
+        bar._tierTxt.text = (tier.label ?? _hpTierInfo(pct).label).toUpperCase();
+        bar._tierTxt.style.fill = col;
+      }
       if (bar._stats?.text !== undefined) {
         const hc = (st.hand.heroes?.length ?? 0) + (st.hand.actions?.length ?? 0);
         bar._stats.text = `HAND ${hc} / FIELD ${st.board?.length ?? 0}`;

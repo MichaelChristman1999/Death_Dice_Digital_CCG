@@ -137,14 +137,14 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
     var(--bg);
 }
 .menu-content {
-  --menu-stack-drop: clamp(46px, 6.5vw, 76px);
+  --menu-stack-offset: clamp(-76px, -6.5vw, -46px);
   display: flex; flex-direction: column; align-items: center;
   animation: fade-up .55s ease both;
-  transform: translateY(var(--menu-stack-drop));
+  transform: translateY(var(--menu-stack-offset));
 }
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(calc(var(--menu-stack-drop) + 20px)); }
-  to   { opacity: 1; transform: translateY(var(--menu-stack-drop)); }
+  from { opacity: 0; transform: translateY(calc(var(--menu-stack-offset) + 20px)); }
+  to   { opacity: 1; transform: translateY(var(--menu-stack-offset)); }
 }
 .menu-die-logo {
   width: clamp(92px, 13vw, 152px);
@@ -565,6 +565,10 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   font-size: 1.1rem; font-weight: 800; color: var(--gold-hi);
   min-height: 28px; margin-top: 8px;
   font-family: 'Rajdhani', sans-serif; letter-spacing: .06em;
+}
+.rolloff-winner.tie {
+  color: #ffd35a;
+  text-shadow: 0 0 16px rgba(255, 190, 48, .45);
 }
 .rolloff-side .menu-btn { width: auto; }
 

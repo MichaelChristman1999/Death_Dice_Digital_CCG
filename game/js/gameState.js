@@ -497,8 +497,18 @@ const GameState = (() => {
     return limit;
   }
 
+  function getPlayerHpTier(playerId = _currentTurn) {
+    const p = _players[playerId];
+    const maxHp = _rules.startingPlayerHP ?? 40;
+    const pct = Math.max(0, Math.min(1, (p?.hp ?? maxHp) / Math.max(1, maxHp)));
+    if (pct > 0.75) return { id: 'robust', label: 'Robust', pct };
+    if (pct > 0.50) return { id: 'vulnerable', label: 'Vulnerable', pct };
+    if (pct > 0.25) return { id: 'critical', label: 'Critical', pct };
+    return { id: 'near_death', label: 'Near-Death', pct };
+  }
+
   function getPlayerBaseAttackDamage(playerId = _currentTurn) {
-    let damage = _rules.combat?.playerBaseAttack ?? 2;
+    let damage = _rules.combat?.playerBaseAttack ?? 4;
     if (hasPlayerStatus(playerId, 'status_augmented')) damage += 2;
     if (hasPlayerStatus(playerId, 'status_blessed')) damage *= 2;
     if (hasPlayerStatus(playerId, 'status_stimulated')) damage *= 3;
@@ -506,6 +516,31 @@ const GameState = (() => {
     if (hasPlayerStatus(playerId, 'status_impaired')) damage -= damage === 2 ? 1 : 2;
     if (hasPlayerStatus(playerId, 'status_anemic')) damage = Math.max(0, damage - 2);
     return Math.max(1, damage);
+  }
+
+  function _rollPlayerBaseAttackDamage(playerId = _currentTurn) {
+    const baseDamage = getPlayerBaseAttackDamage(playerId);
+    const tier = getPlayerHpTier(playerId);
+    let roll = null;
+    let doubled = false;
+
+    if (tier.id === 'near_death') {
+      doubled = true;
+    } else if (tier.id === 'vulnerable' || tier.id === 'critical') {
+      roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
+        ? RollEngine.rollDie()
+        : Math.floor(Math.random() * 6) + 1;
+      doubled = tier.id === 'vulnerable' ? roll >= 5 : roll >= 3;
+    }
+
+    return {
+      damage: doubled ? baseDamage * 2 : baseDamage,
+      baseDamage,
+      doubled,
+      hpTier: tier.id,
+      hpTierLabel: tier.label,
+      hpBonusRoll: roll,
+    };
   }
 
   function getPlayerBaseAttackLimit(playerId = _currentTurn) {
@@ -532,9 +567,10 @@ const GameState = (() => {
   function commitPlayerBaseAttack(playerId = _currentTurn) {
     const check = canPlayerBaseAttack(playerId);
     if (!check.ok) return check;
+    const resolvedDamage = _rollPlayerBaseAttackDamage(playerId);
     _playerBaseAttacksThisTurn++;
     _saveToStorage();
-    return check;
+    return { ...check, ...resolvedDamage };
   }
 
   // Commit the play: spend mana, remove from hand, count it, graveyard it.
@@ -1326,6 +1362,7 @@ const GameState = (() => {
     commitPlayAction,
     getActionCardLimit,
     getHeroCardLimit,
+    getPlayerHpTier,
     getPlayerBaseAttackDamage,
     getPlayerBaseAttackLimit,
     canPlayerBaseAttack,
