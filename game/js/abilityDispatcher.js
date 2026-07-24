@@ -14,7 +14,7 @@ const AbilityDispatcher = (() => {
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
     'status_frozen', 'status_rabies', 'status_locked_out', 'status_burning',
     'status_haunted', 'status_shocked', 'status_cursed', 'status_virus',
-    'status_jinxed', 'status_example_timed', 'status_example_permanent',
+    'status_jinxed', 'status_hypnotized', 'status_example_timed', 'status_example_permanent',
   ]);
 
   const _hasNegative = (char) => (char?.statuses ?? []).some(s => NEGATIVE_IDS.has(s.id));
@@ -59,6 +59,10 @@ const AbilityDispatcher = (() => {
       ? GameState.hasStatus?.(source.id, 'status_damage_boost')
       : (source?.type === 'player' ? GameState.hasPlayerStatus?.(source.id, 'status_damage_boost') : false);
     if (!drunk && boosted) damage = Math.ceil(damage * 1.5);
+    if (!source) {
+      const loneMult = GameState.getLoneWolfDamageMultiplier?.(playerId, { actionCard: true }) ?? 1;
+      if (loneMult > 1) damage = Math.ceil(damage * loneMult);
+    }
     const captain = GameState.getCaptain?.(playerId);
     const impaired = source?.type === 'character'
       ? GameState.hasStatus?.(source.id, 'status_impaired')
@@ -256,7 +260,7 @@ const AbilityDispatcher = (() => {
   }
 
   function _offensiveAbility(ability) {
-    return ['deal_damage', 'deal_damage_apply_status', 'apply_status', 'apply_player_status', 'shop_lock', 'duel', 'copy_enemy_ability', 'zoomstick', 'bearzerk_rampage', 'stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese', 'breakback_breakdance'].includes(ability?.effect);
+    return ['deal_damage', 'deal_damage_apply_status', 'apply_status', 'apply_player_status', 'shop_lock', 'duel', 'copy_enemy_ability', 'zoomstick', 'bearzerk_rampage', 'stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese', 'breakback_breakdance', 'sass_squash', 'puppeteer', 'goldberg_chain', 'static_splash', 'biotic_syringe', 'deer_dash', 'dino_dominion', 'menghu_chuji', 'pass_gas'].includes(ability?.effect);
   }
 
   function _charmedActionBlock(actor, target, label = 'That target') {
@@ -1050,6 +1054,7 @@ const AbilityDispatcher = (() => {
   }
 
   function _abilityHitsEnemyPlayer(ability) {
+    if (['goldberg_chain', 'static_splash'].includes(ability?.effect)) return true;
     return /player|heroes\/player|player\/heroes/i.test(ability?.description ?? '');
   }
 
@@ -1321,7 +1326,8 @@ const AbilityDispatcher = (() => {
       || ability.effect === 'zoomstick'
       || ability.effect === 'meowrox'
       || ability.effect === 'swift_squall'
-      || ability.effect === 'sleuth_seance') return { ok: true };
+      || ability.effect === 'sleuth_seance'
+      || ability.effect === 'out_of_tomb') return { ok: true };
 
     if (ability.effect === 'breakback_breakdance') {
       const hp = GameState.getPlayerState(ownerId)?.hp ?? 0;
@@ -1337,7 +1343,27 @@ const AbilityDispatcher = (() => {
         : { ok: false, reason: `${ability.abilityName} needs an enemy field or player target.` };
     }
 
-    if (['stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese'].includes(ability.effect)) {
+    if (ability.targetType === 'ally_any') {
+      const isAllyPlayer = target?.type === 'player' && target.id === ownerId;
+      const isAllyChar = target?.type === 'character' && GameState.getCharacterOwner?.(target.id) === ownerId;
+      return isAllyPlayer || isAllyChar
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs an allied hero or player.` };
+    }
+
+    if (ability.targetType === 'ally_any_enemy_any') {
+      return target?.type === 'character' || target?.type === 'player'
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs a hero or player target.` };
+    }
+
+    if (['stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese', 'sass_squash', 'puppeteer', 'deer_dash', 'dino_dominion', 'menghu_chuji'].includes(ability.effect)) {
+      if (ability.targetType === 'ally_chars_enemy_any') {
+        const isEnemyPlayer = target?.type === 'player' && target.id === oppId;
+        return target?.type === 'character' || isEnemyPlayer
+          ? { ok: true }
+          : { ok: false, reason: `${ability.abilityName} needs a hero or enemy player.` };
+      }
       return target?.type === 'character' || target?.type === 'player'
         ? { ok: true }
         : { ok: false, reason: `${ability.abilityName} needs an enemy hero or player.` };
@@ -1375,6 +1401,12 @@ const AbilityDispatcher = (() => {
       return t && _canReceiveStatus(t, statusId)
         ? { ok: true }
         : { ok: false, reason: `${ability.abilityName} needs a valid target that can receive that status.` };
+    }
+
+    if (ability.effect === 'pass_gas') {
+      return target?.type === 'player' && target.id === oppId
+        ? { ok: true }
+        : { ok: false, reason: `${ability.abilityName} needs the enemy player.` };
     }
 
     if (ability.effect === 'apply_player_status' || ability.effect === 'shop_lock') {
@@ -1505,6 +1537,12 @@ const AbilityDispatcher = (() => {
       }
       case 'enemy_any':
         return _pickTarget(ownerId, 'enemy_any', null, `${ability.abilityName}: click an enemy character or their HP icon`, confirm);
+      case 'ally_any':
+        return _pickTarget(ownerId, 'ally_any', null, `${ability.abilityName}: click an allied hero or your HP icon`, confirm);
+      case 'ally_chars_enemy_any':
+        return _pickTarget(ownerId, 'ally_chars_enemy_any', null, `${ability.abilityName}: click any hero or the enemy HP icon`, confirm);
+      case 'ally_any_enemy_any':
+        return _pickTarget(ownerId, 'ally_any_enemy_any', null, `${ability.abilityName}: click any hero or player HP icon`, confirm);
       default:
         return confirm(null);
     }
@@ -1832,6 +1870,118 @@ const AbilityDispatcher = (() => {
         break;
       }
 
+      case 'sass_squash': {
+        const over = GameState.grantCharacterOverhealth?.(char.instanceId, 4, 4) ?? { gained: 0 };
+        _applyStatusToTarget({ type: 'character', id: char.instanceId }, 'status_augmented', { allowSafeguard: false });
+        const damage = _outgoingDamage(ownerId, value || 8, { type: 'character', id: char.instanceId });
+        const allyTarget = target?.type === 'character' && GameState.getCharacterOwner?.(target.id) === ownerId;
+        const hit = GameState.damageTarget?.(target, damage, {
+          attacker: { type: 'character', id: char.instanceId },
+          source: 'sass_squash',
+          allowSafeguard: !allyTarget,
+          captainSlotRoutesToPlayer: !allyTarget,
+          splashCaptain: target?.type === 'player',
+        }) ?? _fallbackDamageTarget(target, damage);
+        _showDamageHit(hit);
+        showToast(`${char.name} uses ${ability.abilityName}: +${over.gained ?? 0} overhealth, +2 attack, and ${hit?.actualDamage ?? damage} damage.`, 'combat');
+        break;
+      }
+
+      case 'puppeteer': {
+        const statusOptions = {
+          ..._charmSourceOptions(ownerId, { instanceId: char.instanceId, name: char.name }),
+          duration: ability.statusDuration ?? 2,
+          splashCaptain: target?.type === 'player',
+        };
+        const result = _applyStatusToTarget(target, 'status_hypnotized', statusOptions);
+        if (result?.type === 'player' && result.applied) {
+          const before = GameState.getPlayerState(result.id)?.hp ?? 0;
+          const hp = GameState.damagePlayer?.(result.id, value || 4, {
+            source: 'hypnotized_self',
+            allowSafeguard: false,
+            ignoreSidestep: true,
+            roleEvasion: false,
+            splashCaptain: false,
+          });
+          const actual = Math.max(0, before - Math.max(0, hp ?? before));
+          PixiBoard?.showHitEffect?.('player', result.id, actual);
+        }
+        const label = result?.type === 'player'
+          ? GameState.getPlayerLabel(result.id)
+          : GameState.getCharacter(result?.id)?.name;
+        showToast(result?.applied ? `${char.name} Hypnotized ${label ?? 'the target'}.` : `${char.name}'s Puppeteer failed.`, result?.applied ? 'combat' : 'warn');
+        break;
+      }
+
+      case 'out_of_tomb': {
+        const spawn = GameState.spawnBaby?.(ownerId, char.instanceId);
+        showToast(spawn?.ok ? `${char.name} summons Baby.` : (spawn?.error ?? 'Baby could not be summoned.'), spawn?.ok ? 'info' : 'warn');
+        break;
+      }
+
+      case 'goldberg_chain': {
+        const enemies = [...GameState.getPlayerState(oppId).board];
+        const amount = Math.max(1, Math.min(6, 1 + enemies.length));
+        let total = 0;
+        enemies.forEach(enemy => {
+          const damage = _outgoingDamage(ownerId, amount, { type: 'character', id: char.instanceId });
+          const hit = GameState.damageTarget?.({ type: 'character', id: enemy.instanceId }, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'goldberg_chain',
+            allowSafeguard: false,
+            multiTarget: true,
+          }) ?? _fallbackDamageTarget({ type: 'character', id: enemy.instanceId }, damage);
+          total += hit?.actualDamage ?? damage;
+          _showDamageHit(hit);
+          _applyStatusToTarget({ type: hit.type, id: hit.id }, 'status_impaired', { allowSafeguard: false });
+        });
+        const playerDamage = _outgoingDamage(ownerId, amount, { type: 'character', id: char.instanceId });
+        const playerHit = GameState.damageTarget?.({ type: 'player', id: oppId }, playerDamage, {
+          attacker: { type: 'character', id: char.instanceId },
+          source: 'goldberg_chain',
+          allowSafeguard: false,
+          splashCaptain: false,
+          multiTarget: true,
+        }) ?? _fallbackDamageTarget({ type: 'player', id: oppId }, playerDamage);
+        total += playerHit?.actualDamage ?? playerDamage;
+        _showDamageHit(playerHit);
+        _applyStatusToTarget({ type: 'player', id: oppId }, 'status_impaired', { allowSafeguard: false, splashCaptain: false });
+        showToast(`${char.name} triggers ${ability.abilityName}: ${amount} damage per target, ${total} total.`, 'combat');
+        break;
+      }
+
+      case 'static_splash': {
+        const enemies = [...GameState.getPlayerState(oppId).board];
+        const statuses = ability.statusApplied?.length ? ability.statusApplied : ['status_shocked', 'status_impeded'];
+        const statusOptions = { allowSafeguard: false, duration: ability.statusDuration ?? 3 };
+        let total = 0;
+        enemies.forEach(enemy => {
+          const damage = _outgoingDamage(ownerId, value || 4, { type: 'character', id: char.instanceId });
+          const hit = GameState.damageTarget?.({ type: 'character', id: enemy.instanceId }, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'static_splash',
+            allowSafeguard: false,
+            multiTarget: true,
+          }) ?? _fallbackDamageTarget({ type: 'character', id: enemy.instanceId }, damage);
+          total += hit?.actualDamage ?? damage;
+          _showDamageHit(hit);
+          _applyStatusesToTarget({ type: hit.type, id: hit.id }, statuses, statusOptions);
+        });
+        const playerDamage = _outgoingDamage(ownerId, value || 4, { type: 'character', id: char.instanceId });
+        const playerHit = GameState.damageTarget?.({ type: 'player', id: oppId }, playerDamage, {
+          attacker: { type: 'character', id: char.instanceId },
+          source: 'static_splash',
+          allowSafeguard: false,
+          splashCaptain: false,
+          multiTarget: true,
+        }) ?? _fallbackDamageTarget({ type: 'player', id: oppId }, playerDamage);
+        total += playerHit?.actualDamage ?? playerDamage;
+        _showDamageHit(playerHit);
+        _applyStatusesToTarget({ type: 'player', id: oppId }, statuses, { ...statusOptions, splashCaptain: false });
+        showToast(`${char.name} uses ${ability.abilityName}: ${total} total damage, Shocked, and Impeded.`, 'combat');
+        break;
+      }
+
       case 'breakback_breakdance': {
         const success = Math.random() < 0.5;
         const damage = _outgoingDamage(ownerId, value || 5, { type: 'character', id: char.instanceId });
@@ -1913,14 +2063,209 @@ const AbilityDispatcher = (() => {
         break;
       }
 
+      case 'biotic_syringe': {
+        const amount = value || 4;
+        const targetOwner = target?.type === 'player' ? target.id : GameState.getCharacterOwner?.(target?.id);
+        const isAlly = targetOwner === ownerId;
+        const affectAllyCharacter = (instanceId) => {
+          if (!instanceId) return { healed: 0, cleansed: 0 };
+          const before = GameState.getCharacter(instanceId)?.currentHp ?? 0;
+          const cleansed = _cleanseCharacter(instanceId);
+          const after = GameState.healCharacter?.(instanceId, amount) ?? before;
+          return { healed: Math.max(0, after - before), cleansed };
+        };
+        const affectAllyPlayer = (playerId) => {
+          const before = GameState.getPlayerState(playerId)?.hp ?? 0;
+          const cleansed = _cleansePlayer(playerId);
+          const after = GameState.healPlayer?.(playerId, amount, { overheal: false }) ?? before;
+          return { healed: Math.max(0, after - before), cleansed };
+        };
+
+        if (isAlly) {
+          const results = [];
+          if (target?.type === 'player') {
+            results.push(affectAllyPlayer(target.id));
+            const captain = GameState.getCaptain?.(target.id);
+            if (captain) results.push(affectAllyCharacter(captain.instanceId));
+          } else if (target?.type === 'character') {
+            const captain = GameState.getCaptain?.(targetOwner);
+            if (captain?.instanceId === target.id) results.push(affectAllyPlayer(targetOwner));
+            results.push(affectAllyCharacter(target.id));
+          }
+          const healed = results.reduce((sum, row) => sum + (row.healed ?? 0), 0);
+          const cleansed = results.reduce((sum, row) => sum + (row.cleansed ?? 0), 0);
+          showToast(`${char.name} uses ${ability.abilityName}: healed ${healed} and cleansed ${cleansed}.`, 'info');
+        } else {
+          const damage = _outgoingDamage(ownerId, amount, { type: 'character', id: char.instanceId });
+          const hit = GameState.damageTarget?.(target, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'biotic_syringe',
+            splashCaptain: target?.type === 'player',
+          }) ?? _fallbackDamageTarget(target, damage);
+          const routedTarget = hit?.type && hit?.id ? { type: hit.type, id: hit.id } : target;
+          const status = _applyStatusToTarget(routedTarget, 'status_anemic', {
+            sourcePlayerId: ownerId,
+            sourceCharacterId: char.instanceId,
+            sourceName: char.name,
+            splashCaptain: routedTarget?.type === 'player',
+          });
+          _showDamageHit(hit);
+          showToast(`${char.name} uses ${ability.abilityName}: ${hit?.actualDamage ?? damage} damage${status?.applied ? ' and Anemic' : ''}.`, 'combat');
+        }
+        break;
+      }
+
+      case 'deer_dash': {
+        const cleansed = _cleanseCharacter(char.instanceId);
+        if (!GameState.hasStatus?.(char.instanceId, 'status_accelerated')) {
+          _applyStatusToTarget({ type: 'character', id: char.instanceId }, 'status_accelerated', { allowSafeguard: false });
+        }
+        const damage = _outgoingDamage(ownerId, value || 4, { type: 'character', id: char.instanceId });
+        const hit = GameState.damageTarget?.(target, damage, {
+          attacker: { type: 'character', id: char.instanceId },
+          source: 'deer_dash',
+          splashCaptain: target?.type === 'player',
+        }) ?? _fallbackDamageTarget(target, damage);
+        _showDamageHit(hit);
+        showToast(`${char.name} uses ${ability.abilityName}: cleansed ${cleansed}, Accelerated, and dealt ${hit?.actualDamage ?? damage}.`, 'combat');
+        break;
+      }
+
+      case 'dino_dominion': {
+        const damage = _outgoingDamage(ownerId, value || 8, { type: 'character', id: char.instanceId });
+        if (target?.type === 'character') {
+          const enemy = GameState.getCharacter(target.id);
+          const preview = GameState.previewCharacterDamage?.(target.id, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'dino_dominion',
+          }) ?? damage;
+          const shield = GameState.getCharacterVerglas?.(target.id) ?? 0;
+          const lethal = ((enemy?.currentHp ?? 0) + shield) <= Math.max(0, preview);
+          if (lethal && GameState.captureCharacter) {
+            const captured = GameState.captureCharacter(ownerId, char.instanceId, target.id, { duration: 3 });
+            if (captured?.ok) {
+              showToast(`${char.name} uses ${ability.abilityName}: ${captured.character?.name ?? 'enemy hero'} is Captured for 3 turns.`, 'combat');
+              break;
+            }
+          }
+        }
+        const hit = GameState.damageTarget?.(target, damage, {
+          attacker: { type: 'character', id: char.instanceId },
+          source: 'dino_dominion',
+          splashCaptain: target?.type === 'player',
+        }) ?? _fallbackDamageTarget(target, damage);
+        _showDamageHit(hit);
+        showToast(`${char.name} uses ${ability.abilityName}: ${hit?.actualDamage ?? damage} damage.`, 'combat');
+        break;
+      }
+
+      case 'menghu_chuji': {
+        const strikeTarget = (resolvedTarget) => {
+          const nearDeath = resolvedTarget?.type === 'player'
+            ? GameState.getPlayerHpTier?.(resolvedTarget.id)?.id === 'near_death'
+            : (() => {
+              const targetChar = GameState.getCharacter(resolvedTarget?.id);
+              return !!targetChar && ((targetChar.currentHp ?? 0) / Math.max(1, targetChar.maxHp ?? 1)) <= 0.25;
+            })();
+          const amount = nearDeath
+            ? (resolvedTarget?.type === 'player'
+              ? Math.max(1, GameState.getPlayerState(resolvedTarget.id)?.hp ?? (value || 5))
+              : Math.max(1, (GameState.getCharacter(resolvedTarget?.id)?.currentHp ?? (value || 5)) + (GameState.getCharacterVerglas?.(resolvedTarget?.id) ?? 0)))
+            : (value || 5);
+          const damage = _outgoingDamage(ownerId, amount, { type: 'character', id: char.instanceId });
+          const hit = GameState.damageTarget?.(resolvedTarget, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'menghu_chuji',
+            allowSafeguard: resolvedTarget?.type === 'player',
+            splashCaptain: resolvedTarget?.type === 'player',
+          }) ?? _fallbackDamageTarget(resolvedTarget, damage);
+          _showDamageHit(hit);
+          showToast(`${char.name} lands ${ability.abilityName}: ${hit?.actualDamage ?? damage}${nearDeath ? ' lethal' : ''} damage.`, 'combat');
+        };
+        const punishLoser = (loserId) => {
+          const loser = GameState.getCharacter(loserId);
+          if (!loser) return;
+          const damage = _outgoingDamage(ownerId, value || 5, { type: 'character', id: char.instanceId });
+          const hit = GameState.damageTarget?.({ type: 'character', id: loserId }, damage, {
+            attacker: { type: 'character', id: char.instanceId },
+            source: 'menghu_chuji',
+            allowSafeguard: false,
+          }) ?? _fallbackDamageTarget({ type: 'character', id: loserId }, damage);
+          _showDamageHit(hit);
+          showToast(`Duel loser ${loser.name} takes ${hit?.actualDamage ?? damage}.`, 'combat');
+        };
+        const duelAgainst = target?.type === 'player'
+          ? GameState.getCaptain?.(target.id)
+          : GameState.getCharacter(target?.id);
+        if (duelAgainst?.instanceId) {
+          showToast(`${char.name} challenges ${duelAgainst.name} with ${ability.abilityName}.`, 'combat');
+          DuelSystem.start(char.instanceId, duelAgainst.instanceId, (winnerId, loserId) => {
+            if (winnerId === char.instanceId) strikeTarget(target);
+            else if (loserId) punishLoser(loserId);
+            renderBoard();
+            PhaseManager.checkWin?.();
+          });
+        } else {
+          strikeTarget(target);
+        }
+        break;
+      }
+
+      case 'pass_gas': {
+        const targetPlayer = target?.type === 'player' ? target.id : oppId;
+        const passed = GameState.passBombToPlayer?.(targetPlayer, {
+          casterId: ownerId,
+          refundMana: 0,
+          requiredRoll: 5,
+          poisonOnFail: true,
+          source: 'pass_gas',
+        });
+        showToast(passed
+          ? `${char.name} uses ${ability.abilityName}: ${GameState.getPlayerLabel?.(targetPlayer) ?? 'enemy'} must roll 5+ or the gas bomb detonates.`
+          : `${ability.abilityName} fizzled.`,
+          passed ? 'combat' : 'warn');
+        break;
+      }
+
+      case 'daily_bread': {
+        const amount = value || 6;
+        const affectCharacter = (instanceId) => {
+          if (!instanceId) return { healed: 0, cleansed: 0, blessed: false };
+          const before = GameState.getCharacter(instanceId)?.currentHp ?? 0;
+          const cleansed = _cleanseCharacter(instanceId);
+          const after = GameState.healCharacter?.(instanceId, amount) ?? before;
+          const blessed = _applyStatusToTarget({ type: 'character', id: instanceId }, 'status_blessed', { allowSafeguard: false })?.applied ?? false;
+          return { healed: Math.max(0, after - before), cleansed, blessed };
+        };
+        const affectPlayer = (playerId) => {
+          const before = GameState.getPlayerState(playerId)?.hp ?? 0;
+          const cleansed = _cleansePlayer(playerId);
+          const after = GameState.healPlayer?.(playerId, amount, { overheal: false }) ?? before;
+          const blessed = _applyStatusToTarget({ type: 'player', id: playerId }, 'status_blessed', { allowSafeguard: false, splashCaptain: false })?.applied ?? false;
+          return { healed: Math.max(0, after - before), cleansed, blessed };
+        };
+        const results = [];
+        if (target?.type === 'player') {
+          results.push(affectPlayer(target.id));
+          const captain = GameState.getCaptain?.(target.id);
+          if (captain) results.push(affectCharacter(captain.instanceId));
+        } else if (target?.type === 'character') {
+          const allyOwner = GameState.getCharacterOwner?.(target.id);
+          const captain = GameState.getCaptain?.(allyOwner);
+          if (captain?.instanceId === target.id) results.push(affectPlayer(allyOwner));
+          results.push(affectCharacter(target.id));
+        }
+        const healed = results.reduce((sum, row) => sum + (row.healed ?? 0), 0);
+        const cleansed = results.reduce((sum, row) => sum + (row.cleansed ?? 0), 0);
+        showToast(`${char.name} uses ${ability.abilityName}: healed ${healed}, cleansed ${cleansed}, and Blessed.`, 'info');
+        break;
+      }
+
       case 'zoomstick': {
         const allies = [...GameState.getPlayerState(ownerId).board];
-        const enemies = [...GameState.getPlayerState(oppId).board];
         allies.forEach(ally => _applyStatusToTarget({ type: 'character', id: ally.instanceId }, 'status_accelerated', { allowSafeguard: false }));
         _applyStatusToTarget({ type: 'player', id: ownerId }, 'status_accelerated', { allowSafeguard: false, splashCaptain: false });
-        enemies.forEach(enemy => _applyStatusToTarget({ type: 'character', id: enemy.instanceId }, 'status_impeded', { allowSafeguard: false }));
-        _applyStatusToTarget({ type: 'player', id: oppId }, 'status_impeded', { splashCaptain: true });
-        showToast(`${char.name} uses ${ability.abilityName}: allies accelerate, enemies are impeded.`, 'combat');
+        showToast(`${char.name} uses ${ability.abilityName}: allies accelerate.`, 'info');
         break;
       }
 
@@ -2037,6 +2382,13 @@ const AbilityDispatcher = (() => {
           const t = GameState.getCharacter(target.id);
           showToast(`${char.name} challenges ${t?.name} to a duel!`, 'combat');
           DuelSystem.start(char.instanceId, target.id, (winnerId, loserId) => {
+            if (!loserId) {
+              const refund = ability.tieRefund ?? 0;
+              if (refund > 0) {
+                const gained = GameState.gainMana?.(refund, ownerId) ?? 0;
+                showToast(`${ability.abilityName} tie: refunded ${gained} mana.`, 'info');
+              }
+            }
             if (loserId) {
               const loser = GameState.getCharacter(loserId);
               const damage = _outgoingDamage(ownerId, value, { type: 'character', id: char.instanceId });
@@ -2049,6 +2401,7 @@ const AbilityDispatcher = (() => {
                   sourcePlayerId: ownerId,
                   sourceCharacterId: char.instanceId,
                   sourceName: char.name,
+                  duration: ability.statusDuration,
                 });
               }
               _showDamageHit(hit);
@@ -2070,6 +2423,12 @@ const AbilityDispatcher = (() => {
                 GameState.addCharacterVerglas?.(char.instanceId, 4);
                 GameState.addPlayerVerglas?.(ownerId, 4, { shareCaptain: false });
                 showToast(`${char.name} wins Bust Thrust: +4 armor to Breast Knuckle and player.`, 'info');
+              }
+
+              if (sourceWon && ability.abilityName === 'Strike a Chord!') {
+                _applyStatusToTarget({ type: 'character', id: char.instanceId }, 'status_augmented', { allowSafeguard: false });
+                _applyStatusToTarget({ type: 'player', id: ownerId }, 'status_augmented', { allowSafeguard: false, splashCaptain: false });
+                showToast(`${char.name} wins Strike a Chord!: Riff Wrath and player are Augmented.`, 'info');
               }
 
               if (sourceWon && ability.abilityName === 'Booty Brawl') {

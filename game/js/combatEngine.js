@@ -218,6 +218,7 @@ const CombatEngine = (() => {
     // Effective attack — includes Augmented (+2) / Anemic (−2) modifiers
     const baseAttackDamage = GameState.getEffectiveAttack?.(attacker) ?? attacker.baseAttack;
     const attackDamage = GameState.applyCaptainDamageBonus?.(attackOwner, baseAttackDamage) ?? baseAttackDamage;
+    let temperatureTarget = null;
 
     if (blockerId) {
       // ── Blocked ──────────────────────────────────────────────────────────
@@ -238,6 +239,7 @@ const CombatEngine = (() => {
         const attackerActual = Math.max(0, attackerBefore - Math.max(0, attackerHp ?? attackerBefore));
         PixiBoard?.showHitEffect?.('character', blockerId,  blockerActual);
         PixiBoard?.showHitEffect?.('character', attackerId, attackerActual);
+        if (blockerActual > 0) temperatureTarget = { type: 'character', id: blockerId };
         showToast(
           `${attacker.name} attacks ${blocker.name}! ${blockerActual} vs ${attackerActual} damage.`,
           'combat'
@@ -256,6 +258,7 @@ const CombatEngine = (() => {
       })
         ?? { type: 'player', id: targetId, actualDamage: attackDamage, hp: GameState.damagePlayer(targetId, attackDamage, { splashCaptain: true }) };
       PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+      if ((hit.actualDamage ?? 0) > 0) temperatureTarget = { type: hit.type, id: hit.id };
       showToast(hit.safeguarded
         ? `${attacker.name} hits Safeguard.`
         : `${attacker.name} attacks ${GameState.getPlayerLabel(targetId)} for ${hit.actualDamage}! HP → ${hit.hp}`,
@@ -277,6 +280,7 @@ const CombatEngine = (() => {
         })
           ?? { type: 'character', id: targetId, actualDamage: GameState.previewCharacterDamage?.(targetId, attackDamage) ?? attackDamage };
         PixiBoard?.showHitEffect?.(hit.type, hit.id, hit.actualDamage);
+        if ((hit.actualDamage ?? 0) > 0) temperatureTarget = { type: hit.type, id: hit.id };
         showToast(hit.safeguarded
           ? `${attacker.name} hits Safeguard.`
           : `${attacker.name} attacks ${target.name} for ${hit.actualDamage}!`,
@@ -294,6 +298,14 @@ const CombatEngine = (() => {
           showToast(`⚡ ${target.name}'s ${retort.name} strikes back for ${retortDamage}!`, 'combat');
         }
       }
+    }
+
+    if (attacker.id === 'hero_val_cano' && attacker._temperatureTantrum && temperatureTarget) {
+      const burned = GameState.applyStatusToTarget?.(temperatureTarget, 'status_burning', {
+        allowSafeguard: false,
+        splashCaptain: temperatureTarget.type === 'player',
+      });
+      if (burned?.applied) showToast(`${attacker.name}'s Temperature Tantrum inflicts Burning.`, 'combat');
     }
 
     GameState.spreadRabiesFromTarget?.(

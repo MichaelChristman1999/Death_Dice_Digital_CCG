@@ -311,16 +311,37 @@ const CpuController = (() => {
 
   function _targetForAbility(char, ability, timing) {
     if (!ability) return null;
-    if (['gain_mana', 'cheatah_reroll', 'cheatah_code', 'roid_rage', 'zoomstick', 'meowrox', 'swift_squall', 'breakback_breakdance', 'sleuth_seance'].includes(ability.effect)) {
+    if (['gain_mana', 'cheatah_reroll', 'cheatah_code', 'roid_rage', 'zoomstick', 'meowrox', 'swift_squall', 'breakback_breakdance', 'sleuth_seance', 'out_of_tomb'].includes(ability.effect)) {
       return { type: 'character', id: char.instanceId };
     }
     if (ability.targetType === 'self') return { type: 'character', id: char.instanceId };
     if (ability.targetType === 'all_allies' || ability.targetType === 'all_enemies') return null;
-    if (ability.targetType === 'enemy_player' || ability.effect === 'shop_lock' || ability.effect === 'apply_player_status') {
+    if (ability.targetType === 'enemy_player'
+      || ability.effect === 'shop_lock'
+      || ability.effect === 'apply_player_status'
+      || ability.effect === 'pass_gas') {
       return { type: 'player', id: GameState.getOpponentId(_playerId) };
     }
     if (ability.effect === 'heal') {
       return _mostWoundedAlly() ?? false;
+    }
+    if (ability.effect === 'daily_bread') {
+      return _debuffedAlly() ?? _mostWoundedAlly() ?? _bestAllyTarget(true) ?? { type: 'player', id: _playerId };
+    }
+    if (ability.effect === 'biotic_syringe') {
+      return _debuffedAlly()
+        ?? _mostWoundedAlly()
+        ?? _bestEnemyTarget({ preferPlayer: _persona?.faceBias > 0.55 })
+        ?? false;
+    }
+    if (ability.targetType === 'ally_any') {
+      return _bestAllyTarget(/attack|damage|accelerate|augment|bless/i.test(ability.description ?? ''))
+        ?? { type: 'player', id: _playerId };
+    }
+    if (ability.targetType === 'ally_any_enemy_any') {
+      return _bestEnemyTarget({ preferPlayer: _persona?.faceBias > 0.55 })
+        ?? _bestAllyTarget(false)
+        ?? { type: 'player', id: _playerId };
     }
     if (ability.targetType === 'single_ally') {
       return _bestAllyTarget(/attack|damage|accelerate|augment/i.test(ability.description ?? ''));
@@ -328,7 +349,7 @@ const CpuController = (() => {
     if (ability.effect === 'duel' || ability.effect === 'copy_enemy_ability') {
       return _bestEnemyCharacterTarget() ?? false;
     }
-    if (['deal_damage', 'deal_damage_apply_status', 'apply_status', 'stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese'].includes(ability.effect)) {
+    if (['deal_damage', 'deal_damage_apply_status', 'apply_status', 'stinging_barbs', 'caffeine_rush', 'lapis_lazuli', 'titaness_toss', 'avian_flu', 'say_cheese', 'sass_squash', 'puppeteer', 'deer_dash', 'dino_dominion', 'menghu_chuji'].includes(ability.effect)) {
       return _bestEnemyTarget({ preferPlayer: _persona?.faceBias > 0.5 || /player/i.test(ability.description ?? '') });
     }
     return _bestEnemyTarget({ preferPlayer: false });

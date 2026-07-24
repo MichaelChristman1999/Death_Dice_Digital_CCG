@@ -33,7 +33,7 @@ const StatusEngine = (() => {
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
     'status_frozen', 'status_rabies', 'status_locked_out', 'status_burning',
     'status_haunted', 'status_shocked', 'status_cursed', 'status_virus',
-    'status_jinxed', 'status_example_timed', 'status_example_permanent',
+    'status_jinxed', 'status_hypnotized', 'status_example_timed', 'status_example_permanent',
   ];
 
   function removeAllNegative(instanceId) {

@@ -30,7 +30,7 @@ const GameState = (() => {
     'status_impeded', 'status_drunk', 'status_charmed', 'status_edible',
     'status_frozen', 'status_rabies', 'status_locked_out', 'status_burning',
     'status_haunted', 'status_shocked', 'status_cursed', 'status_virus',
-    'status_jinxed', 'status_example_timed', 'status_example_permanent',
+    'status_jinxed', 'status_hypnotized', 'status_example_timed', 'status_example_permanent',
   ]);
   const _STATUS_CANCELS = {
     status_accelerated: ['status_impeded', 'status_frozen'],
@@ -236,6 +236,8 @@ const GameState = (() => {
     applyPlayerTurnStartStatuses(_currentTurn);
     if (p.hp > 0) [...p.board].forEach(char => applyTurnStartStatuses(char));
     resolveTurnStartHeroPassives(_currentTurn);
+    tickFriendlySummons(_currentTurn);
+    tickCapturedCharacters(_currentTurn);
 
     _saveToStorage();
   }
@@ -312,6 +314,8 @@ const GameState = (() => {
       casterId: bomb.casterId ?? getOpponentId(targetPlayerId),
       refundMana: Math.max(0, Number(bomb.refundMana ?? 0)),
       requiredRoll: Math.max(1, Number(bomb.requiredRoll ?? 5)),
+      poisonOnFail: !!bomb.poisonOnFail,
+      source: bomb.source ?? null,
       createdTurn: _turnNumber,
     };
     _saveToStorage();
@@ -387,7 +391,8 @@ const GameState = (() => {
   }
 
   function _makeStatusInstance(def, statusId, options = {}) {
-    const status = { ...def, remainingDuration: def.duration, stacks: 1 };
+    const duration = options.duration ?? def.duration;
+    const status = { ...def, duration, remainingDuration: duration, stacks: 1 };
     if (options.sourcePlayerId) status.sourcePlayerId = options.sourcePlayerId;
     if (options.sourceCharacterId) status.sourceCharacterId = options.sourceCharacterId;
     if (options.sourceCardId) status.sourceCardId = options.sourceCardId;
@@ -617,6 +622,42 @@ const GameState = (() => {
     return { triggered: true, heroName: hero.name, healed };
   }
 
+  function _drawFreeNonLegendaryHero(playerId) {
+    const p = _players[playerId];
+    if (!p) return { ok: false, error: 'Player not found' };
+    const limit = _rules.handLimits?.hero ?? 8;
+    if ((p.hand?.heroes?.length ?? 0) >= limit) return { ok: false, error: 'Hero hand full' };
+    const inUse = getAllHeroIdsInUse({ includeGraveyard: true });
+    const pool = (_data.heroes ?? []).filter(hero =>
+      !inUse.has(hero.id)
+      && !/Legendary/i.test(hero.roleType ?? hero.classType ?? '')
+    );
+    if (!pool.length) return { ok: false, error: 'No non-Legendary hero available' };
+    const card = { ...pool[Math.floor(Math.random() * pool.length)], _freeCast: true };
+    const result = addCardToHand(playerId, card, 'hero');
+    if (result.ok) result.card._freeCast = true;
+    return result;
+  }
+
+  function resolveSuccessfulRollHeroPassives(playerId, roll, required = null) {
+    const p = _players[playerId];
+    if (!p) return { triggered: false, messages: [] };
+    const success = required == null || Number(roll) >= Number(required);
+    if (!success) return { triggered: false, messages: [] };
+
+    const messages = [];
+    const trophy = p.board?.find(c => c.id === 'hero_trophy_wife');
+    if (trophy && Math.random() < (1 / 3)) {
+      const drawn = _drawFreeNonLegendaryHero(playerId);
+      messages.push(drawn.ok
+        ? `${trophy.name}'s Trophy Hoard drew ${drawn.card.name} free to cast.`
+        : `${trophy.name}'s Trophy Hoard found no hero to draw.`);
+    }
+
+    if (messages.length) _saveToStorage();
+    return { triggered: messages.length > 0, messages };
+  }
+
   function resolveFailedRollHeroPassives(failedPlayerId) {
     const enemyId = getOpponentId(failedPlayerId);
     const enemyBoard = _players[enemyId]?.board ?? [];
@@ -651,22 +692,34 @@ const GameState = (() => {
     const messages = [];
 
     for (const hero of p.board) {
-      if (hero.id !== 'hero_iron_maid') continue;
-      hero._vacuumCounter = (hero._vacuumCounter ?? 0) + 1;
-      if (hero._vacuumCounter < 2) continue;
-      hero._vacuumCounter = 0;
+      if (hero.id === 'hero_iron_maid') {
+        hero._vacuumCounter = (hero._vacuumCounter ?? 0) + 1;
+        if (hero._vacuumCounter >= 2) {
+          hero._vacuumCounter = 0;
 
-      const removed = _cleanseNegativePlayer(playerId)
-        + p.board.reduce((sum, ally) => sum + _cleanseNegativeCharacter(ally.instanceId), 0);
-      const beforePlayer = p.hp ?? 0;
-      const playerHp = healPlayer(playerId, 3, { overheal: false, ignoreVitalized: true });
-      let healed = Math.max(0, (playerHp ?? beforePlayer) - beforePlayer);
-      for (const ally of p.board) {
-        const before = ally.currentHp ?? 0;
-        const hp = healCharacter(ally.instanceId, 3, { overheal: false, ignoreVitalized: true });
-        healed += Math.max(0, (hp ?? before) - before);
+          const removed = _cleanseNegativePlayer(playerId)
+            + p.board.reduce((sum, ally) => sum + _cleanseNegativeCharacter(ally.instanceId), 0);
+          const beforePlayer = p.hp ?? 0;
+          const playerHp = healPlayer(playerId, 3, { overheal: false, ignoreVitalized: true });
+          let healed = Math.max(0, (playerHp ?? beforePlayer) - beforePlayer);
+          for (const ally of p.board) {
+            const before = ally.currentHp ?? 0;
+            const hp = healCharacter(ally.instanceId, 3, { overheal: false, ignoreVitalized: true });
+            healed += Math.max(0, (hp ?? before) - before);
+          }
+          messages.push(`Vacuum Cleaner cleansed ${removed} and healed ${healed} HP.`);
+        }
       }
-      messages.push(`Vacuum Cleaner cleansed ${removed} and healed ${healed} HP.`);
+
+      if (hero.id === 'hero_stallwart') {
+        hero._stalliwogChance = Math.min(6, (hero._stalliwogChance ?? 0) + 1);
+        const roll = _rollDieFallback();
+        if (roll <= hero._stalliwogChance) {
+          const over = grantCharacterOverhealth(hero.instanceId, 4, 12);
+          hero._stalliwogChance = 0;
+          messages.push(`Stalliwog rolled ${roll}: ${hero.name} gains ${over.gained ?? 0} overhealth.`);
+        }
+      }
     }
 
     if (messages.length) {
@@ -674,6 +727,77 @@ const GameState = (() => {
       _saveToStorage();
     }
     return { triggered: messages.length > 0, messages };
+  }
+
+  function tickFriendlySummons(playerId) {
+    const p = _players[playerId];
+    if (!p?.board?.length) return { triggered: false, messages: [] };
+    const messages = [];
+    const babies = [...p.board].filter(c => c._isBabySpawn);
+
+    for (const baby of babies) {
+      if (!getCharacter(baby.instanceId)) continue;
+      const removed = _cleanseNegativePlayer(playerId)
+        + p.board.reduce((sum, ally) => sum + _cleanseNegativeCharacter(ally.instanceId), 0);
+      const beforePlayer = p.hp ?? 0;
+      const playerHp = healPlayer(playerId, 4, { overheal: false, ignoreVitalized: true });
+      let healed = Math.max(0, (playerHp ?? beforePlayer) - beforePlayer);
+      for (const ally of [...p.board]) {
+        const before = ally.currentHp ?? 0;
+        const hp = healCharacter(ally.instanceId, 4, { overheal: false, ignoreVitalized: true });
+        healed += Math.max(0, (hp ?? before) - before);
+      }
+
+      baby._remainingFriendlyTurns = Math.max(0, (baby._remainingFriendlyTurns ?? 1) - 1);
+      messages.push(`Baby cleansed ${removed} and healed ${healed} HP.`);
+      if (baby._remainingFriendlyTurns <= 0) _expireSummon(playerId, baby.instanceId);
+    }
+
+    if (messages.length) {
+      messages.forEach(msg => { try { showToast?.(msg, 'info'); } catch (_) {} });
+      _saveToStorage();
+    }
+    return { triggered: messages.length > 0, messages };
+  }
+
+  function _expireSummon(playerId, instanceId) {
+    const p = _players[playerId];
+    if (!p?.board?.length) return false;
+    const idx = p.board.findIndex(c => c.instanceId === instanceId);
+    if (idx === -1) return false;
+    const [expired] = p.board.splice(idx, 1);
+    if (p.captainId === expired.instanceId) _autoBackfillCaptain(p.id ?? playerId, p);
+    try { showToast?.(`${expired.name ?? 'Summon'} fades.`, 'info'); } catch (_) {}
+    _saveToStorage();
+    return true;
+  }
+
+  function _resolveMummyScorned(ownerId, baby) {
+    const source = getCharacter(baby?._summonedBy);
+    const label = source?.name ?? 'Mumma Mia';
+    const targets = [];
+    for (const [playerId, p] of Object.entries(_players)) {
+      targets.push({ type: 'player', id: playerId });
+      p.board.forEach(char => targets.push({ type: 'character', id: char.instanceId }));
+    }
+
+    targets.forEach(target => {
+      damageTarget(target, 6, {
+        source: 'mummy_scorned',
+        allowSafeguard: false,
+        ignoreSidestep: true,
+        roleEvasion: false,
+        splashCaptain: false,
+        ignoreCharmedMirror: true,
+      });
+      applyStatusToTarget(target, 'status_cursed', {
+        source: 'mummy_scorned',
+        allowSafeguard: false,
+        ignoreSidestep: true,
+        splashCaptain: false,
+      });
+    });
+    try { showToast?.(`${label}'s Mummy Scorned hits everyone.`, 'combat'); } catch (_) {}
   }
 
   function _asArray(value) {
@@ -746,6 +870,7 @@ const GameState = (() => {
       hero_geezer_freezer: 10,
       hero_iron_maid: 12,
       hero_kevlard: 20,
+      hero_stallwart: 24,
     }[heroData.id];
     if (startingVerglas) instance.verglas = Math.max(instance.verglas ?? 0, startingVerglas);
   }
@@ -770,6 +895,9 @@ const GameState = (() => {
     }
     if (_playerOrCaptainHasStatus(playerId, 'status_virus')) {
       return { ok: false, error: 'Virus blocks hero casts' };
+    }
+    if (hasPlayerStatus(playerId, 'status_hypnotized')) {
+      return { ok: false, error: 'Hypnotized blocks hero casts' };
     }
     if (_heroCardsDeployedThisTurn >= getHeroCardLimit(playerId)) {
       return { ok: false, error: 'Only one hero card per turn' };
@@ -826,6 +954,152 @@ const GameState = (() => {
     p.board.push(instance);
     _saveToStorage();
     return { ok: true, instance };
+  }
+
+  function spawnBaby(playerId, sourceInstanceId) {
+    const p = _players[playerId];
+    const source = getCharacter(sourceInstanceId);
+    if (!p || !source) return { ok: false, error: 'Mumma Mia not found' };
+    const fieldCap = Math.max(_rules.fieldLimits?.heroes ?? 5, 6);
+    if ((p.board?.length ?? 0) >= fieldCap) return { ok: false, error: 'No room for Baby' };
+    if (p.board?.some(c => c._isBabySpawn && c._summonedBy === sourceInstanceId)) {
+      return { ok: false, error: 'Baby is already active' };
+    }
+
+    const babyCard = {
+      id: 'spawn_baby',
+      name: 'Baby',
+      imageAsset: '',
+      stage: 'Spawn',
+      manaCost: 0,
+      hp: 4,
+      baseAttack: 1,
+      role: 'Support',
+      roleType: 'Passive',
+      archetype: 'Summon',
+      passives: [],
+      abilities: [],
+      heroPassive: {
+        name: 'Caretaker',
+        description: 'Heals and cleanses allied heroes and player on friendly turns.',
+      },
+    };
+    const instance = _createCharacterInstance(babyCard);
+    instance._sourceCard = babyCard;
+    instance._isBabySpawn = true;
+    instance._summonedBy = sourceInstanceId;
+    instance._remainingFriendlyTurns = 3;
+    p.board.push(instance);
+    _saveToStorage();
+    return { ok: true, instance };
+  }
+
+  function captureCharacter(captorOwnerId, captorInstanceId, targetInstanceId, options = {}) {
+    const captor = getCharacter(captorInstanceId);
+    const targetLookup = _findChar(targetInstanceId);
+    const captorOwner = getCharacterOwner(captorInstanceId);
+    const targetOwner = targetLookup.playerId;
+    if (!captor || !targetLookup.char || captorOwner !== captorOwnerId || !targetOwner || targetOwner === captorOwnerId) {
+      return { ok: false, error: 'Invalid capture target' };
+    }
+
+    const targetPlayer = _players[targetOwner];
+    const captorPlayer = _players[captorOwnerId];
+    const fieldCap = Math.max(_rules.fieldLimits?.heroes ?? 5, 6);
+    if (!targetPlayer || !captorPlayer || (captorPlayer.board?.length ?? 0) >= fieldCap) {
+      return { ok: false, error: 'No room to capture' };
+    }
+
+    const idx = targetPlayer.board.findIndex(c => c.instanceId === targetInstanceId);
+    if (idx === -1) return { ok: false, error: 'Target not on field' };
+    const [captured] = targetPlayer.board.splice(idx, 1);
+    if (targetPlayer.captainId === captured.instanceId) _autoBackfillCaptain(targetOwner, targetPlayer);
+
+    captured._capturedBy = captorInstanceId;
+    captured._originalOwnerId = targetOwner;
+    captured._captureTurnsRemaining = Math.max(1, Number(options.duration ?? 3) || 3);
+    captured.tapped = true;
+    captured.actionsTakenThisTurn = Math.max(getCharacterActionLimit(captured), captured.actionsTakenThisTurn ?? 0);
+    captured.currentHp = Math.max(1, Math.min(captured.maxHp ?? 1, captured.currentHp ?? 1));
+    captorPlayer.board.push(captured);
+    _saveToStorage();
+    return { ok: true, character: captured };
+  }
+
+  function _sendCapturedToOriginalGraveyard(captured, originalOwnerId) {
+    const owner = _players[originalOwnerId];
+    if (!owner || !captured) return false;
+    captured._capturedBy = null;
+    captured._originalOwnerId = null;
+    captured._captureTurnsRemaining = null;
+    owner.heroGraveyard.push(captured._sourceCard ?? { id: captured.id, name: captured.name });
+    owner.graveyard = owner.heroGraveyard;
+    return true;
+  }
+
+  function _releaseCapturedCharacter(instanceId) {
+    for (const [holderId, holder] of Object.entries(_players)) {
+      const idx = holder.board.findIndex(c => c.instanceId === instanceId && c._capturedBy);
+      if (idx === -1) continue;
+      const [captured] = holder.board.splice(idx, 1);
+      const originalOwnerId = captured._originalOwnerId;
+      const owner = _players[originalOwnerId];
+      captured._capturedBy = null;
+      captured._originalOwnerId = null;
+      captured._captureTurnsRemaining = null;
+      captured.tapped = true;
+      captured.actionsTakenThisTurn = Math.max(getCharacterActionLimit(captured), captured.actionsTakenThisTurn ?? 0);
+      captured.currentHp = Math.max(1, Math.min(captured.maxHp ?? 1, captured.currentHp ?? 1));
+
+      if (owner && (owner.board?.length ?? 0) < (_rules.fieldLimits?.heroes ?? 5)) {
+        owner.board.push(captured);
+      } else if (owner && (owner.hand?.heroes?.length ?? 0) < (_rules.handLimits?.hero ?? 8)) {
+        owner.hand.heroes.push({ ...(captured._sourceCard ?? captured), _freeCast: true });
+      } else if (owner) {
+        owner.heroGraveyard.push(captured._sourceCard ?? { id: captured.id, name: captured.name });
+        owner.graveyard = owner.heroGraveyard;
+      }
+      if (holder.captainId === captured.instanceId) _autoBackfillCaptain(holderId, holder);
+      return { ok: true, character: captured, ownerId: originalOwnerId };
+    }
+    return { ok: false, error: 'Captured hero not found' };
+  }
+
+  function _releaseCaptivesForCaptor(captorInstanceId) {
+    const messages = [];
+    const captiveIds = [];
+    for (const holder of Object.values(_players)) {
+      holder.board
+        .filter(c => c._capturedBy === captorInstanceId)
+        .forEach(c => captiveIds.push(c.instanceId));
+    }
+    captiveIds.forEach(instanceId => {
+      const released = _releaseCapturedCharacter(instanceId);
+      if (released.ok) {
+        messages.push(`${released.character.name} is released from Capture.`);
+      }
+    });
+    return messages;
+  }
+
+  function tickCapturedCharacters(playerId) {
+    const p = _players[playerId];
+    if (!p?.board?.length) return { triggered: false, messages: [] };
+    const messages = [];
+    for (const captured of [...p.board].filter(c => c._capturedBy)) {
+      captured._captureTurnsRemaining = Math.max(0, (captured._captureTurnsRemaining ?? 1) - 1);
+      if (captured._captureTurnsRemaining > 0) continue;
+      const idx = p.board.findIndex(c => c.instanceId === captured.instanceId);
+      if (idx !== -1) p.board.splice(idx, 1);
+      if (p.captainId === captured.instanceId) _autoBackfillCaptain(playerId, p);
+      _sendCapturedToOriginalGraveyard(captured, captured._originalOwnerId);
+      messages.push(`${captured.name} is lost after Capture expires.`);
+    }
+    if (messages.length) {
+      messages.forEach(msg => { try { showToast?.(msg, 'combat'); } catch (_) {} });
+      _saveToStorage();
+    }
+    return { triggered: messages.length > 0, messages };
   }
 
   function deploySetupCaptain(playerId) {
@@ -1049,6 +1323,9 @@ const GameState = (() => {
     if (_playerOrCaptainHasStatus(playerId, 'status_virus')) {
       return { ok: false, error: 'Virus blocks action cards' };
     }
+    if (hasPlayerStatus(playerId, 'status_hypnotized')) {
+      return { ok: false, error: 'Hypnotized blocks action cards' };
+    }
     if (card.id === 'action_abstain' && hasTakenMajorActionThisTurn(playerId)) {
       return { ok: false, error: 'Abstain must be played before your major actions' };
     }
@@ -1127,6 +1404,20 @@ const GameState = (() => {
     if (pct > 0.50) return { id: 'vulnerable', label: 'Vulnerable', pct };
     if (pct > 0.25) return { id: 'critical', label: 'Critical', pct };
     return { id: 'near_death', label: 'Near-Death', pct };
+  }
+
+  function getLoneWolfDamageMultiplier(playerId = _currentTurn, options = {}) {
+    const p = _players[playerId];
+    const board = p?.board ?? [];
+    const lone = board.find(c => c.id === 'hero_lone_wolf');
+    if (!lone || board.length !== 1) return 1;
+    if (options.actionCard && !hasPlayerStatus(playerId, 'status_imbued')) return 1;
+
+    const tier = getPlayerHpTier(playerId)?.id;
+    if (tier === 'near_death') return 2.5;
+    if (tier === 'critical') return 2;
+    if (tier === 'vulnerable') return 1.5;
+    return 1;
   }
 
   function getPlayerBaseAttackDamage(playerId = _currentTurn) {
@@ -1301,6 +1592,7 @@ const GameState = (() => {
     if (_currentPhase === 'rolloff' || _phaseStep !== 'main') return { ok: false, error: 'Draw after your turn starts' };
     if (_playerOrCaptainHasStatus(playerId, 'status_locked_out')) return { ok: false, error: 'Draw Pile is locked' };
     if (_playerOrCaptainHasStatus(playerId, 'status_virus')) return { ok: false, error: 'Virus blocks the Draw Pile' };
+    if (hasPlayerStatus(playerId, 'status_hypnotized')) return { ok: false, error: 'Hypnotized blocks the Draw Pile' };
     if (_drawPileDrawsThisTurn >= getDrawPileLimit(playerId)) return { ok: false, error: 'Draw pile already used' };
     const heroFull = (p.hand.heroes?.length ?? 0) >= (_rules.handLimits?.hero ?? 8);
     const actionFull = (p.hand.actions?.length ?? 0) >= (_rules.handLimits?.action ?? 8);
@@ -1545,6 +1837,10 @@ const GameState = (() => {
       applyStatus(instanceId, 'status_damage_boost', { ignoreSidestep: true, sharePlayer: false });
       _tryChickiRetaliate(char, options.attacker ?? _inferRetaliateSource(ownerId, options.source));
     }
+    if (dmg > 0 && char.id === 'hero_val_cano' && char.currentHp > 0) {
+      char._temperatureTantrum = true;
+      try { showToast?.(`${char.name}'s Temperature Tantrum is primed.`, 'combat'); } catch (_) {}
+    }
     if (char.currentHp <= 0) _killCharacter(instanceId);
     _saveToStorage();
     return char.currentHp;
@@ -1729,6 +2025,7 @@ const GameState = (() => {
         roleEvasion: false,
         source: options.source ?? null,
         ignoreModifiers: options.ignoreModifiers ?? false,
+        ignoreSidestep: options.ignoreSidestep ?? false,
         attacker: options.attacker ?? null,
       });
       const after = Math.max(0, hp ?? safeguard.currentHp ?? 0);
@@ -1764,6 +2061,7 @@ const GameState = (() => {
     const before = getCharacter(target.id)?.currentHp ?? 0;
     const hp = damageCharacter(target.id, amount, {
       roleEvasion: options.roleEvasion ?? true,
+      ignoreSidestep: options.ignoreSidestep ?? false,
       ignoreModifiers: options.ignoreModifiers ?? false,
       source: options.source ?? null,
       attacker: options.attacker ?? null,
@@ -1858,6 +2156,18 @@ const GameState = (() => {
           return;
         }
         const [dead] = p.board.splice(idx, 1);
+        if (dead._capturedBy) {
+          if (p.captainId === dead.instanceId) _autoBackfillCaptain(p.id ?? playerId, p);
+          _sendCapturedToOriginalGraveyard(dead, dead._originalOwnerId);
+          _saveToStorage();
+          return;
+        }
+        if (dead._isBabySpawn) {
+          if (p.captainId === dead.instanceId) _autoBackfillCaptain(p.id ?? playerId, p);
+          _resolveMummyScorned(playerId, dead);
+          _saveToStorage();
+          return;
+        }
         if (dead.id === 'hero_determinator') {
           const tier = getPlayerHpTier(playerId)?.id;
           if (tier === 'critical' || tier === 'near_death') {
@@ -1868,6 +2178,11 @@ const GameState = (() => {
               try { showToast?.(`De-Termination grants ${gained} overhealth.`, 'info'); } catch (_) {}
             }
           }
+        }
+        if (dead.id === 'hero_tyrantosaurus') {
+          _releaseCaptivesForCaptor(dead.instanceId).forEach(msg => {
+            try { showToast?.(msg, 'combat'); } catch (_) {}
+          });
         }
         if (p.captainId === dead.instanceId) _autoBackfillCaptain(p.id ?? playerId, p);
         p.heroGraveyard.push(dead._sourceCard ?? { id: dead.id, name: dead.name });
@@ -1911,6 +2226,9 @@ const GameState = (() => {
       : getCharacterActionsTaken(char) + 1;
     char.actionsTakenThisTurn = nextTaken;
     char.tapped = nextTaken >= limit;
+    if (options.actionType === 'attack' && char.id === 'hero_val_cano') {
+      char._temperatureTantrum = false;
+    }
     if (options.recordAction !== false && playerId === _currentTurn) _characterActionsThisTurn++;
     _saveToStorage();
     return true;
@@ -2180,6 +2498,30 @@ const GameState = (() => {
     return { ...result, spread: !!result?.applied };
   }
 
+  function spreadShockFromTarget(sourceTarget, options = {}) {
+    if (!targetHasStatus(sourceTarget, 'status_shocked')) return { spread: false, reason: 'not_shocked' };
+    const chance = options.chance ?? (1 / 3);
+    if (chance < 1 && Math.random() >= chance) return { spread: false, reason: 'missed' };
+
+    const pool = _rabiesSpreadPool(sourceTarget)
+      .filter(t => !targetHasStatus(t, 'status_shocked'));
+    if (!pool.length) return { spread: false, reason: 'no_target' };
+
+    const target = pool[Math.floor(Math.random() * pool.length)];
+    const result = applyStatusToTarget(target, 'status_shocked', {
+      allowSafeguard: false,
+      splashCaptain: target.type === 'player',
+      captainSlotRoutesToPlayer: true,
+    });
+    if (result?.applied) {
+      const label = result.type === 'player'
+        ? getPlayerLabel(result.id)
+        : getCharacter(result.id)?.name;
+      try { showToast?.(`Shocked spreads to ${label ?? target.name ?? 'a target'}.`, 'combat'); } catch (_) {}
+    }
+    return { ...result, spread: !!result?.applied };
+  }
+
   function canPlayerReceiveStatus(playerId, statusId) {
     if (!_players[playerId] || !statusId) return false;
     const charmBlockedByAbstain = statusId === 'status_charmed' && hasPlayerStatus(playerId, 'status_abstaining');
@@ -2277,7 +2619,7 @@ const GameState = (() => {
   }
 
   // Damage-over-time statuses: id → damage per stack per tick
-  const _DOT_STATUSES = { status_poisoned: 3, status_rabies: 4, status_burning: 4, status_haunted: 2, status_example_timed: 1 };
+  const _DOT_STATUSES = { status_poisoned: 3, status_rabies: 4, status_burning: 4, status_haunted: 2, status_shocked: 2, status_example_timed: 1 };
 
   function applyTurnStartStatuses(char) {
     // Apply damage-over-time effects at the start of the affected player's turn.
@@ -2301,6 +2643,21 @@ const GameState = (() => {
       });
       if (s.id === 'status_poisoned' && !died) spreadPoisonFromTarget({ type: 'character', id: char.instanceId }, { chance: 0.5 });
       if (s.id === 'status_rabies' && !died) spreadRabiesFromTarget({ type: 'character', id: char.instanceId }, { chance: 0.5 });
+      if (s.id === 'status_shocked' && !died) {
+        const refreshed = getCharacter(char.instanceId);
+        const ratio = (refreshed?.currentHp ?? 0) / Math.max(1, refreshed?.maxHp ?? 1);
+        if (ratio <= 0.5 && Math.random() < (1 / 3)) {
+          damageCharacter(char.instanceId, (refreshed?.currentHp ?? 0) + (refreshed?.verglas ?? 0), {
+            source: 'shock_eliminate',
+            ignoreSidestep: true,
+            roleEvasion: false,
+            ignoreModifiers: true,
+          });
+          try { showToast?.(`${char.name} short-circuits from Shocked.`, 'combat'); } catch (_) {}
+          return;
+        }
+        spreadShockFromTarget({ type: 'character', id: char.instanceId }, { chance: 1 / 3 });
+      }
       if (died) return; // dead — stop ticking
     }
   }
@@ -2335,6 +2692,7 @@ const GameState = (() => {
       });
       if (s.id === 'status_poisoned' && !died) spreadPoisonFromTarget({ type: 'player', id: playerId }, { chance: 0.5 });
       if (s.id === 'status_rabies' && !died) spreadRabiesFromTarget({ type: 'player', id: playerId }, { chance: 0.5 });
+      if (s.id === 'status_shocked' && !died) spreadShockFromTarget({ type: 'player', id: playerId }, { chance: 1 / 3 });
       if (s.id === 'status_burning' && !died) _tryBurningActionDiscard(playerId);
       if (died) return;
     }
@@ -2402,17 +2760,23 @@ const GameState = (() => {
       if (s.id === 'status_cursed') atk = Math.ceil(atk / 2);
       if (s.id === 'status_edible') atk = Math.ceil(atk / 2);
     }
+    if (char.id === 'hero_lone_wolf') {
+      const ownerId = getCharacterOwner(char.instanceId);
+      atk = Math.ceil(atk * getLoneWolfDamageMultiplier(ownerId));
+    }
+    if (char.id === 'hero_val_cano' && char._temperatureTantrum) atk += 3;
     if (impaired) atk = Math.floor(atk / 2);
     return Math.max(1, atk);
   }
 
   // Statuses that prevent a character from attacking / using abilities
-  const _NO_ATTACK  = ['status_frozen', 'status_haunted', 'status_shocked'];
-  const _NO_ABILITY = ['status_frozen', 'status_haunted', 'status_shocked'];
+  const _NO_ATTACK  = ['status_frozen', 'status_haunted', 'status_shocked', 'status_hypnotized'];
+  const _NO_ABILITY = ['status_frozen', 'status_haunted', 'status_shocked', 'status_hypnotized'];
 
   function canCharacterAttack(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
     if (!char) return { ok: false, reason: 'Not found' };
+    if (char._capturedBy) return { ok: false, reason: `${char.name} is Captured and cannot attack.` };
     if (getCharacterActionsRemaining(char) <= 0) {
       return { ok: false, reason: `${char.name} has already spent their action${getCharacterActionLimit(char) > 1 ? 's' : ''}.` };
     }
@@ -2424,6 +2788,7 @@ const GameState = (() => {
   function canCharacterUseAbility(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
     if (!char) return { ok: false, reason: 'Not found' };
+    if (char._capturedBy) return { ok: false, reason: `${char.name} is Captured and cannot use abilities.` };
     if (getCharacterActionsRemaining(char) <= 0) {
       return { ok: false, reason: `${char.name} has already spent their action${getCharacterActionLimit(char) > 1 ? 's' : ''}.` };
     }
@@ -2647,6 +3012,8 @@ const GameState = (() => {
     getLastRoll,
     deployHero,
     spawnCopyCharacter,
+    spawnBaby,
+    captureCharacter,
     deploySetupCaptain,
     reorderBoardCharacter,
     setCaptain,
@@ -2680,6 +3047,7 @@ const GameState = (() => {
     getShopPurchaseLimit,
     getDiscardForManaLimit,
     getPlayerHpTier,
+    getLoneWolfDamageMultiplier,
     getPlayerBaseAttackDamage,
     getPlayerBaseAttackLimit,
     canPlayerBaseAttack,
@@ -2707,6 +3075,7 @@ const GameState = (() => {
     grantCharacterOverhealth,
     resolveAplombPassive,
     resolveEquinoxPassive,
+    resolveSuccessfulRollHeroPassives,
     resolveFailedRollHeroPassives,
     damagePlayer,
     damageTarget,

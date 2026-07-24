@@ -76,7 +76,8 @@ const HeroAbilities = (() => {
     [/augment|augmented|adrenaline|amplif|boost|x2|x3/i, 'status_augmented'],
     [/poison|gas|gassed|fumigated|plaqued|plagued|oozing|greasy/i, 'status_poisoned'],
     [/drunk|wasted/i, 'status_drunk'],
-    [/love|charm|hypnot/i, 'status_charmed'],
+    [/hypnot/i, 'status_hypnotized'],
+    [/love|charm/i, 'status_charmed'],
     [/edible/i, 'status_edible'],
     [/accelerate|accelerated/i, 'status_accelerated'],
     [/sidestep/i, 'status_sidestep'],
@@ -370,6 +371,192 @@ const HeroAbilities = (() => {
       };
     }
 
+    if (card.id === 'hero_lassquach') {
+      return {
+        abilityName: 'Sass-Squash',
+        manaCost: 5,
+        effect: 'sass_squash',
+        effectValue: 8,
+        targetType: 'ally_chars_enemy_any',
+        statusApplied: ['status_augmented'],
+        description: card.heroAbility || card.docAbility || 'Gain 4 overhealth and +2 attack, then deal 8 damage to an enemy hero or player.',
+      };
+    }
+
+    if (card.id === 'hero_marionetta') {
+      return {
+        abilityName: 'Puppeteer',
+        manaCost: 4,
+        effect: 'puppeteer',
+        effectValue: 4,
+        targetType: 'enemy_any',
+        statusApplied: ['status_hypnotized'],
+        description: card.heroAbility || card.docAbility || 'Hypnotize an enemy hero or player for 2 turns.',
+      };
+    }
+
+    if (card.id === 'hero_mumma_mia') {
+      return {
+        abilityName: 'Out of the Tomb',
+        manaCost: 6,
+        effect: 'out_of_tomb',
+        effectValue: 4,
+        targetType: 'self',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Summon Baby for 3 friendly turns.',
+      };
+    }
+
+    if (card.id === 'hero_prowl_ball') {
+      return {
+        abilityName: 'Claw Strikeout',
+        manaCost: 3,
+        effect: 'duel',
+        effectValue: 6,
+        targetType: 'single_enemy',
+        statusApplied: ['status_impeded'],
+        statusDuration: 1,
+        tieRefund: 2,
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 6 damage and Impede. On a tie, refund 2 mana.',
+      };
+    }
+
+    if (card.id === 'hero_riff_wrath') {
+      return {
+        abilityName: 'Strike a Chord!',
+        manaCost: 3,
+        effect: 'duel',
+        effectValue: 5,
+        targetType: 'single_enemy',
+        statusApplied: ['status_impeded'],
+        statusDuration: 1,
+        winnerStatuses: ['status_augmented'],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 5 damage, Impede, and Augment Riff Wrath plus your player.',
+      };
+    }
+
+    if (card.id === 'hero_ruby_goldberg') {
+      return {
+        abilityName: 'Goldberg Chain',
+        manaCost: 4,
+        effect: 'goldberg_chain',
+        effectValue: 1,
+        targetType: 'all_enemies',
+        statusApplied: ['status_impaired'],
+        description: card.heroAbility || card.docAbility || 'Deal scaling damage and Impaired to enemy heroes/player based on enemy field size.',
+      };
+    }
+
+    if (card.id === 'hero_shell_shocked') {
+      return {
+        abilityName: 'Static Splash',
+        manaCost: 5,
+        effect: 'static_splash',
+        effectValue: 4,
+        targetType: 'all_enemies',
+        statusApplied: ['status_shocked', 'status_impeded'],
+        statusDuration: 3,
+        description: card.heroAbility || card.docAbility || 'Deal 4 damage to all enemy heroes and player, then inflict Shocked and Impeded for 3 turns.',
+      };
+    }
+
+    if (card.id === 'hero_shish_ke_bob') {
+      return {
+        abilityName: 'Kebab Skewer',
+        manaCost: 3,
+        effect: 'duel',
+        effectValue: 5,
+        targetType: 'single_enemy',
+        statusApplied: ['status_anemic', 'status_impeded'],
+        statusDuration: 3,
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero. On a win, deal 5 damage, Anemic, and Impede for 3 turns.',
+      };
+    }
+
+    if (card.id === 'hero_sir_ringe') {
+      return {
+        abilityName: 'Biotic Syringe',
+        manaCost: 4,
+        effect: 'biotic_syringe',
+        effectValue: 4,
+        targetType: 'ally_any_enemy_any',
+        statusApplied: ['status_anemic'],
+        description: card.heroAbility || card.docAbility || 'Heal and Cleanse an ally, or deal 4 damage and Anemic an enemy.',
+      };
+    }
+
+    if (card.id === 'hero_slendeer') {
+      return {
+        abilityName: 'Deer Dash',
+        manaCost: 2,
+        effect: 'deer_dash',
+        effectValue: 4,
+        targetType: 'enemy_any',
+        statusApplied: ['status_accelerated'],
+        description: card.heroAbility || card.docAbility || 'Cleanse and Accelerate Slendeer, then deal 4 damage to an enemy hero or player.',
+      };
+    }
+
+    if (card.id === 'hero_tyrantosaurus') {
+      return {
+        abilityName: 'Dino Dominion',
+        manaCost: 6,
+        effect: 'dino_dominion',
+        effectValue: 8,
+        targetType: 'enemy_any',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Deal 8 damage. If this would defeat an enemy hero, Capture it for 3 turns instead.',
+      };
+    }
+
+    if (card.id === 'hero_val_cano') {
+      return {
+        abilityName: 'Volcanic Volley',
+        manaCost: 6,
+        effect: 'deal_damage_apply_status',
+        effectValue: 5,
+        targetType: 'all_enemies',
+        statusApplied: ['status_burning'],
+        description: card.heroAbility || card.docAbility || 'Deal 5 damage and inflict Burning on all enemy heroes and player.',
+      };
+    }
+
+    if (card.id === 'hero_wei_fu') {
+      return {
+        abilityName: 'Menghu Chuji',
+        manaCost: 4,
+        effect: 'menghu_chuji',
+        effectValue: 5,
+        targetType: 'enemy_any',
+        statusApplied: [],
+        description: card.heroAbility || card.docAbility || 'Duel an enemy hero or player/captain, then deal 5 damage on a win or defeat a Near-Death target.',
+      };
+    }
+
+    if (card.id === 'hero_wind_breaker') {
+      return {
+        abilityName: 'Pass Gas',
+        manaCost: 4,
+        effect: 'pass_gas',
+        effectValue: 0,
+        targetType: 'enemy_player',
+        statusApplied: ['status_poisoned', 'status_impeded'],
+        description: card.heroAbility || card.docAbility || 'Place a gas bomb on the enemy player for their next Death Die roll.',
+      };
+    }
+
+    if (card.id === 'hero_yeast_priest') {
+      return {
+        abilityName: 'Daily Bread',
+        manaCost: 4,
+        effect: 'daily_bread',
+        effectValue: 6,
+        targetType: 'ally_any',
+        statusApplied: ['status_blessed'],
+        description: card.heroAbility || card.docAbility || 'Heal 6, Cleanse, and Bless one allied hero/player.',
+      };
+    }
+
     if (card.id === 'hero_zoom_stick') {
       return {
         abilityName: 'Ala Ka-Zoom',
@@ -377,8 +564,8 @@ const HeroAbilities = (() => {
         effect: 'zoomstick',
         effectValue: 0,
         targetType: 'self',
-        statusApplied: ['status_accelerated', 'status_impeded'],
-        description: card.heroAbility || card.docAbility || 'Accelerate all allies and Impede all enemies for 2 turns.',
+        statusApplied: ['status_accelerated'],
+        description: card.heroAbility || card.docAbility || 'Accelerate all allied heroes and player.',
       };
     }
 

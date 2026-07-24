@@ -569,7 +569,7 @@ heroes: [
     "stage": "S2",
     "manaCost": 5,
     "hp": 36,
-    "baseAttack": 1,
+    "baseAttack": 2,
     "role": "Tank",
     "passives": [],
     "abilities": [],
@@ -647,18 +647,19 @@ heroes: [
   },
   {
     "id": "hero_lassquach",
-    "name": "Lassquatch",
+    "name": "Lass-Squatch",
     "imageAsset": "DD_Lassquatch.png",
     "stage": "S1",
     "manaCost": 4,
-    "hp": 20,
-    "baseAttack": 5,
+    "hp": 16,
+    "baseAttack": 4,
     "role": "Trickster",
     "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Strength",
     "archetype": "Conservator",
+    "heroAbility": "Sass-Squash (5 mana): Lass-Squatch gains 4 overhealth and +2 base attack, then deals 8 damage to an enemy hero/player or an allied hero.",
     "docAbility": "Ability Sass-Squash (4 mana): Deal 6 dmg & Impede enemy hero/player (deal 12 if below half HP). Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration. Crippled (debuff): Crippled heroes/player receive x2 damage for the duration.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
@@ -671,19 +672,18 @@ heroes: [
     "imageAsset": "DD_Lone_Wolf.png",
     "stage": "S2",
     "manaCost": 3,
-    "hp": 16,
-    "baseAttack": 2,
+    "hp": 12,
+    "baseAttack": 3,
     "role": "Agile",
-    "passives": [
-      {
-        "name": "Solo El Lobo",
-        "description": "For each hero your team doesn’t have, you deal +1🩸with attacks. For each ally that is dead, deal +2🩸with any attack. (Place Fury status card on hero)."
-      }
-    ],
+    "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Passive",
     "archetype": "Mercenary",
+    "heroPassive": {
+      "name": "Solo El Lobo",
+      "description": "When Lone Wolf is your only deployed hero, base attack scales with your player HP tier: x1.5 while Vulnerable, x2 while Critical, and x2.5 while Near-Death. If Imbued to the player, action-card attack damage shares this scaling."
+    },
     "docAbility": "Solo El Lobo (Hero Passive): Base attack & action card casts deal x2 dmg if only hero on field (x3 if player is 10 HP or below).",
     "rolePassive": {
       "name": "Imbue",
@@ -704,6 +704,7 @@ heroes: [
     "flavorText": "",
     "roleType": "IQ",
     "archetype": "Schemer",
+    "heroAbility": "Puppeteer (4 mana): Hypnotize an enemy hero or player for 2 turns. Hypnotized heroes are disabled for their owner; Hypnotized players take 4 self-damage and cannot cast cards or use the Draw Pile.",
     "docAbility": "Ability: Puppeteer (4 mana): Hypnotizing an enemy hero card, making them join your side for 2 turns.",
     "rolePassive": {
       "name": "Foresight",
@@ -744,16 +745,19 @@ heroes: [
     "hp": 32,
     "baseAttack": 3,
     "role": "Tank",
-    "passives": [
-      {
-        "name": "Immutability",
-        "description": "Your innate Immutability renders you immune to receiving any Debuffs (except for Influences), but also means you can’t receive buffs (except for Heals) either."
-      }
-    ],
+    "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Durability",
     "archetype": "Paragon",
+    "healthTypes": [
+      { "name": "Health", "value": 16 },
+      { "name": "Shields", "value": 16 }
+    ],
+    "heroPassive": {
+      "name": "Immutability",
+      "description": "Mr. Immutable is immune to debuffs. While captain, that debuff immunity also protects the player."
+    },
     "docAbility": "Immutability (Hero Passive): Hero (& player while in captain slot) are immune to debuffs.",
     "rolePassive": {
       "name": "Safeguard",
@@ -769,16 +773,16 @@ heroes: [
     "hp": 24,
     "baseAttack": 6,
     "role": "Support",
-    "passives": [
-      {
-        "name": "Out of Tomb",
-        "description": "Choose who between self or one of your allies to give BABY equipment card to. Mommy’s Curse (5): Inflict Cursed status to enemy (which can’t be cleansed if BABY is killed)"
-      }
-    ],
+    "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Legendary",
     "archetype": "Cryptic",
+    "heroPassive": {
+      "name": "Mummy Scorned",
+      "description": "If Baby is killed, each player and hero takes 6 unstoppable damage and becomes Cursed."
+    },
+    "heroAbility": "Out of the Tomb (6 mana): Summon Baby for 3 friendly turns. Baby has 4 HP, 1 base attack, and heals plus cleanses allied heroes and player each friendly turn.",
     "docAbility": "Ability: Out of the Tomb (6 mana): Summon Baby which heals 3 HP and Cleanses from player/all heroes. Mummy Scorned (Hero Passive): When Baby is killed, deal 5 dmg (Unstoppable) & inflict Curse to all enemy heroes/player for 3 turns. Cursed (status): Player can only roll up to 3 on their die when Cursed, don’t recieve healing, tdeal half dmg, take x2 dmg, & die roll fails hurt all their heroes (Unstoppable).",
     "rolePassive": {
       "name": "Invocation",
@@ -799,6 +803,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Balanced",
     "archetype": "Pitcher",
+    "heroAbility": "Claw Strikeout (3 mana): Duel an enemy hero. If Prowl Ball wins, the loser takes 6 damage and becomes Impeded. On a tie, refund 2 mana.",
     "docAbility": "Ability: Claw Strikeout (3 mana): 2 out of 3 chance to deal 4 dmg & Impede enemy hero (Unblockable).",
     "rolePassive": {
       "name": "Enact",
@@ -819,6 +824,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Balanced",
     "archetype": "Amplifier",
+    "heroAbility": "Strike a Chord! (3 mana): Duel an enemy hero. If Riff Wrath wins, the loser takes 5 damage and becomes Impeded, then Riff Wrath and your player become Augmented.",
     "docAbility": "Ability: Strike a Chord (3 mana): Deal 3 dmg (along with Impede) to enemy. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
@@ -839,6 +845,7 @@ heroes: [
     "flavorText": "",
     "roleType": "IQ",
     "archetype": "Architect",
+    "heroAbility": "Goldberg Chain (4 mana): Hit enemy heroes/player with scaling damage and Impaired. Damage starts at 1 with only the player and increases by 1 for each enemy hero or spawn on field, up to 6.",
     "docAbility": "Ability: Goldberg Chain: Unleash a Stack that deals a base 1 dmg (+1 for each enemy (heroes & player) & Impairs durability hero if they’re Safeguarding). Stack (denominator): A Stack when deployed deals base 1 (with 1 player) adding +1 dmg per hero on field to attack the number of player/heroes. Shell-Shock (should be in Mana roll): Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying (regardless of remaining HP) and player being able to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Foresight",
@@ -851,7 +858,7 @@ heroes: [
     "imageAsset": "DD_Shell-Shock.png",
     "stage": "S2",
     "manaCost": 4,
-    "hp": 24,
+    "hp": 20,
     "baseAttack": 4,
     "role": "Tank",
     "passives": [],
@@ -859,6 +866,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Mana",
     "archetype": "Marine",
+    "heroAbility": "Static Splash (5 mana): Deal 4 damage to all enemy heroes and player, then inflict Shocked and Impeded for 3 turns.",
     "docAbility": "Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying regardless of remaining HP and player being unable to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Enchant",
@@ -879,6 +887,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Balanced",
     "archetype": "Foodie",
+    "heroAbility": "Kebab Skewer (3 mana): Duel an enemy hero. If Shish-Ke-Bob wins, the loser takes 5 damage and becomes Anemic and Impeded for 3 turns.",
     "docAbility": "Ability: Kebab Skewer (3 mana): 2 out of 3 chance to deal 3 dmg, also inflicting Anemic & Impede (for 3 turns) on enemy hero/player. Anemic (debuff): Anemic players/heroes can’t receive healing. Anemic players/heroes can’t receive healing. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
@@ -899,6 +908,7 @@ heroes: [
     "flavorText": "",
     "roleType": "IQ",
     "archetype": "Chemist",
+    "heroAbility": "Biotic Syringe (4 mana): Heal 4 HP and Cleanse an allied hero/player, or deal 4 damage and inflict Anemic on an enemy hero/player.",
     "docAbility": "Ability: Biotic Syringe (4 mana): Deal 4 dmg & inflict Anemic to enemy OR heal 4 HP & Cleanse player/hero. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Anemic (debuff): Anemic players/heroes can’t receive healing.",
     "rolePassive": {
       "name": "Foresight",
@@ -919,6 +929,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Speed",
     "archetype": "Conservator",
+    "heroAbility": "Deer Dash (2 mana): Slendeer Cleanses and Accelerates himself, then deals 4 damage to an enemy hero/player.",
     "docAbility": "Ability: Deer Dash (2 mana): Deal 3 dmg while Accelerating & Cleansing. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Accelerated (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast for player).",
     "rolePassive": {
       "name": "Enhanced Reflex",
@@ -931,19 +942,23 @@ heroes: [
     "imageAsset": "DD_Stall-Wart.png",
     "stage": "S2",
     "manaCost": 5,
-    "hp": 40,
-    "baseAttack": 1,
+    "hp": 16,
+    "baseAttack": 2,
     "role": "Tank",
-    "passives": [
-      {
-        "name": "Stalliwog",
-        "description": "Deploy your Swamp Shield to protect your team, providing 10 overhealth & regens 2 overhealth each round (Place Barrier equipment by hero)"
-      }
-    ],
+    "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Durability",
     "archetype": "Guardian",
+    "healthTypes": [
+      { "name": "Health", "value": 16 },
+      { "name": "Armor", "value": 12 },
+      { "name": "Shields", "value": 12 }
+    ],
+    "heroPassive": {
+      "name": "Stalliwog",
+      "description": "Each friendly turn Stall-Wart survives increases his chance to gain 4 overhealth by +1/6. The chance resets after it succeeds."
+    },
     "docAbility": "Stalliwog (Hero Passive): Hero has 10 shield health. Shield health regenerates 5 HP every 2 turns.",
     "rolePassive": {
       "name": "Safeguard",
@@ -980,19 +995,18 @@ heroes: [
     "imageAsset": "DD_Trophy_Wife.png",
     "stage": "S2",
     "manaCost": 2,
-    "hp": 12,
-    "baseAttack": 1,
+    "hp": 16,
+    "baseAttack": 2,
     "role": "Duelist",
-    "passives": [
-      {
-        "name": "Trophy Case",
-        "description": "If you succeed on die roll, you can draw a free hero card. If you won a duel or succeeded on an Event, you can draw a free skill card & are rewarded an extra Event die"
-      }
-    ],
+    "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Passive",
     "archetype": "Fitness",
+    "heroPassive": {
+      "name": "Trophy Hoard",
+      "description": "After a successful Death Die roll, Trophy Wife has a 1/3 chance to draw a non-Legendary hero card that is free to cast."
+    },
     "docAbility": "Prized Possession (Hero Passive): Successful die rolls lead to gain 3 mana & drawing action card that’s free to cast.",
     "rolePassive": {
       "name": "Imbue",
@@ -1005,7 +1019,7 @@ heroes: [
     "imageAsset": "DD_Tyrantosaurus.png",
     "stage": "S3",
     "manaCost": 5,
-    "hp": 24,
+    "hp": 20,
     "baseAttack": 6,
     "role": "Brute",
     "passives": [],
@@ -1013,6 +1027,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Strength",
     "archetype": "Conqueror",
+    "heroAbility": "Dino Dominion (6 mana): Deal 8 damage to an enemy hero/player. If this would defeat an enemy hero, Capture it for 3 turns instead.",
     "docAbility": "Ability: Dino Dominion (6 mana): Deal 8 dmg to enemy player/hero, Capturing another enemy hero if it kills. Capture (bondage): [Captured enemy will be on the other player’s field to the far left. A Captured enemy hero will be killed in 3 turns if Tyrantosaurus isn’t killed by then. If Tyrantosaurus is killed, the Captured hero is set free. Captures are an exception to the 5 hero on field limit.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
@@ -1038,6 +1053,11 @@ heroes: [
     "flavorText": "",
     "roleType": "Legendary",
     "archetype": "Volcan",
+    "heroPassive": {
+      "name": "Temperature Tantrum",
+      "description": "After Volley-Cano takes damage and survives, her next base attack deals +3 damage and inflicts Burning."
+    },
+    "heroAbility": "Volcanic Volley (6 mana): Deal 5 damage and inflict Burning on all enemy heroes and player.",
     "docAbility": "Ability: Volcanic Volley (6 mana): Deal 5 dmg & inflict Burning status to all enemy heroes & player (for 3 turns). Temperature Tantrum (Hero Passive): Deal 5 dmg to all enemies & inflict Burning status if critical (25% but not 0) HP. Burning (debuff): Burning players/heroes take 3 damage every turn (friendly or enemy) & lose half their action cards. Frozen cancels this out.",
     "rolePassive": {
       "name": "Invocation",
@@ -1051,13 +1071,14 @@ heroes: [
     "stage": "S2",
     "manaCost": 3,
     "hp": 12,
-    "baseAttack": 3,
+    "baseAttack": 4,
     "role": "Agile",
     "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Technique",
     "archetype": "Ninja",
+    "heroAbility": "Menghu Chuji (4 mana): Duel an enemy hero or player/captain. If Wife-Fu wins, deal 5 damage, or defeat the target outright if it is Near-Death.",
     "docAbility": "Ability: Měnghǔ chūjí (3 mana): Duel enemy, deal 3 dmg to enemy hero/player (or one-hit kill if at 25% or below). Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by.",
     "rolePassive": {
       "name": "Duelist",
@@ -1070,7 +1091,7 @@ heroes: [
     "imageAsset": "DD_Wind_Breaker.png",
     "stage": "S2",
     "manaCost": 4,
-    "hp": 24,
+    "hp": 20,
     "baseAttack": 2,
     "role": "Ranged",
     "passives": [],
@@ -1078,6 +1099,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Mana",
     "archetype": "Gaseous",
+    "heroAbility": "Pass Gas (4 mana): Place a gas bomb on the enemy player. If they fail the next Death Die roll, the bomb damages the team, Poisons them, and Impedes only the player/captain.",
     "docAbility": "Ability Pass Gas (4 mana): Die becomes Bomb for enemy player, dealing 3 dmg, Poisoning,& Impeding all enemy heroes & player if they fail. Bomb (bomb): A Bomb die event will have a player roll a die where failing results in all player/heroes taking damage & Impeded. Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enchant",
@@ -1098,6 +1120,7 @@ heroes: [
     "flavorText": "",
     "roleType": "Mana",
     "archetype": "Pious",
+    "heroAbility": "Daily Bread (4 mana): Heal 6 HP, Cleanse, and Bless one allied hero/player. Targeting player or captain shares the effect with both.",
     "docAbility": "Ability: Daily Bread (3 mana): Heal 3 HP, Cleanse, & Bless player and all heroes for 3 turns. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Blessed (buff): Blessed player/heroes will heal 2 HP, deal double damage, can receive overhealing, take half dmg, roll 4-6 on all dice, and Cleansed of debuffs following turn. Bless and Curse cancel out.",
     "rolePassive": {
       "name": "Enchant",
@@ -1110,14 +1133,15 @@ heroes: [
     "imageAsset": "DD_Zoomstick.png",
     "stage": "S1",
     "manaCost": 3,
-    "hp": 12,
-    "baseAttack": 2,
+    "hp": 8,
+    "baseAttack": 3,
     "role": "Support",
     "passives": [],
     "abilities": [],
     "flavorText": "",
     "roleType": "Speed",
     "archetype": "Infector",
+    "heroAbility": "Ala Ka-Zoom (3 mana): Accelerate all allied heroes and player.",
     "docAbility": "Ability: Ala Ka-Zoom (3 mana): Accelerate player/all heroes & Impede all enemies for 2 turns. Accelerate (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast player). Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
     "rolePassive": {
       "name": "Enhanced Reflex",
@@ -1625,6 +1649,16 @@ statusEffects: [
     "description": "Cannot target the charmer or their captain; disables Safeguard, Sidestep, and Evasive Maneuver for 1 turn."
   },
   {
+    "id": "status_hypnotized",
+    "name": "Hypnotized",
+    "type": "timed",
+    "duration": 2,
+    "stackBehavior": "replace",
+    "trigger": null,
+    "symbol": "HYP",
+    "description": "Control is disrupted. Heroes cannot act for their owner, and players cannot cast cards or use the Draw Pile while Hypnotized."
+  },
+  {
     "id": "status_abstaining",
     "name": "Abstaining",
     "type": "timed",
@@ -1702,7 +1736,7 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": "after_roll",
     "symbol": "SHK",
-    "description": "After the regular die roll, resolves a shock die event with severe failure outcomes."
+    "description": "Cannot attack or use abilities. Takes 2 damage each friendly turn, can spread, and has a 1/3 chance to auto-eliminate Critical or Near-Death heroes."
   },
   {
     "id": "status_cursed",

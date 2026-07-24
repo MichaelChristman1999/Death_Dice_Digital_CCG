@@ -240,6 +240,10 @@ const PhaseManager = (() => {
     if (equinoxResult?.triggered) {
       roleResults.messages.push(`Stellar Stability healed ${equinoxResult.healed ?? 0} HP.`);
     }
+    const successRollResult = GameState.resolveSuccessfulRollHeroPassives?.(activePlayer, roll, required);
+    if (successRollResult?.messages?.length) {
+      successRollResult.messages.forEach(msg => roleResults.messages.push(msg));
+    }
     failedRollPassiveMessages.forEach(msg => roleResults.messages.push(msg));
     const enchantMana = roleResults.enchantMana;
     const manaGained = rollManaGained + enchantMana;
@@ -350,15 +354,28 @@ const PhaseManager = (() => {
     const playerDamage = Math.max(0, beforePlayer - Math.max(0, hpAfter ?? beforePlayer));
     PixiBoard?.showHitEffect?.('player', playerId, playerDamage);
     GameState.applyPlayerStatus?.(playerId, 'status_impeded', { splashCaptain: true });
+    if (bomb.poisonOnFail) {
+      GameState.applyPlayerStatus?.(playerId, 'status_poisoned', {
+        splashCaptain: false,
+        ignoreSidestep: true,
+      });
+    }
 
     [...(GameState.getPlayerState?.(playerId)?.board ?? [])].forEach(char => {
       const before = char.currentHp ?? 0;
       const nextHp = GameState.damageCharacter?.(char.instanceId, bombDamage, { roleEvasion: false, source: 'bombs_away' });
       const actual = Math.max(0, before - Math.max(0, nextHp ?? before));
       PixiBoard?.showHitEffect?.('character', char.instanceId, actual);
+      if (bomb.poisonOnFail) {
+        GameState.applyStatus?.(char.instanceId, 'status_poisoned', {
+          sharePlayer: false,
+          ignoreSidestep: true,
+        });
+      }
     });
 
     messages.push(`Bomb detonates for ${bombDamage} and Impedes ${GameState.getPlayerLabel?.(playerId) ?? 'player'}.`);
+    if (bomb.poisonOnFail) messages.push('Gas bomb also Poisons the player and field.');
     return { playerDamage, messages };
   }
 

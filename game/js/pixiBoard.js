@@ -1795,7 +1795,7 @@ const PixiBoard = (() => {
   // ════════════════════════════════════════════════════════════════════════════
   // TARGET MODE — click a highlighted card/icon to pick an effect target
   // ════════════════════════════════════════════════════════════════════════════
-  // spec: { ownerId, mode: 'enemy_chars'|'ally_chars'|'enemy_any'|'ally_or_self',
+  // spec: { ownerId, mode: 'enemy_chars'|'ally_chars'|'enemy_any'|'ally_or_self'|'ally_chars_enemy_any'|'ally_any_enemy_any',
   //         filter?: (charData) => bool }
   // onPick receives { type:'character'|'player', id } or null (cancelled).
   function enterTargetMode(spec, onPick) {
@@ -1818,15 +1818,19 @@ const PixiBoard = (() => {
   }
 
   function _validTargetCards() {
-    const { filter } = _targetMode;
-    return _board[_targetCharPid()].filter(ct => !filter || filter(ct._charData));
+    const { filter, ownerId, mode } = _targetMode;
+    const cards = (mode === 'ally_chars_enemy_any' || mode === 'ally_any_enemy_any')
+      ? [..._board[ownerId], ..._board[ownerId === 'p1' ? 'p2' : 'p1']]
+      : _board[_targetCharPid()];
+    return cards.filter(ct => !filter || filter(ct._charData));
   }
 
-  function _targetPlayerPid() {
+  function _targetPlayerPids() {
     const { ownerId, mode } = _targetMode;
-    if (mode === 'enemy_any')    return ownerId === 'p1' ? 'p2' : 'p1';
-    if (mode === 'ally_or_self' || mode === 'ally_any') return ownerId;
-    return null;
+    if (mode === 'enemy_any' || mode === 'ally_chars_enemy_any') return [ownerId === 'p1' ? 'p2' : 'p1'];
+    if (mode === 'ally_or_self' || mode === 'ally_any') return [ownerId];
+    if (mode === 'ally_any_enemy_any') return [ownerId, ownerId === 'p1' ? 'p2' : 'p1'];
+    return [];
   }
 
   function _applyTargetHighlights() {
@@ -1838,9 +1842,10 @@ const PixiBoard = (() => {
       gsap.to(g, { alpha: 0.35, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
       _targetHighlights.push({ ct, g });
     });
-    const pid = _targetPlayerPid();
-    const ico = pid ? _playerIcons[pid] : null;
-    if (ico) gsap.to(ico.scale, { x: 1.25, y: 1.25, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    _targetPlayerPids().forEach(pid => {
+      const ico = _playerIcons[pid];
+      if (ico) gsap.to(ico.scale, { x: 1.25, y: 1.25, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    });
   }
 
   function _onStagePointerDown(event) {
@@ -1855,11 +1860,12 @@ const PixiBoard = (() => {
         return;
       }
     }
-    const pid = _targetPlayerPid();
-    if (pid && _hitTestPlayerSlot(pos, pid)) {
-      exitTargetMode();
-      tm.onPick?.({ type: 'player', id: pid });
-      return;
+    for (const pid of _targetPlayerPids()) {
+      if (pid && _hitTestPlayerSlot(pos, pid)) {
+        exitTargetMode();
+        tm.onPick?.({ type: 'player', id: pid });
+        return;
+      }
     }
     // Clicked empty space — cancel (no cost)
     exitTargetMode();
