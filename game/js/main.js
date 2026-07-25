@@ -594,16 +594,16 @@ function _rolePassiveHtml(cardOrRole) {
   const role = typeof cardOrRole === 'string' ? cardOrRole : cardOrRole?.roleType;
   const passive = typeof cardOrRole === 'object' ? cardOrRole?.rolePassive : null;
   const map = {
-    Agility: ['Evasive Maneuver', 'Roll 4-6 to dodge captain/player damage.'],
-    Balanced: ['Enact', 'Roll 4-6 after turn roll to draw an action.'],
-    Durability: ['Safeguard', 'Captain redirects damage from allies and player.'],
-    IQ: ['Foresight', 'Preview two future shop rows while captain.'],
-    Legendary: ['Invocation', 'Roll 4-6 after turn roll to draw a hero.'],
-    Mana: ['Enchant', 'Roll 4-6 to add 3 mana beyond cap.'],
+    Agility: ['Evasive Maneuver', 'HP-tier chance to dodge captain/player damage or debuffs, up to 3 dodges per turn.'],
+    Balanced: ['Enact', 'HP-tier chance after Death Die roll to draw up to 2 free action cards.'],
+    Durability: ['Safeguard', 'Captain redirects damage and debuffs from allies and player, can resist disabling CC, and regenerates at lower player HP tiers.'],
+    IQ: ['Foresight', 'Preview future shop rows while captain.'],
+    Legendary: ['Invocation', 'HP-tier chance after Death Die roll to draw up to 2 free hero cards.'],
+    Mana: ['Enchant', 'HP-tier chance to gain +3 mana on successful rolls or +2 after failed rolls.'],
     Passive: ['Imbue', 'Share passive pressure for three turns.'],
-    Speed: ['Enhanced Reflex', 'Gain one extra action while captain.'],
-    Strength: ['Crit-Hit Chance', 'Captain attacks can critically hit.'],
-    Technique: ['Duelist', 'Captain gains stronger duel odds.'],
+    Speed: ['Enhanced Reflex', 'Gain one extra action-card slot while captain, plus an HP-tier chance after Death Die rolls to Accelerate your player and allied heroes.'],
+    Strength: ['Crit-Hit Chance', 'HP-tier chance to deal x2 damage, then cools down for 2 turns.'],
+    Technique: ['Duelist', 'Captain adds an HP-tier bonus to duel rolls.'],
   };
   const row = passive ? [passive.name, passive.description] : map[role];
   if (!row?.[0]) return '';

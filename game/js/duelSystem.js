@@ -40,13 +40,15 @@ const DuelSystem = (() => {
     const event2 = RollEngine.rollForDuel(p2);
     let roll1 = event1.roll;
     let roll2 = event2.roll;
-    if (GameState.hasCaptainClass?.(p1, 'Technique') && roll1 >= 3) {
-      roll1 = 7;
-      showToast('Duelist succeeds.', 'combat');
+    const bonus1 = GameState.getTechniqueDuelBonus?.(p1) ?? 0;
+    const bonus2 = GameState.getTechniqueDuelBonus?.(p2) ?? 0;
+    if (bonus1 > 0) {
+      roll1 += bonus1;
+      showToast(`Duelist +${bonus1}.`, 'combat');
     }
-    if (GameState.hasCaptainClass?.(p2, 'Technique') && roll2 >= 3) {
-      roll2 = 7;
-      showToast('Duelist succeeds.', 'combat');
+    if (bonus2 > 0) {
+      roll2 += bonus2;
+      showToast(`Duelist +${bonus2}.`, 'combat');
     }
     _showDieEventDamage(event1, p1);
     _showDieEventDamage(event2, p2);

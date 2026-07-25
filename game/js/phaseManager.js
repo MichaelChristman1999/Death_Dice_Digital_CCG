@@ -229,7 +229,7 @@ const PhaseManager = (() => {
     // Mana pool carries over, capped by rules. Mana captains can Enchant beyond cap.
     const rollManaGained = GameState.gainMana(roll, activePlayer);
     const roleResults = GameState.currentPhase === 'combat'
-      ? _resolveCaptainRollPassives(activePlayer)
+      ? _resolveCaptainRollPassives(activePlayer, roll, required)
       : { enchantMana: 0, messages: [] };
     const aplombResult = GameState.resolveAplombPassive?.(activePlayer, roll);
     if (aplombResult?.triggered) {
@@ -269,49 +269,102 @@ const PhaseManager = (() => {
     });
   }
 
-  function _resolveCaptainRollPassives(playerId) {
+  function _resolveCaptainRollPassives(playerId, roll, required) {
     const messages = [];
     let enchantMana = 0;
+    const deathDieSucceeded = required == null || Number(roll) >= Number(required);
+    const rollText = (result) => result?.automatic
+      ? `${result.tier?.label ?? 'tier'} automatic`
+      : `${result?.roll}/${result?.threshold}+`;
+    const drawFreeActions = (count) => {
+      let drawn = 0;
+      for (let i = 0; i < count; i++) {
+        const result = HandManager.drawAction(playerId);
+        if (!result.ok || !result.card) break;
+        result.card._freeCast = true;
+        drawn++;
+      }
+      return drawn;
+    };
+    const drawFreeHeroes = (count) => {
+      let drawn = 0;
+      for (let i = 0; i < count; i++) {
+        const result = HandManager.drawHero(playerId);
+        if (!result.ok || !result.card) break;
+        result.card._freeCast = true;
+        drawn++;
+      }
+      return drawn;
+    };
 
     if (GameState.hasManaCaptain?.(playerId)) {
-      const r = RollEngine.rollDie();
-      if (r >= 4) {
-        enchantMana = GameState.gainMana(3, playerId, { source: 'mana_enchant' });
+      const result = GameState.rollRolePassive?.(playerId, 'Mana');
+      if (result?.success) {
+        const amount = deathDieSucceeded ? 3 : 2;
+        enchantMana = GameState.gainMana(amount, playerId, { source: 'mana_enchant' });
         GameState.markEnchantSucceeded?.(playerId, true);
-        messages.push(`Enchant +${enchantMana} mana.`);
+        messages.push(`Enchant ${rollText(result)}: +${enchantMana} mana${deathDieSucceeded ? '' : ' after failed roll'}.`);
       } else {
         GameState.markEnchantSucceeded?.(playerId, false);
-        messages.push('Enchant failed.');
+        messages.push(`Enchant missed (${rollText(result)}).`);
+      }
+    }
+
+    if (GameState.hasSpeedCaptain?.(playerId)) {
+      const result = GameState.rollRolePassive?.(playerId, 'Speed');
+      if (result?.success) {
+        const playerResult = GameState.applyStatusToTarget?.(
+          { type: 'player', id: playerId },
+          'status_accelerated',
+          { allowSafeguard: false, splashCaptain: false }
+        );
+        const board = GameState.getPlayerState?.(playerId)?.board ?? [];
+        let accelerated = playerResult?.applied ? 1 : 0;
+        for (const ally of board) {
+          const allyResult = GameState.applyStatusToTarget?.(
+            { type: 'character', id: ally.instanceId },
+            'status_accelerated',
+            { allowSafeguard: false, sharePlayer: false }
+          );
+          if (allyResult?.applied) accelerated++;
+        }
+        messages.push(accelerated > 0
+          ? `Enhanced Reflex ${rollText(result)}: accelerated ${accelerated} allied target${accelerated === 1 ? '' : 's'}.`
+          : `Enhanced Reflex ${rollText(result)}: no allies could Accelerate.`);
+      } else {
+        messages.push(`Enhanced Reflex missed (${rollText(result)}).`);
       }
     }
 
     if (GameState.hasCaptainClass?.(playerId, 'Balanced')) {
-      const r = RollEngine.rollDie();
-      if (r >= 4) {
+      const result = GameState.rollRolePassive?.(playerId, 'Balanced');
+      if (result?.success) {
         if (GameState.hasPlayerOrCaptainStatus?.(playerId, 'status_locked_out')) {
           messages.push('Enact blocked by Locked Out.');
         } else {
-          const drawn = HandManager.drawAction(playerId);
-          if (drawn.ok && drawn.card) drawn.card._freeCast = true;
-          messages.push(drawn.ok ? 'Enact drew action.' : 'Enact no room.');
+          const drawn = drawFreeActions(2);
+          messages.push(drawn > 0
+            ? `Enact ${rollText(result)}: drew ${drawn} free action card${drawn === 1 ? '' : 's'}.`
+            : `Enact ${rollText(result)}: no action-card room.`);
         }
       } else {
-        messages.push('Enact missed.');
+        messages.push(`Enact missed (${rollText(result)}).`);
       }
     }
 
     if (GameState.hasCaptainClass?.(playerId, 'Legendary')) {
-      const r = RollEngine.rollDie();
-      if (r >= 4) {
+      const result = GameState.rollRolePassive?.(playerId, 'Legendary');
+      if (result?.success) {
         if (GameState.hasPlayerOrCaptainStatus?.(playerId, 'status_locked_out')) {
           messages.push('Invocation blocked by Locked Out.');
         } else {
-          const drawn = HandManager.drawHero(playerId);
-          if (drawn.ok && drawn.card) drawn.card._freeCast = true;
-          messages.push(drawn.ok ? 'Invocation drew hero.' : 'Invocation no room.');
+          const drawn = drawFreeHeroes(2);
+          messages.push(drawn > 0
+            ? `Invocation ${rollText(result)}: drew ${drawn} free hero card${drawn === 1 ? '' : 's'}.`
+            : `Invocation ${rollText(result)}: no hero-card room.`);
         }
       } else {
-        messages.push('Invocation missed.');
+        messages.push(`Invocation missed (${rollText(result)}).`);
       }
     }
 

@@ -107,6 +107,9 @@ const GameState = (() => {
       discardedForManaThisTurn: { hero: 0, action: 0 },
       abstainedThisTurn: false,
       enchantSucceededThisTurn: false,
+      evasiveDodgesThisTurn: 0,
+      strengthCritCooldown: 0,
+      durabilityRegenCounter: 0,
       pendingBomb: null,
       rolloffRoll: null,
     };
@@ -218,6 +221,8 @@ const GameState = (() => {
 
     // Reset per-turn state for new active player
     const p = _players[_currentTurn];
+    Object.values(_players).forEach(player => { player.evasiveDodgesThisTurn = 0; });
+    p.strengthCritCooldown = Math.max(0, (p.strengthCritCooldown ?? 0) - 1);
     p.discardedForManaThisTurn = { hero: 0, action: 0 };
     p.abstainedThisTurn = false;
     p.enchantSucceededThisTurn = false;
@@ -690,6 +695,8 @@ const GameState = (() => {
     const p = _players[playerId];
     if (!p?.board?.length) return { triggered: false, messages: [] };
     const messages = [];
+    const safeguardRegen = _resolveDurabilityRegen(playerId);
+    if (safeguardRegen) messages.push(safeguardRegen);
 
     for (const hero of p.board) {
       if (hero.id === 'hero_iron_maid') {
@@ -727,6 +734,39 @@ const GameState = (() => {
       _saveToStorage();
     }
     return { triggered: messages.length > 0, messages };
+  }
+
+  function _resolveDurabilityRegen(playerId) {
+    const p = _players[playerId];
+    const captain = getCaptain(playerId);
+    const blocked = (captain?.statuses ?? []).some(s => _SAFEGUARD_BLOCK_STATUS_IDS.has(s.id));
+    if (!p || !captain || !hasCaptainClass(playerId, 'Durability') || blocked) {
+      if (p) p.durabilityRegenCounter = 0;
+      return null;
+    }
+
+    const tier = getPlayerHpTier(playerId)?.id;
+    const cadence = {
+      vulnerable: 3,
+      critical: 2,
+      near_death: 1,
+    }[tier];
+    if (!cadence) {
+      p.durabilityRegenCounter = 0;
+      return null;
+    }
+
+    p.durabilityRegenCounter = (p.durabilityRegenCounter ?? 0) + 1;
+    if (p.durabilityRegenCounter < cadence) return null;
+
+    p.durabilityRegenCounter = 0;
+    const before = captain.currentHp ?? 0;
+    const hp = healCharacter(captain.instanceId, 4, {
+      overheal: false,
+      ignoreVitalized: true,
+    });
+    const healed = Math.max(0, (hp ?? before) - before);
+    return healed > 0 ? `Safeguard regen restores ${healed} HP to ${captain.name}.` : null;
   }
 
   function tickFriendlySummons(playerId) {
@@ -1117,6 +1157,7 @@ const GameState = (() => {
     }
     p.board.push(instance);
     p.captainId = instance.instanceId;
+    p.durabilityRegenCounter = 0;
     _activateCaptainRolePassive(playerId, instance);
     _saveToStorage();
     return { ok: true, instance };
@@ -1186,12 +1227,14 @@ const GameState = (() => {
     if (!p) return { ok: false, error: 'Player not found' };
     if (!instanceId) {
       p.captainId = null;
+      p.durabilityRegenCounter = 0;
       _saveToStorage();
       return { ok: true, captain: null };
     }
 
     const captain = p.board.find(c => c.instanceId === instanceId);
     if (!captain) return { ok: false, error: 'Hero not on board' };
+    if (p.captainId !== instanceId) p.durabilityRegenCounter = 0;
     p.captainId = instanceId;
     _activateCaptainRolePassive(playerId, captain);
     _saveToStorage();
@@ -1227,6 +1270,7 @@ const GameState = (() => {
     const board = playerState?.board ?? [];
     if (!board.length) {
       playerState.captainId = null;
+      playerState.durabilityRegenCounter = 0;
       return null;
     }
 
@@ -1236,7 +1280,9 @@ const GameState = (() => {
     const tiedCandidates = candidatePool.filter(c => Number(c.maxHp ?? c.hp ?? 0) === highestMaxHp);
     const nextCaptain = tiedCandidates[Math.floor(Math.random() * tiedCandidates.length)] ?? null;
 
-    playerState.captainId = nextCaptain?.instanceId ?? null;
+    const nextCaptainId = nextCaptain?.instanceId ?? null;
+    if (playerState.captainId !== nextCaptainId) playerState.durabilityRegenCounter = 0;
+    playerState.captainId = nextCaptainId;
     if (nextCaptain) _activateCaptainRolePassive(playerId, nextCaptain);
     return nextCaptain;
   }
@@ -1287,13 +1333,23 @@ const GameState = (() => {
 
   function applyCaptainDamageBonus(playerId, amount) {
     let next = amount;
-    if (hasCaptainClass(playerId, 'Strength')) {
-      const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
-        ? RollEngine.rollDie(6)
-        : Math.floor(Math.random() * 6) + 1;
-      if (roll >= 5) {
+    const p = _players[playerId];
+    if (amount > 0
+      && p
+      && hasCaptainClass(playerId, 'Strength')
+      && !_captainHasStatus(playerId, 'status_impeded')
+      && (p.strengthCritCooldown ?? 0) <= 0) {
+      const crit = rollRolePassive(playerId, 'Strength');
+      if (crit.success) {
         next *= 2;
-        try { showToast?.(`Crit-Hit rolled ${roll}!`, 'combat'); } catch (_) {}
+        p.strengthCritCooldown = 2;
+        try {
+          const rollText = crit.automatic ? 'automatic' : `rolled ${crit.roll}`;
+          showToast?.(`Crit-Hit ${rollText}: x2 damage.`, 'combat');
+        } catch (_) {}
+        _saveToStorage();
+      } else {
+        try { showToast?.(`Crit-Hit missed (${crit.roll}/${crit.threshold}+).`, 'info'); } catch (_) {}
       }
     }
     return next;
@@ -1301,7 +1357,8 @@ const GameState = (() => {
 
   function tryManaEnchant(playerId = _currentTurn) {
     if (!hasManaCaptain(playerId)) return 0;
-    if (Math.random() >= 0.5) return 0;
+    const roll = rollRolePassive(playerId, 'Mana');
+    if (!roll.success) return 0;
     return gainMana(3, playerId, { source: 'mana_enchant' });
   }
 
@@ -1404,6 +1461,78 @@ const GameState = (() => {
     if (pct > 0.50) return { id: 'vulnerable', label: 'Vulnerable', pct };
     if (pct > 0.25) return { id: 'critical', label: 'Critical', pct };
     return { id: 'near_death', label: 'Near-Death', pct };
+  }
+
+  const _ROLE_PASSIVE_THRESHOLDS = {
+    Agility:   { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Balanced: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Durability: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Speed:    { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Strength: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Legendary:{ robust: 4, vulnerable: 3, critical: 2, near_death: 1 },
+    Mana:     { robust: 5, vulnerable: 4, critical: 3, near_death: 2 },
+  };
+
+  function getRolePassiveThreshold(playerId = _currentTurn, roleName = '') {
+    const key = Object.keys(_ROLE_PASSIVE_THRESHOLDS).find(name => new RegExp(name, 'i').test(roleName));
+    if (!key) return null;
+    const tier = getPlayerHpTier(playerId);
+    return {
+      role: key,
+      tier,
+      threshold: _ROLE_PASSIVE_THRESHOLDS[key][tier.id] ?? 6,
+    };
+  }
+
+  function rollRolePassive(playerId = _currentTurn, roleName = '') {
+    const info = getRolePassiveThreshold(playerId, roleName);
+    if (!info) return { success: false, roll: null, threshold: null, tier: getPlayerHpTier(playerId), role: roleName };
+    if (info.threshold <= 1) return { ...info, roll: null, success: true, automatic: true };
+    const roll = _rollDieFallback();
+    return { ...info, roll, success: roll >= info.threshold, automatic: false };
+  }
+
+  function _tryDurabilityCcResist(playerId, statusId, options = {}) {
+    if (options.ignoreDurabilityResist || !_SAFEGUARD_BLOCK_STATUS_IDS.has(statusId)) {
+      return { resisted: false };
+    }
+    const captain = getCaptain(playerId);
+    if (!captain || !hasCaptainClass(playerId, 'Durability')) return { resisted: false };
+    if ((captain.statuses ?? []).some(s => _SAFEGUARD_BLOCK_STATUS_IDS.has(s.id))) {
+      return { resisted: false };
+    }
+
+    const result = rollRolePassive(playerId, 'Durability');
+    const def = _data.statusEffects?.find(s => s.id === statusId);
+    const statusName = def?.name ?? 'crowd control';
+    const rollText = result.automatic ? 'automatic' : `${result.roll}/${result.threshold}+`;
+    if (result.success) {
+      try { showToast?.(`Safeguard resists ${statusName} (${rollText}).`, 'info'); } catch (_) {}
+      return { resisted: true, result };
+    }
+
+    const duration = options.duration ?? def?.duration;
+    const reducedDuration = typeof duration === 'number' && duration > 1
+      ? duration - 1
+      : duration;
+    if (reducedDuration !== duration) {
+      try { showToast?.(`Safeguard partially resists ${statusName} (${rollText}).`, 'info'); } catch (_) {}
+      return { resisted: false, partial: true, duration: reducedDuration, result };
+    }
+
+    try { showToast?.(`Safeguard failed to resist ${statusName} (${rollText}).`, 'warn'); } catch (_) {}
+    return { resisted: false, partial: false, result };
+  }
+
+  function getTechniqueDuelBonus(playerId = _currentTurn) {
+    if (!hasCaptainClass(playerId, 'Technique') || _captainHasStatus(playerId, 'status_impeded')) return 0;
+    const tier = getPlayerHpTier(playerId)?.id;
+    return {
+      robust: 2,
+      vulnerable: 3,
+      critical: 4,
+      near_death: 5,
+    }[tier] ?? 2;
   }
 
   function getLoneWolfDamageMultiplier(playerId = _currentTurn, options = {}) {
@@ -2019,7 +2148,7 @@ const GameState = (() => {
       : null;
 
     if (safeguard) {
-      const redirected = options.safeguardDamage ?? Math.ceil(amount * 1.5);
+      const redirected = options.safeguardDamage ?? amount;
       const before = safeguard.currentHp ?? 0;
       const hp = damageCharacter(safeguard.instanceId, redirected, {
         roleEvasion: false,
@@ -2113,12 +2242,37 @@ const GameState = (() => {
     }
     const isNegative = _NEGATIVE_STATUS_IDS.has(statusId);
     const ownerId = target.type === 'player' ? target.id : getCharacterOwner(target.id);
+    if (isNegative
+      && options.roleEvasion !== false
+      && !options.ignoreSidestep
+      && _tryRoleEvasion(ownerId, target.type, target.id)) {
+      return { type: target.type, id: target.id, ownerId, statusId, applied: false, evaded: true };
+    }
     const safeguard = options.allowSafeguard !== false && isNegative
       ? getSafeguardCaptain(ownerId, target)
       : null;
 
     if (safeguard) {
-      const applied = applyStatus(safeguard.instanceId, statusId, { ...options, sharePlayer: false });
+      const resist = _tryDurabilityCcResist(ownerId, statusId, options);
+      if (resist.resisted) {
+        try { showToast?.('Safeguard absorbs and resists the status.', 'combat'); } catch (_) {}
+        return {
+          type: 'character',
+          id: safeguard.instanceId,
+          ownerId,
+          statusId,
+          applied: false,
+          safeguarded: true,
+          resisted: true,
+        };
+      }
+      const statusOptions = {
+        ...options,
+        ...(resist.duration != null ? { duration: resist.duration } : {}),
+        ignoreDurabilityResist: true,
+        sharePlayer: false,
+      };
+      const applied = applyStatus(safeguard.instanceId, statusId, statusOptions);
       try { showToast?.('Safeguard absorbs the status.', 'combat'); } catch (_) {}
       return {
         type: 'character',
@@ -2127,6 +2281,7 @@ const GameState = (() => {
         statusId,
         applied,
         safeguarded: true,
+        partialResist: !!resist.partial,
       };
     }
 
@@ -2247,6 +2402,7 @@ const GameState = (() => {
     const { char } = _findChar(instanceId);
     if (!char) return false;
     const ownerId = getCharacterOwner(instanceId);
+    let statusOptions = options;
 
     const def = _data.statusEffects.find(s => s.id === statusId);
     if (!def) return false;
@@ -2255,6 +2411,14 @@ const GameState = (() => {
     if (char._statusImmune && _NEGATIVE_STATUS_IDS.has(statusId)) return false;
     if (_tryKevLardDeflectStatus(char, ownerId, statusId, options)) return false;
     if (_playerStatusBlocksCharacterStatus(ownerId, statusId)) return false;
+    if (_NEGATIVE_STATUS_IDS.has(statusId)
+      && getCaptain(ownerId)?.instanceId === instanceId) {
+      const resist = _tryDurabilityCcResist(ownerId, statusId, options);
+      if (resist.resisted) return false;
+      if (resist.duration != null) {
+        statusOptions = { ...options, duration: resist.duration };
+      }
+    }
     if (statusId === 'status_accelerated' && char.statuses?.some(s => s.id === 'status_charmed')) return false;
     if (statusId === 'status_sidestep' && char.statuses?.some(s => s.id === 'status_edible' || s.id === 'status_charmed')) return false;
     if (statusId === 'status_sidestep' && _hasActiveSafeguardCaptain(ownerId)) return false;
@@ -2279,7 +2443,7 @@ const GameState = (() => {
     }
 
     const existing = char.statuses.findIndex(s => s.id === statusId);
-    const nextStatus = () => _makeStatusInstance(def, statusId, { ...options, char });
+    const nextStatus = () => _makeStatusInstance(def, statusId, { ...statusOptions, char });
 
     if (existing !== -1) {
       if (def.stackBehavior === 'stack') {
@@ -2302,7 +2466,7 @@ const GameState = (() => {
     }
 
     const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
-    if ((options.sharePlayer ?? true) && isCaptain && _POSITIVE_SHARED_STATUS_IDS.has(statusId)) {
+    if ((statusOptions.sharePlayer ?? true) && isCaptain && _POSITIVE_SHARED_STATUS_IDS.has(statusId)) {
       applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
     }
 
@@ -2602,17 +2766,21 @@ const GameState = (() => {
 
   function _tryRoleEvasion(playerId, targetType, targetId) {
     if (!hasAgilityCaptain(playerId)) return false;
+    const p = _players[playerId];
+    if (!p || (p.evasiveDodgesThisTurn ?? 0) >= 3) return false;
     const captain = getCaptain(playerId);
     if (targetType === 'character' && targetId !== captain?.instanceId) return false;
     if (hasPlayerStatus(playerId, 'status_impeded') || captain?.statuses?.some(s => s.id === 'status_impeded')) return false;
     if (hasPlayerStatus(playerId, 'status_charmed') || captain?.statuses?.some(s => s.id === 'status_charmed')) return false;
     if (hasPlayerStatus(playerId, 'status_edible') || captain?.statuses?.some(s => s.id === 'status_edible')) return false;
-    const roll = (typeof RollEngine !== 'undefined' && RollEngine.rollDie)
-      ? RollEngine.rollDie()
-      : Math.floor(Math.random() * 6) + 1;
-    const dodged = roll >= 4;
+    const evasion = rollRolePassive(playerId, 'Agility');
+    const dodged = evasion.success;
+    if (dodged) {
+      p.evasiveDodgesThisTurn = (p.evasiveDodgesThisTurn ?? 0) + 1;
+      _saveToStorage();
+    }
     try {
-      showToast?.(`Evasion rolled ${roll}.`, 'info');
+      showToast?.(`Evasion rolled ${evasion.roll}${evasion.automatic ? ' automatic' : `/${evasion.threshold}+`}.`, 'info');
       if (dodged) showToast?.('Evasive Maneuver.', 'info');
     } catch (_) {}
     return dodged;
@@ -2961,6 +3129,9 @@ const GameState = (() => {
         p.discardedForManaThisTurn ??= { hero: 0, action: 0 };
         p.abstainedThisTurn ??= false;
         p.enchantSucceededThisTurn ??= false;
+        p.evasiveDodgesThisTurn ??= 0;
+        p.strengthCritCooldown ??= 0;
+        p.durabilityRegenCounter ??= 0;
         p.pendingBomb ??= null;
       });
       _currentTurn = saved.currentTurn;
@@ -3047,6 +3218,9 @@ const GameState = (() => {
     getShopPurchaseLimit,
     getDiscardForManaLimit,
     getPlayerHpTier,
+    getRolePassiveThreshold,
+    rollRolePassive,
+    getTechniqueDuelBonus,
     getLoneWolfDamageMultiplier,
     getPlayerBaseAttackDamage,
     getPlayerBaseAttackLimit,

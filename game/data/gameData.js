@@ -217,7 +217,7 @@ heroes: [
     "docAbility": "Cheetah Code (4 mana): Accelerate Cheatah and your player. Your player also ignores the next failed Death Die damage and gains +4 mana, bypassing the mana cap.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action-card slot while this hero is captain."
+      "description": "Gain one extra action-card slot while this hero is captain. After Death Die rolls, roll by HP tier to Accelerate your player and allied heroes."
     }
   },
   {
@@ -312,7 +312,7 @@ heroes: [
     "docAbility": "De-Termination (Hero Passive): Survive one lethal hit by respawning with 15 HP. If De-Terminator later dies while your player is near death or critical, your player gains 12 overhealth.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes. Each protected target redirects one hit; the captain can resist disabling CC and regenerates at lower player HP tiers."
     }
   },
   {
@@ -333,7 +333,7 @@ heroes: [
     "docAbility": "Ambient Heal (3 mana): Cleanse debuffed allies and heal all allied heroes and player for up to 6 HP. No overheal.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action-card slot while this hero is captain."
+      "description": "Gain one extra action-card slot while this hero is captain. After Death Die rolls, roll by HP tier to Accelerate your player and allied heroes."
     }
   },
   {
@@ -496,7 +496,7 @@ heroes: [
     "docAbility": "Ability: Avian Flu (3 mana): Deal 4 dmg & inflict Rabies status on enemy hero/player (Augmented next 2 turns). Rabies (buff/debuff): Heroes/players with Rabies can spread Rabies to enemies attacked, but can’t be healed, receive x2 damage, take Poison damage each turn, & have a 1 / 2 chance to spread it to other heroes/player. Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action-card slot while this hero is captain."
+      "description": "Gain one extra action-card slot while this hero is captain. After Death Die rolls, roll by HP tier to Accelerate your player and allied heroes."
     }
   },
   {
@@ -588,7 +588,7 @@ heroes: [
     "docAbility": "Vacuum Cleaner (Hero Passive): Cleanse & Absorb debuffs, healing all other heroes/player 2 HP for each. Absorb (sustain): Absorbed debuffs convert to 2 HP heal for each.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes. Each protected target redirects one hit; the captain can resist disabling CC and regenerates at lower player HP tiers."
     }
   },
   {
@@ -642,7 +642,7 @@ heroes: [
     "docAbility": "Lard Guard (Hero Passive): Hero has 8 armor & 1 out of 3 chance to Ricochet damage. Ricochet (deflection): Incoming damage activates die event window where 1-4 results in a fail taking damage, rolling 5-6 Ricochets successfully). Die event windows should have one die in the center instead of the two dies for duels.Die event windows when relevant should activate after reg die rolls at beginning of a player’s turn.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes. Each protected target redirects one hit; the captain can resist disabling CC and regenerates at lower player HP tiers."
     }
   },
   {
@@ -761,7 +761,7 @@ heroes: [
     "docAbility": "Immutability (Hero Passive): Hero (& player while in captain slot) are immune to debuffs.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes. Each protected target redirects one hit; the captain can resist disabling CC and regenerates at lower player HP tiers."
     }
   },
   {
@@ -933,7 +933,7 @@ heroes: [
     "docAbility": "Ability: Deer Dash (2 mana): Deal 3 dmg while Accelerating & Cleansing. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Accelerated (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast for player).",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action-card slot while this hero is captain."
+      "description": "Gain one extra action-card slot while this hero is captain. After Death Die rolls, roll by HP tier to Accelerate your player and allied heroes."
     }
   },
   {
@@ -962,7 +962,7 @@ heroes: [
     "docAbility": "Stalliwog (Hero Passive): Hero has 10 shield health. Shield health regenerates 5 HP every 2 turns.",
     "rolePassive": {
       "name": "Safeguard",
-      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes, taking x1.5 damage rounded up."
+      "description": "Captain absorbs damage and debuffs that would hit the player or other heroes. Each protected target redirects one hit; the captain can resist disabling CC and regenerates at lower player HP tiers."
     }
   },
   {
@@ -1142,10 +1142,10 @@ heroes: [
     "roleType": "Speed",
     "archetype": "Infector",
     "heroAbility": "Ala Ka-Zoom (3 mana): Accelerate all allied heroes and player.",
-    "docAbility": "Ability: Ala Ka-Zoom (3 mana): Accelerate player/all heroes & Impede all enemies for 2 turns. Accelerate (buff): Accelerated heroes/player can perform an extra action each turn (ability, base attack, action card cast player). Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration.",
+    "docAbility": "Ability: Ala Ka-Zoom (3 mana): Accelerate all allied heroes and player.",
     "rolePassive": {
       "name": "Enhanced Reflex",
-      "description": "Gain one extra action-card slot while this hero is captain."
+      "description": "Gain one extra action-card slot while this hero is captain. After Death Die rolls, roll by HP tier to Accelerate your player and allied heroes."
     }
   }
 ],
