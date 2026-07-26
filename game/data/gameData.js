@@ -241,7 +241,7 @@ heroes: [
     "docAbility": "Petite Petulance (Hero Passive): When Chicki Barstooli takes damage, she gains Damage Boost for 3 turns and has a 1/2 chance to Retaliate for 4 damage to the attacker.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
+      "description": "When assigned captain, share passive pressure with the player and allied heroes for 3 turns. After Death Die rolls, roll by HP tier to refresh Imbued."
     }
   },
   {
@@ -433,7 +433,7 @@ heroes: [
     "docAbility": "Frozen Assets (Hero Passive): Deal 2 damage, also inflicting Frozen status to enemy hero/player if debuffed or looted. Frozen (debuff): Frozen heroes/player receive x2 dmg & can’t attack or use abilities.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
+      "description": "When assigned captain, share passive pressure with the player and allied heroes for 3 turns. After Death Die rolls, roll by HP tier to refresh Imbued."
     }
   },
   {
@@ -687,7 +687,7 @@ heroes: [
     "docAbility": "Solo El Lobo (Hero Passive): Base attack & action card casts deal x2 dmg if only hero on field (x3 if player is 10 HP or below).",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
+      "description": "When assigned captain, share passive pressure with the player and allied heroes for 3 turns. After Death Die rolls, roll by HP tier to refresh Imbued."
     }
   },
   {
@@ -986,7 +986,7 @@ heroes: [
     "docAbility": "Trolljan Virus (Hero Passive): Enemy player/captain has a 1/2 chance to be inflicted with Virus when they fail a die roll.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
+      "description": "When assigned captain, share passive pressure with the player and allied heroes for 3 turns. After Death Die rolls, roll by HP tier to refresh Imbued."
     }
   },
   {
@@ -1010,7 +1010,7 @@ heroes: [
     "docAbility": "Prized Possession (Hero Passive): Successful die rolls lead to gain 3 mana & drawing action card that’s free to cast.",
     "rolePassive": {
       "name": "Imbue",
-      "description": "Captain shares passive pressure with the player and allied heroes for 3 turns."
+      "description": "When assigned captain, share passive pressure with the player and allied heroes for 3 turns. After Death Die rolls, roll by HP tier to refresh Imbued."
     }
   },
   {
@@ -1696,7 +1696,7 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "IMB",
-    "description": "Shares passive pressure from a Passive captain."
+    "description": "Shares passive pressure from a Passive captain for 3 turns. Passive captains can refresh this after Death Die rolls through Imbue."
   },
   {
     "id": "status_burning",

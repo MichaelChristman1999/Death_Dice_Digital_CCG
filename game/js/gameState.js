@@ -1259,11 +1259,31 @@ const GameState = (() => {
     if (!key) return;
     try { showToast?.(`${names[key]} active.`, 'info'); } catch (_) {}
     if (key === 'Passive') {
-      const p = _players[playerId];
-      applyPlayerStatus(playerId, 'status_imbued');
-      p.board.filter(c => c.instanceId !== captain.instanceId)
-        .forEach(c => applyStatus(c.instanceId, 'status_imbued'));
+      applyImbueRolePassive(playerId, { includeCaptain: false });
     }
+  }
+
+  function applyImbueRolePassive(playerId = _currentTurn, options = {}) {
+    const p = _players[playerId];
+    if (!p) return { ok: false, targets: 0, error: 'Player not found' };
+
+    let targets = 0;
+    const playerApplied = applyPlayerStatus(playerId, 'status_imbued', {
+      shareCaptain: false,
+      splashCaptain: false,
+    });
+    if (playerApplied) targets++;
+
+    const captain = getCaptain(playerId);
+    for (const ally of p.board ?? []) {
+      if (options.includeCaptain === false && ally.instanceId === captain?.instanceId) continue;
+      const applied = applyStatus(ally.instanceId, 'status_imbued', {
+        sharePlayer: false,
+      });
+      if (applied) targets++;
+    }
+
+    return { ok: true, targets };
   }
 
   function _autoBackfillCaptain(playerId, playerState) {
@@ -1467,6 +1487,7 @@ const GameState = (() => {
     Agility:   { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
     Balanced: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
     Durability: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Passive: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
     Speed:    { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
     Strength: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
     Legendary:{ robust: 4, vulnerable: 3, critical: 2, near_death: 1 },
@@ -3197,6 +3218,7 @@ const GameState = (() => {
     hasIQCaptain,
     hasDurabilityCaptain,
     hasAgilityCaptain,
+    applyImbueRolePassive,
     applyCaptainDamageBonus,
     tryManaEnchant,
     playAction,

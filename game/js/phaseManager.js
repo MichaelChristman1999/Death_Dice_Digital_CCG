@@ -336,6 +336,18 @@ const PhaseManager = (() => {
       }
     }
 
+    if (GameState.hasCaptainClass?.(playerId, 'Passive')) {
+      const result = GameState.rollRolePassive?.(playerId, 'Passive');
+      if (result?.success) {
+        const imbue = GameState.applyImbueRolePassive?.(playerId, { includeCaptain: false });
+        messages.push((imbue?.targets ?? 0) > 0
+          ? `Imbue ${rollText(result)}: refreshed passive pressure on ${imbue.targets} allied target${imbue.targets === 1 ? '' : 's'}.`
+          : `Imbue ${rollText(result)}: no allied targets could be Imbued.`);
+      } else {
+        messages.push(`Imbue missed (${rollText(result)}).`);
+      }
+    }
+
     if (GameState.hasCaptainClass?.(playerId, 'Balanced')) {
       const result = GameState.rollRolePassive?.(playerId, 'Balanced');
       if (result?.success) {

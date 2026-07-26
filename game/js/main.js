@@ -600,7 +600,7 @@ function _rolePassiveHtml(cardOrRole) {
     IQ: ['Foresight', 'Preview future shop rows while captain.'],
     Legendary: ['Invocation', 'HP-tier chance after Death Die roll to draw up to 2 free hero cards.'],
     Mana: ['Enchant', 'HP-tier chance to gain +3 mana on successful rolls or +2 after failed rolls.'],
-    Passive: ['Imbue', 'Share passive pressure for three turns.'],
+    Passive: ['Imbue', 'Share passive pressure for three turns when assigned captain, plus an HP-tier chance after Death Die rolls to refresh it.'],
     Speed: ['Enhanced Reflex', 'Gain one extra action-card slot while captain, plus an HP-tier chance after Death Die rolls to Accelerate your player and allied heroes.'],
     Strength: ['Crit-Hit Chance', 'HP-tier chance to deal x2 damage, then cools down for 2 turns.'],
     Technique: ['Duelist', 'Captain adds an HP-tier bonus to duel rolls.'],
