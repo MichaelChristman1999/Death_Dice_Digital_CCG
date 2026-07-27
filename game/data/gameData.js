@@ -25,7 +25,7 @@ heroes: [
     "docAbility": "Chocolate Clams (3 mana): Inflict Charmed on an enemy hero or player for 1 turn.",
     "rolePassive": {
       "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free action cards."
     }
   },
   {
@@ -46,7 +46,7 @@ heroes: [
     "docAbility": "Lapis Lazuli (4 mana): Deal 3 damage and inflict Impaired, then Cripple if the target is not already Crippled or Rabid.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Gain early 2-turn access to hero & action cards in the shop."
+      "description": "While captain, the shop shows the current row plus future hero and action rows."
     }
   },
   {
@@ -67,7 +67,7 @@ heroes: [
     "docAbility": "Roid Rage (4 mana): Aster Roid gains x1.5 damage for 3 turns, up to +8 overhealth, and cannot be healed during Roid Rage.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
-      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
+      "description": "HP-tier chance to double outgoing damage, then Crit-Hit goes on a 2-turn cooldown."
     }
   },
   {
@@ -88,7 +88,7 @@ heroes: [
     "docAbility": "Basket-Ballad (2 mana): Duel an enemy hero. The loser takes 5 damage. If Baller-ina wins, she and your player gain Sidestep.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
+      "description": "HP-tier chance for the captain or player to dodge incoming damage or debuffs, up to 3 dodges per turn."
     }
   },
   {
@@ -109,7 +109,7 @@ heroes: [
     "docAbility": "Bearzerker Rampage (6 mana): Deal 5 damage to all enemy heroes and player. Heal 2 HP for each enemy hero killed.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
-      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
+      "description": "HP-tier chance to double outgoing damage, then Crit-Hit goes on a 2-turn cooldown."
     }
   },
   {
@@ -130,7 +130,7 @@ heroes: [
     "docAbility": "Stinging Barbs (4 mana): Deal 3 damage to an enemy hero or player, or 6 damage if that target is debuffed.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
+      "description": "HP-tier chance for the captain or player to dodge incoming damage or debuffs, up to 3 dodges per turn."
     }
   },
   {
@@ -151,7 +151,7 @@ heroes: [
     "docAbility": "Bust Thrust (4 mana): Duel an enemy hero. The loser takes 7 damage. If Breast Knuckle wins, Impede and Cripple the loser, then give Breast Knuckle and your player +4 armor.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
+      "description": "Captain adds an HP-tier bonus to duel rolls: +2 Robust, +3 Vulnerable, +4 Critical, or +5 Near-Death."
     }
   },
   {
@@ -175,7 +175,7 @@ heroes: [
     "docAbility": "Chill Out! (5 mana): Cleanse and heal 3 HP to all allied heroes and player.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free hero cards."
     }
   },
   {
@@ -196,7 +196,7 @@ heroes: [
     "docAbility": "Caffeine Rush (3 mana): Cath-eine gains Accelerated and Sidestep, then deals 4 damage to an enemy hero or player.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
+      "description": "HP-tier chance for the captain or player to dodge incoming damage or debuffs, up to 3 dodges per turn."
     }
   },
   {
@@ -262,7 +262,7 @@ heroes: [
     "docAbility": "Meowrox (0 mana): Give Copy-Cat 4 overhealth and create a Copy if there is room. If the field is full, your first action card becomes free to cast.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
+      "description": "HP-tier chance for the captain or player to dodge incoming damage or debuffs, up to 3 dodges per turn."
     }
   },
   {
@@ -283,7 +283,7 @@ heroes: [
     "docAbility": "Booty Brawl (3 mana): Duel an enemy hero. If Cut-Lass wins, the loser takes 6 damage and you loot up to 2 mana plus 1 action card.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
+      "description": "Captain adds an HP-tier bonus to duel rolls: +2 Robust, +3 Vulnerable, +4 Critical, or +5 Near-Death."
     }
   },
   {
@@ -354,7 +354,7 @@ heroes: [
     "docAbility": "Deadlock (3 mana): Duel an enemy hero. If Dread-Locks wins, the loser takes 4 damage and the enemy is Locked Out for 3 turns.",
     "rolePassive": {
       "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free action cards."
     }
   },
   {
@@ -384,7 +384,7 @@ heroes: [
     "docAbility": "Swift Squall (6 mana): Give all allied heroes and player Accelerated, Augmented, and Sidestep for 3 turns. Stellar Stability (Hero Passive): When your roll is 4-6, heal all allied heroes and player for 4 HP with overheal allowed.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free hero cards."
     }
   },
   {
@@ -405,7 +405,7 @@ heroes: [
     "docAbility": "Sci-Fry (5 mana): Duel an enemy hero. If Fry-Borg wins, the loser takes 5 damage and Burning.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
+      "description": "Captain adds an HP-tier bonus to duel rolls: +2 Robust, +3 Vulnerable, +4 Critical, or +5 Near-Death."
     }
   },
   {
@@ -454,7 +454,7 @@ heroes: [
     "docAbility": "Ability: Ex-Hex (4 mana): Deal 3 dmg & inflict Haunted status on enemy hero/player for up to 3 turns. Haunted (debuffed): Haunted heroes/players take 2 dmg each turn (friendly turns only) & can’t attack or use abilities.",
     "rolePassive": {
       "name": "Evasive Maneuver",
-      "description": "Captain and player have a 1/2 chance to dodge incoming attacks or debuffs with a 4-6 roll."
+      "description": "HP-tier chance for the captain or player to dodge incoming damage or debuffs, up to 3 dodges per turn."
     }
   },
   {
@@ -475,7 +475,7 @@ heroes: [
     "docAbility": "Ability: Titaness Toss: (4 mana): Deal 6 dmg to 2 enemies (Safeguarding hero protects 1).",
     "rolePassive": {
       "name": "Crit-Hit Chance",
-      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
+      "description": "HP-tier chance to double outgoing damage, then Crit-Hit goes on a 2-turn cooldown."
     }
   },
   {
@@ -517,7 +517,7 @@ heroes: [
     "docAbility": "Ability: Say Cheese! (4 mana): Deal 1 dmg, also inflicting Edible status to enemy hero/player for 3 turns. Edible (debuff): Edible heroes/player can’t attack or use abilities & enemies can attack them to heal 2 HP (4 on lethal hits).",
     "rolePassive": {
       "name": "Enchant",
-      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
+      "description": "After Death Die rolls, roll by HP tier to gain +3 mana on success or +2 after failed Death Die rolls."
     }
   },
   {
@@ -538,7 +538,7 @@ heroes: [
     "docAbility": "Ability: Breakback Breakdance (3 mana):1 / 2 chance to deal 4 dmg (Unblockable) & Impede all enemy heroes/player; 1 / 2 chance for Papa/player to be Impeded 2 turns & take 4 dmg. Impede:",
     "rolePassive": {
       "name": "Enchant",
-      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
+      "description": "After Death Die rolls, roll by HP tier to gain +3 mana on success or +2 after failed Death Die rolls."
     }
   },
   {
@@ -559,7 +559,7 @@ heroes: [
     "docAbility": "Ability: Sleuth Seance (3 mana): Draw & cast any action card you want for free.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Gain early 2-turn access to hero & action cards in the shop."
+      "description": "While captain, the shop shows the current row plus future hero and action rows."
     }
   },
   {
@@ -609,7 +609,7 @@ heroes: [
     "docAbility": "Ability: Vooduel (4 mana): Duel enemy, dealing 4 dmg & inflict Jinxed status to enemy hero/player if you win. Jinxed (debuff): Jinxed heroes/player take the amount of damage they dealt to the hero/player that inflicted the jinx.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
+      "description": "Captain adds an HP-tier bonus to duel rolls: +2 Robust, +3 Vulnerable, +4 Critical, or +5 Near-Death."
     }
   },
   {
@@ -663,7 +663,7 @@ heroes: [
     "docAbility": "Ability Sass-Squash (4 mana): Deal 6 dmg & Impede enemy hero/player (deal 12 if below half HP). Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration. Crippled (debuff): Crippled heroes/player receive x2 damage for the duration.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
-      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
+      "description": "HP-tier chance to double outgoing damage, then Crit-Hit goes on a 2-turn cooldown."
     }
   },
   {
@@ -708,7 +708,7 @@ heroes: [
     "docAbility": "Ability: Puppeteer (4 mana): Hypnotizing an enemy hero card, making them join your side for 2 turns.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Gain early 2-turn access to hero & action cards in the shop."
+      "description": "While captain, the shop shows the current row plus future hero and action rows."
     }
   },
   {
@@ -733,7 +733,7 @@ heroes: [
     "docAbility": "Tapped Out (6 mana): Deal 4 damage and Impede all enemy heroes and player. Wasted (Hero Passive): Failed enemy die rolls can inflict Drunk on the enemy player and captain.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free hero cards."
     }
   },
   {
@@ -786,7 +786,7 @@ heroes: [
     "docAbility": "Ability: Out of the Tomb (6 mana): Summon Baby which heals 3 HP and Cleanses from player/all heroes. Mummy Scorned (Hero Passive): When Baby is killed, deal 5 dmg (Unstoppable) & inflict Curse to all enemy heroes/player for 3 turns. Cursed (status): Player can only roll up to 3 on their die when Cursed, don’t recieve healing, tdeal half dmg, take x2 dmg, & die roll fails hurt all their heroes (Unstoppable).",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free hero cards."
     }
   },
   {
@@ -807,7 +807,7 @@ heroes: [
     "docAbility": "Ability: Claw Strikeout (3 mana): 2 out of 3 chance to deal 4 dmg & Impede enemy hero (Unblockable).",
     "rolePassive": {
       "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free action cards."
     }
   },
   {
@@ -828,7 +828,7 @@ heroes: [
     "docAbility": "Ability: Strike a Chord (3 mana): Deal 3 dmg (along with Impede) to enemy. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free action cards."
     }
   },
   {
@@ -849,7 +849,7 @@ heroes: [
     "docAbility": "Ability: Goldberg Chain: Unleash a Stack that deals a base 1 dmg (+1 for each enemy (heroes & player) & Impairs durability hero if they’re Safeguarding). Stack (denominator): A Stack when deployed deals base 1 (with 1 player) adding +1 dmg per hero on field to attack the number of player/heroes. Shell-Shock (should be in Mana roll): Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying (regardless of remaining HP) and player being able to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Gain early 2-turn access to hero & action cards in the shop."
+      "description": "While captain, the shop shows the current row plus future hero and action rows."
     }
   },
   {
@@ -870,7 +870,7 @@ heroes: [
     "docAbility": "Ability: Static Splash (5 mana): Deal 4 dmg & inflict Shocked status in all enemy player/heroes. Shocked (debuff): After regular die roll, die event window opens up for Shocked player/heroes to roll a die: Roll 1-2 will result in Shocked hero dying regardless of remaining HP and player being unable to cast cards, abilities, or attack, Roll 3-4 will result in player & hero being Impeded and taking 3 dmg, and roll 5-6 to taking 1 dmg.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
+      "description": "After Death Die rolls, roll by HP tier to gain +3 mana on success or +2 after failed Death Die rolls."
     }
   },
   {
@@ -891,7 +891,7 @@ heroes: [
     "docAbility": "Ability: Kebab Skewer (3 mana): 2 out of 3 chance to deal 3 dmg, also inflicting Anemic & Impede (for 3 turns) on enemy hero/player. Anemic (debuff): Anemic players/heroes can’t receive healing. Anemic players/heroes can’t receive healing. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enact",
-      "description": "Roll 4-6 to draw and cast one free action."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free action cards."
     }
   },
   {
@@ -912,7 +912,7 @@ heroes: [
     "docAbility": "Ability: Biotic Syringe (4 mana): Deal 4 dmg & inflict Anemic to enemy OR heal 4 HP & Cleanse player/hero. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Anemic (debuff): Anemic players/heroes can’t receive healing.",
     "rolePassive": {
       "name": "Foresight",
-      "description": "Gain early 2-turn access to hero & action cards in the shop."
+      "description": "While captain, the shop shows the current row plus future hero and action rows."
     }
   },
   {
@@ -1031,7 +1031,7 @@ heroes: [
     "docAbility": "Ability: Dino Dominion (6 mana): Deal 8 dmg to enemy player/hero, Capturing another enemy hero if it kills. Capture (bondage): [Captured enemy will be on the other player’s field to the far left. A Captured enemy hero will be killed in 3 turns if Tyrantosaurus isn’t killed by then. If Tyrantosaurus is killed, the Captured hero is set free. Captures are an exception to the 5 hero on field limit.",
     "rolePassive": {
       "name": "Crit-Hit Chance",
-      "description": "Increased 1 / 3 crit-hit chance for all heroes & player."
+      "description": "HP-tier chance to double outgoing damage, then Crit-Hit goes on a 2-turn cooldown."
     }
   },
   {
@@ -1061,7 +1061,7 @@ heroes: [
     "docAbility": "Ability: Volcanic Volley (6 mana): Deal 5 dmg & inflict Burning status to all enemy heroes & player (for 3 turns). Temperature Tantrum (Hero Passive): Deal 5 dmg to all enemies & inflict Burning status if critical (25% but not 0) HP. Burning (debuff): Burning players/heroes take 3 damage every turn (friendly or enemy) & lose half their action cards. Frozen cancels this out.",
     "rolePassive": {
       "name": "Invocation",
-      "description": "Legendary captain passives stay active as long as the hero is alive and deployed."
+      "description": "After Death Die rolls, roll by HP tier to draw up to 2 free hero cards."
     }
   },
   {
@@ -1082,7 +1082,7 @@ heroes: [
     "docAbility": "Ability: Měnghǔ chūjí (3 mana): Duel enemy, deal 3 dmg to enemy hero/player (or one-hit kill if at 25% or below). Duel (duel event): Opens a duel window. Win condition triggers on a win. Tie results in neither player taking damage. Loss makes the hero who initiated duel take the number of damage that they lost by.",
     "rolePassive": {
       "name": "Duelist",
-      "description": "2 / 3 chance for captain to win duels by rolling 3-6."
+      "description": "Captain adds an HP-tier bonus to duel rolls: +2 Robust, +3 Vulnerable, +4 Critical, or +5 Near-Death."
     }
   },
   {
@@ -1103,7 +1103,7 @@ heroes: [
     "docAbility": "Ability Pass Gas (4 mana): Die becomes Bomb for enemy player, dealing 3 dmg, Poisoning,& Impeding all enemy heroes & player if they fail. Bomb (bomb): A Bomb die event will have a player roll a die where failing results in all player/heroes taking damage & Impeded. Poisoned (debuff): Poisoned enemies take 2 dmg each friendly turn. Augment (buff): Augmented ally heroes & players deal x2 dmg for duration. Impeded (debuff): Impeded heroes/player can’t use attacks or abilities for the duration.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
+      "description": "After Death Die rolls, roll by HP tier to gain +3 mana on success or +2 after failed Death Die rolls."
     }
   },
   {
@@ -1124,7 +1124,7 @@ heroes: [
     "docAbility": "Ability: Daily Bread (3 mana): Heal 3 HP, Cleanse, & Bless player and all heroes for 3 turns. Cleanse (sustain): Ally player/heroes who are Cleansed remove all debuff effects inflicted on them. Blessed (buff): Blessed player/heroes will heal 2 HP, deal double damage, can receive overhealing, take half dmg, roll 4-6 on all dice, and Cleansed of debuffs following turn. Bless and Curse cancel out.",
     "rolePassive": {
       "name": "Enchant",
-      "description": "1/2 chance to gain 3 mana from successful die rolls, bypassing the mana cap."
+      "description": "After Death Die rolls, roll by HP tier to gain +3 mana on success or +2 after failed Death Die rolls."
     }
   },
   {

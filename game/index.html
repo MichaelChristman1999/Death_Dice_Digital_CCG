@@ -70,12 +70,13 @@
         <li>Each player starts with <strong>40 HP</strong>.</li>
         <li>Each player starts with <strong>1 hero card</strong> and <strong>3 action cards</strong>.</li>
         <li>Both players roll for first turn. Highest roll goes first. Ties re-roll.</li>
-        <li>In PvE, you enter your player name and the game randomly assigns a CPU opponent.</li>
+        <li>Roll-Off results become each player's starting mana for Order Phase setup.</li>
+        <li>In PvE, you enter your player name and the game assigns a CPU opponent.</li>
       </ul>
       <h2>Goal</h2>
       <ul>
         <li>Reduce the enemy player to <strong>0 HP</strong>.</li>
-        <li>Heroes at 0 HP go to the graveyard. If a captain dies, another deployed hero can become captain.</li>
+        <li>Heroes at 0 HP go to the graveyard. If a captain dies, another deployed hero can move into the captain slot.</li>
       </ul>
     </div>
 
@@ -83,8 +84,8 @@
       <h2>Order Phase</h2>
       <ul>
         <li>The Order Phase replaces the old Etiquette Phase name.</li>
-        <li>Players may deploy heroes and buy from the shop.</li>
-        <li>No attacks, hero abilities, role-passive rolls, or action cards are allowed in Order Phase.</li>
+        <li>Players may deploy heroes, assign or rearrange a captain, buy from the shop, and use the draw pile.</li>
+        <li>No attacks, hero abilities, paid action cards, or role-passive Death Die rolls are allowed in Order Phase.</li>
         <li>Roll-Off values provide starting mana for Order Phase setup; Death Die damage begins in Chaos Phase.</li>
         <li>If Roll-Off has a tie or the final rolls differ by more than 2, each player moves their starting hero into the captain slot for free.</li>
         <li>Drawing from the Draw Pile costs 0 mana during Order Phase.</li>
@@ -94,6 +95,8 @@
         <li>The Chaos Phase replaces the old Combat Phase name.</li>
         <li>Turns repeat until one player reaches 0 HP.</li>
         <li>Your turn starts with a Death Die roll after a short countdown. Roll Now skips the wait.</li>
+        <li>Your Death Die result adds mana to your pool. If the roll is lower than the previous roll, you take damage equal to the difference.</li>
+        <li>Rolling a 6 resets the next player's Death Die requirement.</li>
         <li>Lower HP ranges and major HP deficits improve a player's Card Shop offer tier until they heal back up.</li>
       </ul>
     </div>
@@ -103,10 +106,12 @@
       <ul>
         <li>Mana is spent to deploy heroes, buy from the shop, use abilities, and play action cards.</li>
         <li>Your mana pool carries over between turns and normally caps at <strong>12</strong>.</li>
-        <li>The Card Shop limits purchases by card type each turn. Hero offers deploy immediately for their card cost; action offers cast immediately for their card cost when action cards are legal.</li>
-        <li>Accelerated players or captains gain one extra shop purchase of each type while Accelerated.</li>
-        <li>Some effects can lock the shop or reveal extra offers.</li>
-        <li>Right-click a hand card to discard it for mana, within the current discard limits.</li>
+        <li>Cheatah rerolls, Augment, and Mana-role Enchant can exceed the normal cap only when their exception condition applies.</li>
+        <li>The Card Shop limits purchases by card type each turn. Hero offers deploy immediately for their card cost; action offers cast immediately when action cards are legal.</li>
+        <li>Accelerated players or captains gain one extra action play, hero cast, player attack, draw pile use, discard-for-mana use, and shop purchase of each type while Accelerated.</li>
+        <li>Foresight shows the Current Row plus Foresight +1 and Foresight +2 future shop rows while an IQ captain is active.</li>
+        <li>Locked Out disables shop and draw-pile access while it lasts.</li>
+        <li>Right-click a hand card to discard it for mana, within the current discard limits. If your action hand reaches 8 cards, you must discard down before continuing.</li>
       </ul>
       <h2>Card Timing</h2>
       <ul>
@@ -137,9 +142,13 @@
       <h2>Captains And Roles</h2>
       <ul>
         <li>Drag a deployed hero into the captain slot to activate that hero's role passive.</li>
-        <li>Durability captains can Safeguard, redirecting player or ally damage and debuffs when eligible.</li>
-        <li>Role passives are being revised toward dedicated die events in the 2.4 patch cycle.</li>
-        <li>Damage or debuffs aimed at the player can also affect the captain unless Safeguard changes the target.</li>
+        <li>Only the captain's role passive is active. Hero passives stay active while that hero is deployed, even outside the captain slot.</li>
+        <li>Most role passives use HP-tier Death Die odds: Robust 6+, Vulnerable 5+, Critical 4+, and Near-Death 3+.</li>
+        <li>Legendary improves faster at low HP: 4+, 3+, 2+, then automatic at Near-Death. Mana uses 5+, 4+, 3+, then 2+.</li>
+        <li>Agility grants Evasive Maneuver. Balanced grants free action draws. Durability grants Safeguard, crowd-control resistance, and low-HP regen.</li>
+        <li>IQ grants Foresight shop rows. Legendary grants free hero draws. Mana grants Enchant mana. Passive shares and refreshes Imbued.</li>
+        <li>Speed grants an extra action-card slot and can Accelerate the team. Strength grants Crit-Hit. Technique grants Duelist bonuses.</li>
+        <li>Damage or debuffs aimed at a player can also affect that player's captain. Durability Safeguard may redirect hits or debuffs to the captain first.</li>
       </ul>
     </div>
 
@@ -148,9 +157,12 @@
       <ul>
         <li>Drag a hero onto an enemy hero or HP icon to attack.</li>
         <li>Click your hero to open its ability panel, then choose a target if the ability is available.</li>
-        <li>Each hero normally performs one action per turn: attack or ability.</li>
-        <li>Accelerate and Speed-role effects can create extra action opportunities. Player or captain Accelerate also increases action-card, hero-cast, player-attack, draw-pile, discard-for-mana, and shop limits by 1.</li>
+        <li>Player base attack can target an enemy hero or the enemy player. Targeting the player can also involve the captain slot.</li>
+        <li>Each hero normally performs one action per turn: attack or ability. Used heroes tap until your next turn.</li>
+        <li>Accelerate and Speed-role effects can create extra action opportunities.</li>
+        <li>Safeguard, Sidestep, Evasive Maneuver, Charmed, Impede, Frozen, Drunk, and similar effects can change whether a hit or debuff lands.</li>
         <li>Statuses are shown on cards and player HUDs with turns remaining where applicable.</li>
+        <li>Poison, Rabies, Burning, Haunted, and Shocked tick during turn/status processing.</li>
       </ul>
     </div>
 

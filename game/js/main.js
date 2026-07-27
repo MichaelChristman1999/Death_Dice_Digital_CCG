@@ -597,7 +597,7 @@ function _rolePassiveHtml(cardOrRole) {
     Agility: ['Evasive Maneuver', 'HP-tier chance to dodge captain/player damage or debuffs, up to 3 dodges per turn.'],
     Balanced: ['Enact', 'HP-tier chance after Death Die roll to draw up to 2 free action cards.'],
     Durability: ['Safeguard', 'Captain redirects damage and debuffs from allies and player, can resist disabling CC, and regenerates at lower player HP tiers.'],
-    IQ: ['Foresight', 'Preview future shop rows while captain.'],
+    IQ: ['Foresight', 'Shop shows the current row plus future hero and action rows while captain.'],
     Legendary: ['Invocation', 'HP-tier chance after Death Die roll to draw up to 2 free hero cards.'],
     Mana: ['Enchant', 'HP-tier chance to gain +3 mana on successful rolls or +2 after failed rolls.'],
     Passive: ['Imbue', 'Share passive pressure for three turns when assigned captain, plus an HP-tier chance after Death Die rolls to refresh it.'],

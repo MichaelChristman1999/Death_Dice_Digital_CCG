@@ -205,9 +205,7 @@ const ShopSystem = (() => {
     if (heroGrid) {
       heroGrid.innerHTML = '';
       heroGrid.classList.toggle('foresight', foresight);
-      shopHeroes.forEach(card => {
-        heroGrid.appendChild(_buildShopItem(card, 'hero', mana, heroFieldFull, playerId));
-      });
+      _renderOfferRows(heroGrid, shopHeroes, 'hero', mana, heroFieldFull, playerId, foresight);
     }
 
     // Action grid
@@ -215,9 +213,7 @@ const ShopSystem = (() => {
     if (actionGrid) {
       actionGrid.innerHTML = '';
       actionGrid.classList.toggle('foresight', foresight);
-      shopActions.forEach(card => {
-        actionGrid.appendChild(_buildShopItem(card, 'action', mana, false, playerId));
-      });
+      _renderOfferRows(actionGrid, shopActions, 'action', mana, false, playerId, foresight);
     }
 
     _syncShopPages();
@@ -227,6 +223,38 @@ const ShopSystem = (() => {
     if (closeBtn) {
       closeBtn.onclick = close;
     }
+  }
+
+  function _renderOfferRows(grid, cards, type, mana, blockedBySpace, playerId, foresight = false) {
+    if (!foresight) {
+      cards.forEach(card => {
+        grid.appendChild(_buildShopItem(card, type, mana, blockedBySpace, playerId));
+      });
+      return;
+    }
+
+    _chunk(cards, 4).forEach((rowCards, index) => {
+      const row = document.createElement('section');
+      row.className = `shop-offer-row ${index === 0 ? 'current' : 'future'}`;
+      const label = document.createElement('div');
+      label.className = 'shop-offer-row-label';
+      label.textContent = index === 0 ? 'Current Row' : `Foresight +${index}`;
+      row.appendChild(label);
+
+      const rowGrid = document.createElement('div');
+      rowGrid.className = 'shop-offer-row-cards';
+      rowCards.forEach(card => {
+        rowGrid.appendChild(_buildShopItem(card, type, mana, blockedBySpace, playerId));
+      });
+      row.appendChild(rowGrid);
+      grid.appendChild(row);
+    });
+  }
+
+  function _chunk(items, size) {
+    const rows = [];
+    for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+    return rows;
   }
 
   function _getOffersForTurn(foresight = false, playerId = GameState.currentTurn) {
