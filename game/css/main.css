@@ -169,7 +169,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
 }
 .menu-buttons { display: flex; flex-direction: column; gap: 10px; width: 310px; }
 
-.adventure-box { max-width: 460px; }
+.adventure-box { max-width: 620px; }
 .adventure-name-grid { margin-bottom: 18px; }
 .adventure-list {
   display: grid;
@@ -185,6 +185,11 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   gap: 5px;
   padding: 14px;
   text-align: left;
+}
+.adventure-persona.selected {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(214,151,0,.28), rgba(80,30,0,.82));
+  box-shadow: 0 0 18px rgba(214,151,0,.22);
 }
 .adventure-persona span {
   font-size: .68rem;

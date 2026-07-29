@@ -71,7 +71,7 @@
         <li>Each player starts with <strong>1 hero card</strong> and <strong>3 action cards</strong>.</li>
         <li>Both players roll for first turn. Highest roll goes first. Ties re-roll.</li>
         <li>Roll-Off results become each player's starting mana for Order Phase setup.</li>
-        <li>In PvE, you enter your player name and the game assigns a CPU opponent.</li>
+        <li>In PvE, you enter your player name, then choose or randomize a CPU opponent.</li>
       </ul>
       <h2>Goal</h2>
       <ul>
@@ -254,15 +254,16 @@
 <div id="overlay-adventure" class="overlay-bg hidden">
   <div class="modal-box adventure-box">
     <h2>Play PvE (CPU)</h2>
-    <p class="muted">Enter your name, then start a one-player match against a random CPU opponent.</p>
+    <p class="muted">Enter your name, then choose a CPU opponent or start a random match.</p>
     <div class="names-grid adventure-name-grid">
       <label class="name-field">
         <span>Your Name</span>
         <input id="input-adventure-name" type="text" maxlength="16" placeholder="Player 1" autocomplete="off">
       </label>
     </div>
+    <div id="adventure-persona-list" class="adventure-list" aria-label="CPU opponents"></div>
     <div class="modal-actions">
-      <button id="btn-adventure-start" class="menu-btn primary">Start Game</button>
+      <button id="btn-adventure-start" class="menu-btn primary">Start Random Game</button>
       <button id="btn-adventure-back" class="menu-btn secondary">Back</button>
     </div>
   </div>

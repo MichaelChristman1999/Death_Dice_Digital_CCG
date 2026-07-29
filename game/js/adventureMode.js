@@ -4,12 +4,15 @@ const AdventureMode = (() => {
     humanPlayerId: 'p1',
     cpuPlayerId: 'p2',
     persona: null,
+    selectedPersonaId: null,
     rolloffTimer: null,
     turnTimer: null,
   };
 
   function openMenu() {
     reset({ keepOverlay: true });
+    _renderPersonaChoices();
+    _setSelectedPersona(null);
     document.getElementById('overlay-adventure')?.classList.remove('hidden');
     document.getElementById('input-adventure-name')?.focus();
   }
@@ -19,7 +22,8 @@ const AdventureMode = (() => {
   }
 
   function start(personaId = null) {
-    const persona = personaId ? CpuPersonas.get(personaId) : _randomPersona();
+    const selectedId = personaId ?? state.selectedPersonaId;
+    const persona = selectedId ? CpuPersonas.get(selectedId) : _randomPersona();
     reset({ keepOverlay: true });
     state.active = true;
     state.persona = persona;
@@ -45,6 +49,7 @@ const AdventureMode = (() => {
     CpuController?.cancel?.();
     state.active = false;
     state.persona = null;
+    state.selectedPersonaId = null;
     if (!options.keepOverlay) closeMenu();
   }
 
@@ -124,6 +129,47 @@ const AdventureMode = (() => {
   function _randomPersona() {
     const list = CpuPersonas.all?.() ?? [CpuPersonas.get('little_timmy')];
     return list[Math.floor(Math.random() * list.length)] ?? CpuPersonas.get('little_timmy');
+  }
+
+  function _renderPersonaChoices() {
+    const listEl = document.getElementById('adventure-persona-list');
+    if (!listEl || listEl.dataset.rendered === 'true') return;
+
+    const personas = CpuPersonas.all?.() ?? [];
+    personas.forEach(persona => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'menu-btn secondary adventure-persona';
+      btn.dataset.cpuPersona = persona.id;
+      btn.setAttribute('aria-pressed', 'false');
+
+      const difficulty = document.createElement('span');
+      difficulty.textContent = persona.difficulty;
+      const name = document.createElement('strong');
+      name.textContent = persona.name;
+      const description = document.createElement('small');
+      description.textContent = persona.description;
+
+      btn.append(difficulty, name, description);
+      btn.addEventListener('click', () => _setSelectedPersona(persona.id));
+      listEl.appendChild(btn);
+    });
+    listEl.dataset.rendered = 'true';
+  }
+
+  function _setSelectedPersona(personaId) {
+    state.selectedPersonaId = personaId;
+    document.querySelectorAll('[data-cpu-persona]').forEach(btn => {
+      const selected = btn.dataset.cpuPersona === personaId;
+      btn.classList.toggle('selected', selected);
+      btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+
+    const startBtn = document.getElementById('btn-adventure-start');
+    if (startBtn) {
+      const persona = personaId ? CpuPersonas.get(personaId) : null;
+      startBtn.textContent = persona ? `Start vs ${persona.name}` : 'Start Random Game';
+    }
   }
 
   return {
