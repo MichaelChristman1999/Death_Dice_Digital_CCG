@@ -553,12 +553,12 @@ const PixiBoard = (() => {
   }
 
   function _buildManaGauge() {
-    // Liquid mana gauge (6 fillable orbs) at left-of-center + dice panel at right
+    // Liquid mana gauge at viewport center + dice panel at right
     const ct = new PIXI.Container();
     ct._dots = [];
 
     const MAX_MANA = 0;
-    const gCX      = W() * (_isCompact() ? 0.50 : 0.22);   // gauge centred here
+    const gCX      = _manaGaugeCenterX();
     const spc      = _isCompact() ? 23 : 27;
     const gStartX  = gCX - (MAX_MANA - 1) * spc / 2;
 
@@ -671,12 +671,36 @@ const PixiBoard = (() => {
     ct._manaBubble = bubble;
     ct._manaNum = manaNum;
     ct._manaCap = capLbl;
+    ct._manaLabel = manaLbl;
+    ct._dotCount = MAX_MANA;
     ct._mana  = { text: '0' };
     ct._phase = { text: '' };
     ct._turn  = { text: '' };
     ct._orb   = { scale: { x: 1, y: 1 } };
 
     return ct;
+  }
+
+  function _manaGaugeCenterX() {
+    return W() * 0.5;
+  }
+
+  function _layoutManaGauge(ct) {
+    if (!ct) return;
+    const gCX = _manaGaugeCenterX();
+    const dotCount = ct._dotCount ?? 0;
+    const spc = _isCompact() ? 23 : 27;
+    const gStartX = gCX - (dotCount - 1) * spc / 2;
+
+    if (ct._manaBubble) ct._manaBubble.position.set(gCX, 0);
+    if (ct._manaNum) ct._manaNum.position.set(gCX, -2);
+    if (ct._manaCap) ct._manaCap.position.set(gCX, 17);
+    if (ct._manaLabel) ct._manaLabel.position.set(gCX, 31);
+    ct._dots?.forEach((dot, i) => {
+      dot.x = gStartX + i * spc;
+      dot.y = 0;
+    });
+    if (ct._diceContainer) ct._diceContainer.position.set(HUD_DIE().x, HUD_DIE().y - HUD_CENTER_Y());
   }
 
   // ── Skull pip positions per die face ─────────────────────────────────────────
@@ -743,7 +767,10 @@ const PixiBoard = (() => {
   function _repositionHUD() {
     if (_hud.p1bar)  _hud.p1bar.position.set(SAFE, H() - ACTIVE_BAR_H - SAFE);
     if (_hud.p2bar)  _hud.p2bar.position.set(SAFE, SAFE);
-    if (_hud.center) _hud.center.y = HUD_CENTER_Y(); // mana strip in the board gap
+    if (_hud.center) {
+      _hud.center.y = HUD_CENTER_Y(); // mana strip in the board gap
+      _layoutManaGauge(_hud.center);
+    }
   }
 
   function _updateHUD() {

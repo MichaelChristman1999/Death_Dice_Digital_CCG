@@ -76,6 +76,7 @@ html, body {
 #screen-rules.active {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* Admin uses flex column */
@@ -137,7 +138,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
     var(--bg);
 }
 .menu-content {
-  --menu-stack-offset: clamp(-76px, -6.5vw, -46px);
+  --menu-stack-offset: clamp(-56px, -4.8vw, -32px);
   display: flex; flex-direction: column; align-items: center;
   animation: fade-up .55s ease both;
   transform: translateY(var(--menu-stack-offset));
@@ -1006,9 +1007,13 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
    ═══════════════════════════════════════════════════════════ */
 .rules-screen { background: var(--bg); }
 .rules-inner {
-  flex: 1; padding: 36px 40px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100dvh;
+  padding: clamp(20px, 4vh, 36px) clamp(16px, 4vw, 40px);
   max-width: 740px; margin: 0 auto; width: 100%;
   display: flex; flex-direction: column;
+  overflow: hidden;
 }
 .rules-inner h1 {
   color: var(--accent-hi); font-size: 1.65rem; margin-bottom: 24px;
@@ -1035,6 +1040,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   gap: 12px;
   align-items: center;
   margin-top: 22px;
+  flex-shrink: 0;
 }
 .rules-pager .menu-btn { width: auto; }
 .rules-page-label {
@@ -1048,6 +1054,7 @@ button:disabled { opacity: .35; cursor: not-allowed; transform: none !important;
   width: auto;
   align-self: center;
   margin-top: 14px;
+  flex-shrink: 0;
 }
 
 /* ─── 3D Dice Animation Overlay ───────────────────────────────────────────── */
