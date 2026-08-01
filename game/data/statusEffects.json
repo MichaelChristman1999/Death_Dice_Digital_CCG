@@ -107,7 +107,7 @@
         "stackBehavior":  "replace",
         "trigger":  null,
         "symbol":  "VIT",
-        "description":  "Receives double healing from later heals. Reapplying Vitalize refreshes this duration without another initial heal or Cleanse."
+        "description":  "Receives double healing from later heals. Reapplying Vitalize refreshes this duration without stacking another healing multiplier."
     },
     {
         "id":  "status_drunk",

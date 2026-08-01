@@ -135,17 +135,15 @@ const AbilityDispatcher = (() => {
     const already = _hasStatus(char, 'status_vitalized');
     let healed = 0;
     let cleansed = 0;
-    if (!already) {
-      cleansed = _cleanseCharacter(instanceId, { except: ['status_rabies'], limit: 2 });
-      const healAmount = _targetIsCriticalOrNearDeath({ type: 'character', id: instanceId }) ? 12 : baseValue;
-      const before = GameState.getCharacter(instanceId)?.currentHp ?? 0;
-      const after = GameState.healCharacter(instanceId, healAmount, {
-        overheal: true,
-        overhealCap: 4,
-        ignoreVitalized: true,
-      }) ?? before;
-      healed = Math.max(0, after - before);
-    }
+    cleansed = _cleanseCharacter(instanceId, { except: ['status_rabies'], limit: 2 });
+    const healAmount = _targetIsCriticalOrNearDeath({ type: 'character', id: instanceId }) ? 12 : baseValue;
+    const before = GameState.getCharacter(instanceId)?.currentHp ?? 0;
+    const after = GameState.healCharacter(instanceId, healAmount, {
+      overheal: true,
+      overhealCap: 4,
+      ignoreVitalized: true,
+    }) ?? before;
+    healed = Math.max(0, after - before);
     GameState.applyStatus?.(instanceId, 'status_vitalized', { sharePlayer: false });
     return { target: char.name, healed, cleansed, refreshed: already };
   }
@@ -156,17 +154,15 @@ const AbilityDispatcher = (() => {
     const already = GameState.hasPlayerStatus?.(playerId, 'status_vitalized');
     let healed = 0;
     let cleansed = 0;
-    if (!already) {
-      cleansed = _cleansePlayer(playerId, { except: ['status_rabies'], limit: 2 });
-      const healAmount = _targetIsCriticalOrNearDeath({ type: 'player', id: playerId }) ? 12 : baseValue;
-      const before = player.hp ?? 0;
-      const after = GameState.healPlayer(playerId, healAmount, {
-        overheal: true,
-        overhealCap: 4,
-        ignoreVitalized: true,
-      }) ?? before;
-      healed = Math.max(0, after - before);
-    }
+    cleansed = _cleansePlayer(playerId, { except: ['status_rabies'], limit: 2 });
+    const healAmount = _targetIsCriticalOrNearDeath({ type: 'player', id: playerId }) ? 12 : baseValue;
+    const before = player.hp ?? 0;
+    const after = GameState.healPlayer(playerId, healAmount, {
+      overheal: true,
+      overhealCap: 4,
+      ignoreVitalized: true,
+    }) ?? before;
+    healed = Math.max(0, after - before);
     GameState.applyPlayerStatus?.(playerId, 'status_vitalized', { shareCaptain: false, splashCaptain: false });
     return { target: GameState.getPlayerLabel(playerId), healed, cleansed, refreshed: already };
   }

@@ -1462,7 +1462,7 @@ actions: [
     "statusApplied": [
       "status_vitalized"
     ],
-    "description": "Heal 8 HP, or 12 if critical, cleanse up to 2 non-Rabies debuffs, and grant Vitalized for 3 turns. Vitalized doubles later healing; recasts only refresh duration."
+    "description": "Heal 8 HP, or 12 if critical, cleanse up to 2 non-Rabies debuffs, and grant Vitalized for 3 turns. Recasting Vitalize heals and cleanses again, refreshes duration, and does not stack another healing multiplier."
   }
 ],
 
@@ -1556,7 +1556,7 @@ statusEffects: [
     "stackBehavior": "replace",
     "trigger": null,
     "symbol": "VIT",
-    "description": "Receives double healing from later heals. Reapplying Vitalize refreshes this duration without another initial heal or Cleanse."
+    "description": "Receives double healing from later heals. Reapplying Vitalize refreshes this duration without stacking another healing multiplier."
   },
   {
     "id": "status_anemic",
