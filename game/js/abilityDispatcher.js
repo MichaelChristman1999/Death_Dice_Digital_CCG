@@ -140,7 +140,7 @@ const AbilityDispatcher = (() => {
     const before = GameState.getCharacter(instanceId)?.currentHp ?? 0;
     const after = GameState.healCharacter(instanceId, healAmount, {
       overheal: true,
-      overhealCap: 4,
+      overhealCap: healAmount,
       ignoreVitalized: true,
     }) ?? before;
     healed = Math.max(0, after - before);
@@ -159,7 +159,7 @@ const AbilityDispatcher = (() => {
     const before = player.hp ?? 0;
     const after = GameState.healPlayer(playerId, healAmount, {
       overheal: true,
-      overhealCap: 4,
+      overhealCap: healAmount,
       ignoreVitalized: true,
     }) ?? before;
     healed = Math.max(0, after - before);

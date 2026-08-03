@@ -17,6 +17,7 @@
                        "purchasesPerTurn":  1
                    },
     "drawPile":  {
+                     "firstDrawCost":  0,
                      "orderCost":  0,
                      "chaosCost":  1,
                      "maxPerTurn":  1

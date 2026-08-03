@@ -112,6 +112,7 @@ const GameState = (() => {
       durabilityRegenCounter: 0,
       pendingBomb: null,
       rolloffRoll: null,
+      freeDrawPileUsed: false,
     };
   }
 
@@ -1721,8 +1722,12 @@ const GameState = (() => {
 
   function getDrawPileCost(playerId = _currentTurn) {
     const cfg = _rules.drawPile ?? {};
-    if (_currentPhase === 'etiquette') return cfg.orderCost ?? 0;
+    if (hasFreeDrawPileAvailable(playerId)) return cfg.firstDrawCost ?? cfg.orderCost ?? 0;
     return cfg.chaosCost ?? 1;
+  }
+
+  function hasFreeDrawPileAvailable(playerId = _currentTurn) {
+    return !(_players[playerId]?.freeDrawPileUsed);
   }
 
   function getDrawPileDrawsThisTurn() {
@@ -1755,9 +1760,11 @@ const GameState = (() => {
   function commitDrawFromPile(playerId = _currentTurn) {
     const check = canDrawFromPile(playerId);
     if (!check.ok) return check;
+    const consumesFreeDraw = hasFreeDrawPileAvailable(playerId);
     if (check.cost > 0 && !spendMana(check.cost, playerId)) {
       return { ok: false, error: 'Not enough mana', cost: check.cost };
     }
+    if (consumesFreeDraw && _players[playerId]) _players[playerId].freeDrawPileUsed = true;
     _drawPileDrawsThisTurn++;
     _saveToStorage();
     return { ...check, ok: true };
@@ -3154,6 +3161,7 @@ const GameState = (() => {
         p.strengthCritCooldown ??= 0;
         p.durabilityRegenCounter ??= 0;
         p.pendingBomb ??= null;
+        p.freeDrawPileUsed ??= false;
       });
       _currentTurn = saved.currentTurn;
       _currentPhase = saved.currentPhase;
@@ -3256,6 +3264,7 @@ const GameState = (() => {
     discardForMana,
     forceDiscardFromHand,
     getDrawPileCost,
+    hasFreeDrawPileAvailable,
     getDrawPileDrawsThisTurn,
     getDrawPileLimit,
     canDrawFromPile,

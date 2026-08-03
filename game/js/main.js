@@ -434,9 +434,10 @@ function _graveyardCard(card) {
   const btn = document.createElement('button');
   btn.className = 'graveyard-card';
   btn.type = 'button';
-  const art = card.imageAsset
-    ? `<img src="assets/cards/DD Character V7/${card.imageAsset}" alt="${_escapeHtml(card.name ?? 'Hero')}">`
-    : '<div class="no-art-shop">Hero</div>';
+  const art = window.DeathDiceAssets?.heroImageHtml?.(card, card.name ?? 'Hero', '<div class="no-art-shop">Hero</div>')
+    ?? (card.imageAsset
+      ? `<img src="assets/cards/DD Character V7/${card.imageAsset}" alt="${_escapeHtml(card.name ?? 'Hero')}">`
+      : '<div class="no-art-shop">Hero</div>');
   btn.innerHTML = `${art}<span>${_escapeHtml(card.name ?? 'Hero')}</span>`;
   btn.addEventListener('click', () => expandCard(card, 'hero'));
   return btn;
@@ -485,8 +486,11 @@ function expandCard(card, type) {
   if (!modal || !content) return;
 
   if (type === 'hero') {
-    const ip   = card.imageAsset ? `assets/cards/DD Character V7/${card.imageAsset}` : null;
     const name = card.name || card.imageAsset?.replace(/^DD_/,'').replace(/\.png$/i,'') || 'Hero';
+    const heroArt = window.DeathDiceAssets?.heroImageHtml?.(card, name, '<div class="no-art">ðŸŽ´</div>')
+      ?? (card.imageAsset
+        ? `<img src="assets/cards/DD Character V7/${card.imageAsset}" alt="${name}">`
+        : '<div class="no-art">ðŸŽ´</div>');
     const passiveOnly = /^(Passive|Durability)$/i.test(card.roleType ?? '');
     const rawPassives = card.heroPassive ?? card.passives ?? [];
     const passiveRows = Array.isArray(rawPassives) ? [...rawPassives] : [rawPassives];
@@ -505,7 +509,7 @@ function expandCard(card, type) {
     content.innerHTML = `
       <div class="card-detail-layout">
         <div class="card-detail-art">
-          ${ip ? `<img src="${ip}" alt="${name}">` : '<div class="no-art">ðŸŽ´</div>'}
+          ${heroArt}
         </div>
         <div class="card-detail-info">
           <div class="card-detail-name">${name}</div>

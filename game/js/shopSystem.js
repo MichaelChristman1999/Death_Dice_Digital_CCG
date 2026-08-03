@@ -291,12 +291,22 @@ const ShopSystem = (() => {
     // ── Card preview art ───────────────────────────────────────────────────────
     const artDiv = document.createElement('div');
     artDiv.className = 'shop-item-art';
-    if (type === 'hero' && card.imageAsset) {
-      const img = document.createElement('img');
-      img.src     = 'assets/cards/DD Character V7/' + card.imageAsset;
-      img.alt     = card.name;
-      img.loading = 'lazy';
-      artDiv.appendChild(img);
+    if (type === 'hero') {
+      const paths = window.DeathDiceAssets?.heroImagePaths?.(card) ?? [];
+      if (!paths.length && !card.imageAsset) {
+        artDiv.innerHTML = `<div class="no-art-shop">âœ¦</div>`;
+        artDiv.textContent = 'Hero';
+      } else {
+        const img = document.createElement('img');
+        img.src     = paths[0] ?? ('assets/cards/DD Character V7/' + card.imageAsset);
+        if (paths.length > 1) {
+          img.dataset.fallbackSrc = paths.slice(1).join('|');
+          img.onerror = () => window.DeathDiceAssets?.useNextImageFallback?.(img);
+        }
+        img.alt     = card.name;
+        img.loading = 'lazy';
+        artDiv.appendChild(img);
+      }
     } else if (type === 'action' && card.imageAsset) {
       const img = document.createElement('img');
       img.src     = 'assets/cards/Action Card Test Export/' + card.imageAsset;

@@ -88,7 +88,7 @@
         <li>No attacks, hero abilities, paid action cards, or role-passive Death Die rolls are allowed in Order Phase.</li>
         <li>Roll-Off values provide starting mana for Order Phase setup; Death Die damage begins in Chaos Phase.</li>
         <li>If Roll-Off has a tie or the final rolls differ by more than 2, each player moves their starting hero into the captain slot for free.</li>
-        <li>Drawing from the Draw Pile costs 0 mana during Order Phase.</li>
+        <li>Each player's first Draw Pile card is free. Later Draw Pile uses cost mana.</li>
       </ul>
       <h2>Chaos Phase</h2>
       <ul>
@@ -134,7 +134,7 @@
         <li>Love Potion inflicts Charmed. Charmed targets cannot target the charmer or their captain, lose dodge/Safeguard defenses, and successful charms heal the caster 1 HP.</li>
         <li>Rabies costs 4 mana, deals 4 damage each turn, doubles other incoming damage, can spread each turn, and does not stack separate Poison or Cripple effects.</li>
         <li>Sidestep grants a guaranteed dodge against the next attack or debuff. Accelerated targets get 2 charges; Safeguard disables Sidestep.</li>
-        <li>Vitalize costs 3 mana, heals 8 HP or 12 HP when critical, cleanses up to 2 non-Rabies debuffs, and grants Vitalized for doubled later healing.</li>
+        <li>Vitalize costs 3 mana, heals 8 HP or 12 HP when critical with overheal allowed, cleanses up to 2 non-Rabies debuffs, and grants Vitalized for doubled later healing.</li>
       </ul>
     </div>
 
@@ -403,6 +403,7 @@
 <script src="js/rollEngine.js"></script>
 <script src="js/statusEngine.js"></script>
 <script src="js/handManager.js"></script>
+<script src="js/assetResolver.js"></script>
 <script src="js/shopSystem.js"></script>
 <script src="js/duelSystem.js"></script>
 <script src="js/abilityDispatcher.js"></script>

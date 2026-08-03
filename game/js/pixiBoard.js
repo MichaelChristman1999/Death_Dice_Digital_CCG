@@ -895,8 +895,16 @@ const PixiBoard = (() => {
    *   (bottom ~20 % of source PNG) is always visible. No vignette.
    * fullCard=false – 1.22× cover crop + top-align + vignette (board chars).
    */
+  function _heroArtGroup(card, x, y, w, h, rad, fullCard = false) {
+    const assets = window.DeathDiceAssets?.heroImageCandidates?.(card)
+      ?? [card?.imageAsset].filter(Boolean);
+    const urls = assets.map(asset => HERO_DIR + _encAsset(asset));
+    return _artGroup(urls, x, y, w, h, rad, fullCard);
+  }
+
   function _artGroup(imgUrl, x, y, w, h, rad, fullCard = false) {
     const ct = new PIXI.Container();
+    const imgUrls = (Array.isArray(imgUrl) ? imgUrl : [imgUrl]).filter(Boolean);
 
     // z=0: dark background
     const bg = new PIXI.Graphics();
@@ -944,20 +952,25 @@ const PixiBoard = (() => {
       ct.addChildAt(spr, 1);
     };
 
-    if (_texCache.has(imgUrl)) {
-      apply(_texCache.get(imgUrl));
-    } else {
+    const load = (index = 0) => {
+      const url = imgUrls[index];
+      if (!url) return;
+      if (_texCache.has(url)) {
+        apply(_texCache.get(url));
+        return;
+      }
       const img = new Image();
       img.onload = () => {
         try {
           const tex = PIXI.Texture.from(img);
-          _texCache.set(imgUrl, tex);
+          _texCache.set(url, tex);
           apply(tex);
         } catch (_) {}
       };
-      img.onerror = () => {};
-      img.src = imgUrl;
-    }
+      img.onerror = () => load(index + 1);
+      img.src = url;
+    };
+    load();
 
     return ct;
   }
@@ -1293,7 +1306,7 @@ const PixiBoard = (() => {
     // Full-card art — PNG fills entire card; bottom-aligned so name banner + white
     // text box at bottom of PNG are always visible (no separate name overlay needed)
     if (card.imageAsset) {
-      ct.addChild(_artGroup(HERO_DIR + _encAsset(card.imageAsset), 2, 2, w - 4, h - 4, 8, true));
+      ct.addChild(_heroArtGroup(card, 2, 2, w - 4, h - 4, 8, true));
     } else {
       const ph = new PIXI.Graphics();
       ph.beginFill(0x1a1550); ph.drawRoundedRect(2, 2, w - 4, h - 4, 8); ph.endFill();
@@ -1438,7 +1451,7 @@ const PixiBoard = (() => {
     // Full-card art — IDENTICAL rendering to hand cards (PNG includes the name
     // banner + white text box), so cards look the same in hand and in play
     if (src.imageAsset) {
-      ct.addChild(_artGroup(HERO_DIR + _encAsset(src.imageAsset), 2, 2, w - 4, h - 4, 10, true));
+      ct.addChild(_heroArtGroup(src, 2, 2, w - 4, h - 4, 10, true));
     } else {
       const ph = new PIXI.Graphics();
       ph.beginFill(0x1a1550); ph.drawRoundedRect(2, 2, w - 4, h - 4, 10); ph.endFill();

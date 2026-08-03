@@ -648,7 +648,7 @@ heroes: [
   {
     "id": "hero_lassquach",
     "name": "Lass-Squatch",
-    "imageAsset": "DD_Lassquatch.png",
+    "imageAsset": "DD_Lass-Squatch.png",
     "stage": "S1",
     "manaCost": 4,
     "hp": 16,
@@ -1462,7 +1462,7 @@ actions: [
     "statusApplied": [
       "status_vitalized"
     ],
-    "description": "Heal 8 HP, or 12 if critical, cleanse up to 2 non-Rabies debuffs, and grant Vitalized for 3 turns. Recasting Vitalize heals and cleanses again, refreshes duration, and does not stack another healing multiplier."
+    "description": "Heal 8 HP, or 12 if critical, with overheal allowed. Cleanse up to 2 non-Rabies debuffs and grant Vitalized for 3 turns. Recasting Vitalize heals and cleanses again, refreshes duration, and does not stack another healing multiplier."
   }
 ],
 
@@ -1797,7 +1797,7 @@ rules: {
   "handLimits": { "hero": 8, "action": 8 },
   "shopCosts": { "hero": 2, "action": 1 },
   "shopLimits": { "heroPerTurn": 1, "actionPerTurn": 1 },
-  "drawPile": { "orderCost": 0, "chaosCost": 1, "maxPerTurn": 1 },
+  "drawPile": { "firstDrawCost": 0, "orderCost": 0, "chaosCost": 1, "maxPerTurn": 1 },
   "dice": { "sides": 6, "damageRule": "difference", "roll6ResetsRequired": true, "roll5Bomb": true, "roll6ManaValue": 6 },
   "mana": {
     "maxPool": 12,
