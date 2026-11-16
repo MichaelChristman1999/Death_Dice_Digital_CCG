@@ -12,6 +12,7 @@ const PhaseManager = (() => {
   let _step = STEPS.ROLLOFF;
   let _rolloffDone = { p1: false, p2: false };
   let _rolloffHadTie = false;
+  let _qualifiesForCaptainSetup = false;
   let _etiquetteRoundDone = { p1: false, p2: false };
 
   function _setStep(step) {
@@ -61,7 +62,7 @@ const PhaseManager = (() => {
     AdventureMode?.onRolloffShown?.();
   }
 
-  function handleRolloffRoll(playerId) {
+ function handleRolloffRoll(playerId) {
     if (_step !== STEPS.ROLLOFF) return;
     if (_rolloffDone[playerId]) return;
     if (!_rolloffDone.p1 && !_rolloffDone.p2) _updateRolloffResult('');
@@ -77,8 +78,7 @@ const PhaseManager = (() => {
     if (_rolloffDone.p1 && _rolloffDone.p2) {
       const rolls = GameState.getRolloffRolls();
       if (rolls.p1 === rolls.p2) {
-        _rolloffHadTie = true;
-        // Tie — reset and re-roll
+        _rolloffHadTie = true; // Tie detected!
         _updateRolloffResult("It's a tie! Roll again!", 'tie');
         setTimeout(() => {
           _rolloffDone = { p1: false, p2: false };
@@ -94,13 +94,18 @@ const PhaseManager = (() => {
       GameState.setFirstPlayer(winner);
       GameState.setMana(rolls.p1, 'p1');
       GameState.setMana(rolls.p2, 'p2');
-      const rollDifferential = Math.abs((rolls.p1 ?? 0) - (rolls.p2 ?? 0));
-      if (_rolloffHadTie || rollDifferential > 2) {
-        const p1Setup = GameState.deploySetupCaptain?.('p1');
-        const p2Setup = GameState.deploySetupCaptain?.('p2');
-        if (p1Setup?.ok || p2Setup?.ok) {
-          showToast('Order setup: starting heroes moved to captain slots.', 'info');
-        }
+
+      // TASK 1: Captain setup ONLY occurs if there was a tie during Rolloff
+      _qualifiesForCaptainSetup = _rolloffHadTie;
+
+      // TASK 6: Low rolloff (1-2) grants +1 extra free draw from Draw Pile
+      if ((rolls.p1 ?? 0) <= 2) {
+        GameState.addFreeDrawPileUses?.('p1', 1);
+        showToast(`${GameState.getPlayerLabel('p1')} rolled low (1-2): gained an extra free card draw!`, 'info');
+      }
+      if ((rolls.p2 ?? 0) <= 2) {
+        GameState.addFreeDrawPileUses?.('p2', 1);
+        showToast(`${GameState.getPlayerLabel('p2')} rolled low (1-2): gained an extra free card draw!`, 'info');
       }
 
       const winnerLabel = GameState.getPlayerLabel(winner);
@@ -113,20 +118,27 @@ const PhaseManager = (() => {
     }
   }
 
-  function _updateRolloffUI() {
-    const rolls = GameState.getRolloffRolls();
-    const el = document.getElementById('overlay-rolloff');
-    if (!el) return;
+  function _beginEtiquette() {
+    GameState.setPhase('etiquette');
+    _setStep(STEPS.MAIN);
+    _etiquetteRoundDone = { p1: false, p2: false };
 
-    const p1Roll = el.querySelector('#rolloff-p1-roll');
-    const p2Roll = el.querySelector('#rolloff-p2-roll');
-    const p1Btn  = el.querySelector('#btn-rolloff-p1');
-    const p2Btn  = el.querySelector('#btn-rolloff-p2');
+    // TASK 1: If rolled off with a tie, assign starting hero to captain slot
+    if (_qualifiesForCaptainSetup) {
+      const p1Setup = GameState.deploySetupCaptain?.('p1');
+      const p2Setup = GameState.deploySetupCaptain?.('p2');
+      if (p1Setup?.ok || p2Setup?.ok) {
+        showToast('Rolloff tie bonus: starting heroes moved to captain slots.', 'info');
+      }
+      _qualifiesForCaptainSetup = false;
+    }
 
-    if (p1Roll) p1Roll.textContent = rolls.p1 ?? '?';
-    if (p2Roll) p2Roll.textContent = rolls.p2 ?? '?';
-    if (p1Btn)  p1Btn.disabled = _rolloffDone.p1 || (AdventureMode?.isCpuPlayer?.('p1') ?? false);
-    if (p2Btn)  p2Btn.disabled = _rolloffDone.p2 || (AdventureMode?.isCpuPlayer?.('p2') ?? false);
+    showToast('Order Phase begins. Deploy heroes and use the shop.', 'phase');
+    _updateUI();
+    if (typeof renderBoard === 'function') renderBoard();
+    if (typeof renderHand === 'function') renderHand();
+    if (typeof PixiBoard !== 'undefined' && PixiBoard.renderBoard) PixiBoard.renderBoard();
+    AdventureMode?.onPhaseStep?.();
   }
 
   function _updateRolloffResult(msg, tone = '') {
@@ -134,17 +146,6 @@ const PhaseManager = (() => {
     if (!el) return;
     el.textContent = msg;
     el.classList.toggle('tie', tone === 'tie');
-  }
-
-  // ── Begin Order ────────────────────────────────────────────────────────────
-  function _beginEtiquette() {
-    GameState.setPhase('etiquette');
-    _setStep(STEPS.MAIN);
-    _etiquetteRoundDone = { p1: false, p2: false };
-    showToast('Order Phase begins. Deploy heroes and use the shop.', 'phase');
-    _updateUI();
-    renderBoard();
-    AdventureMode?.onPhaseStep?.();
   }
 
   // ── Auto-roll countdown ─────────────────────────────────────────────────────

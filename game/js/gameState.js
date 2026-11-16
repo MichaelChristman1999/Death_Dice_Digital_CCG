@@ -112,7 +112,7 @@ const GameState = (() => {
       durabilityRegenCounter: 0,
       pendingBomb: null,
       rolloffRoll: null,
-      freeDrawPileUsed: false,
+      freeDrawPileCount: 1
     };
   }
 
@@ -572,11 +572,16 @@ const GameState = (() => {
     return { gained, currentHp: char.currentHp, maxHp: char.maxHp };
   }
 
-  function _cleanseNegativeCharacter(instanceId) {
-    const { char } = _findChar(instanceId);
+function _cleanseNegativeCharacter(instanceId) {
+    const { char, playerId } = _findChar(instanceId);
     if (!char) return 0;
     const stripped = _stripStatusIds(char.statuses ?? [], _NEGATIVE_STATUS_IDS);
     char.statuses = stripped.kept;
+    
+    // TASK 4: Cleanse on captain also cleanses player
+    if (playerId && getCaptain(playerId)?.instanceId === instanceId) {
+      _cleanseNegativePlayer(playerId);
+    }
     return stripped.removed;
   }
 
@@ -1146,9 +1151,20 @@ const GameState = (() => {
   function deploySetupCaptain(playerId) {
     const p = _players[playerId];
     if (!p) return { ok: false, error: 'Player not found' };
-    if (p.captainId || (p.board?.length ?? 0) > 0) return { ok: false, error: 'Captain slot already occupied' };
+    if (p.captainId) return { ok: false, error: 'Captain slot already occupied' };
+    
+    // Case 1: Hero is already deployed on board -> assign it as Captain
+    if ((p.board?.length ?? 0) > 0) {
+      const firstHero = p.board[0];
+      p.captainId = firstHero.instanceId;
+      p.durabilityRegenCounter = 0;
+      _activateCaptainRolePassive(playerId, firstHero);
+      _saveToStorage();
+      return { ok: true, instance: firstHero };
+    }
+
+    // Case 2: Hero is in hand -> move it from hand to Captain slot
     if ((p.hand.heroes?.length ?? 0) <= 0) return { ok: false, error: 'No hero in hand' };
-    if (p.board.length >= (_rules.fieldLimits?.heroes ?? 5)) return { ok: false, error: 'Hero field full' };
 
     const [card] = p.hand.heroes.splice(0, 1);
     const instance = _createCharacterInstance(card);
@@ -1726,8 +1742,14 @@ const GameState = (() => {
     return cfg.chaosCost ?? 1;
   }
 
-  function hasFreeDrawPileAvailable(playerId = _currentTurn) {
-    return !(_players[playerId]?.freeDrawPileUsed);
+  function addFreeDrawPileUses(playerId, count = 1) {
+    const p = _players[playerId];
+    if (p) p.freeDrawPileCount = (p.freeDrawPileCount ?? 0) + count;
+    _saveToStorage();
+  }
+
+ function hasFreeDrawPileAvailable(playerId = _currentTurn) {
+    return (_players[playerId]?.freeDrawPileCount ?? 0) > 0;
   }
 
   function getDrawPileDrawsThisTurn() {
@@ -1757,14 +1779,16 @@ const GameState = (() => {
     return { ok: true, cost, drawsRemaining: Math.max(0, getDrawPileLimit(playerId) - _drawPileDrawsThisTurn) };
   }
 
-  function commitDrawFromPile(playerId = _currentTurn) {
+ function commitDrawFromPile(playerId = _currentTurn) {
     const check = canDrawFromPile(playerId);
     if (!check.ok) return check;
-    const consumesFreeDraw = hasFreeDrawPileAvailable(playerId);
-    if (check.cost > 0 && !spendMana(check.cost, playerId)) {
+    const isFree = hasFreeDrawPileAvailable(playerId);
+    if (!isFree && check.cost > 0 && !spendMana(check.cost, playerId)) {
       return { ok: false, error: 'Not enough mana', cost: check.cost };
     }
-    if (consumesFreeDraw && _players[playerId]) _players[playerId].freeDrawPileUsed = true;
+    if (isFree && _players[playerId]) {
+      _players[playerId].freeDrawPileCount = Math.max(0, (_players[playerId].freeDrawPileCount ?? 1) - 1);
+    }
     _drawPileDrawsThisTurn++;
     _saveToStorage();
     return { ...check, ok: true };
@@ -2493,9 +2517,36 @@ const GameState = (() => {
       char.statuses.push(nextStatus());
     }
 
-    const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
-    if ((statusOptions.sharePlayer ?? true) && isCaptain && _POSITIVE_SHARED_STATUS_IDS.has(statusId)) {
-      applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
+ const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
+    if (isCaptain && dmg > 0 && !options.splashPlayer && options.source !== 'captain_splash') {
+      const isSafeguardingDurability = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
+      if (!isSafeguardingDurability) {
+        damagePlayer(ownerId, dmg, {
+          source: 'captain_splash',
+          splashPlayer: true,
+          splashCaptain: false,
+          ignoreSidestep: true,
+          roleEvasion: false,
+        });
+      }
+    }
+
+     if (isCaptain && healAmount > 0 && !options.sharePlayer) {
+      healPlayer(ownerId, healAmount, { sharePlayer: true, overheal: false });
+    }
+
+      if (isCaptain && (statusOptions.sharePlayer ?? true)) {
+      const isNegative = _NEGATIVE_STATUS_IDS.has(statusId);
+      const isDurabilitySafeguard = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
+
+      // TASK 4: Buffs and positive statuses always go to the player
+      if (!isNegative) {
+        applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
+      }
+      // TASK 3: Debuffs go to the player UNLESS Durability Safeguard blocks it
+      else if (!isDurabilitySafeguard) {
+        applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
+      }
     }
 
     _saveToStorage();
@@ -3264,6 +3315,7 @@ const GameState = (() => {
     discardForMana,
     forceDiscardFromHand,
     getDrawPileCost,
+    addFreeDrawPileUses,
     hasFreeDrawPileAvailable,
     getDrawPileDrawsThisTurn,
     getDrawPileLimit,
