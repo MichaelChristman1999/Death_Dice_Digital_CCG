@@ -927,9 +927,12 @@ const GameState = (() => {
     if (!instance.abilities?.length && typeof HeroAbilities !== 'undefined' && _shouldAutoAssignAbility(card)) {
       instance.abilities = HeroAbilities.getFor(card);
     }
-    p.board.push(instance);
+  p.board.push(instance);
+    // If captain slot is currently empty, this first deployed hero becomes Captain
+    if (!p.captainId) {
+      setCaptain(playerId, instance.instanceId);
+    }
     _heroCardsDeployedThisTurn++;
-    if (_currentPhase === 'combat' && getChaosRound() === 1) ensureRoundOneForceFields();
 
     _saveToStorage();
     return { ok: true, instance };
@@ -1262,27 +1265,43 @@ const GameState = (() => {
     return { ok: true, targets };
   }
 
-  function _autoBackfillCaptain(playerId, playerState) {
-    const board = playerState?.board ?? [];
+function _autoBackfillCaptain(playerId, playerState) {
+    const p = playerState || _players[playerId];
+    const board = p?.board ?? [];
     if (!board.length) {
-      playerState.captainId = null;
-      playerState.durabilityRegenCounter = 0;
+      p.captainId = null;
+      p.durabilityRegenCounter = 0;
       return null;
     }
 
-    const durabilityHeroes = board.filter(c => /Durability/i.test(c.roleType || c._sourceCard?.roleType || ''));
-    const candidatePool = durabilityHeroes.length ? durabilityHeroes : board;
-    const highestMaxHp = Math.max(...candidatePool.map(c => Number(c.maxHp ?? c.hp ?? 0)));
-    const tiedCandidates = candidatePool.filter(c => Number(c.maxHp ?? c.hp ?? 0) === highestMaxHp);
-    const nextCaptain = tiedCandidates[Math.floor(Math.random() * tiedCandidates.length)] ?? null;
+    // Pick hero with highest remaining HP (currentHp).
+    // Tiebreaker: earlier placement/cast (earlier index in board array).
+    let nextCaptain = board[0];
+    for (let i = 1; i < board.length; i++) {
+      const candidate = board[i];
+      if ((candidate.currentHp ?? 0) > (nextCaptain.currentHp ?? 0)) {
+        nextCaptain = candidate;
+      }
+    }
 
     const nextCaptainId = nextCaptain?.instanceId ?? null;
-    if (playerState.captainId !== nextCaptainId) playerState.durabilityRegenCounter = 0;
-    playerState.captainId = nextCaptainId;
-    if (nextCaptain) _activateCaptainRolePassive(playerId, nextCaptain);
+    if (p.captainId !== nextCaptainId) {
+      p.durabilityRegenCounter = 0;
+    }
+    p.captainId = nextCaptainId;
+
+    if (nextCaptain) {
+      _activateCaptainRolePassive(playerId, nextCaptain);
+      try {
+        showToast?.(`${nextCaptain.name} is now Captain! (${nextCaptain.currentHp} HP remaining)`, 'info');
+      } catch (_) {}
+    }
+
+    _saveToStorage();
+    if (typeof renderBoard === 'function') renderBoard();
+    if (typeof PixiBoard !== 'undefined' && PixiBoard.renderBoard) PixiBoard.renderBoard();
     return nextCaptain;
   }
-
   function getCaptain(playerId) {
     const p = _players[playerId];
     if (!p?.captainId) return null;
