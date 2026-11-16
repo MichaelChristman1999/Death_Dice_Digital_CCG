@@ -25,6 +25,7 @@ const PhaseManager = (() => {
     _setStep(STEPS.ROLLOFF);
     _rolloffDone = { p1: false, p2: false };
     _rolloffHadTie = false;
+    _qualifiesForCaptainSetup = false;
     _etiquetteRoundDone = { p1: false, p2: false };
     GameState.setPhase('rolloff');
     RollEngine.setRequired(null);
@@ -62,7 +63,7 @@ const PhaseManager = (() => {
     AdventureMode?.onRolloffShown?.();
   }
 
- function handleRolloffRoll(playerId) {
+  function handleRolloffRoll(playerId) {
     if (_step !== STEPS.ROLLOFF) return;
     if (_rolloffDone[playerId]) return;
     if (!_rolloffDone.p1 && !_rolloffDone.p2) _updateRolloffResult('');
@@ -78,7 +79,7 @@ const PhaseManager = (() => {
     if (_rolloffDone.p1 && _rolloffDone.p2) {
       const rolls = GameState.getRolloffRolls();
       if (rolls.p1 === rolls.p2) {
-        _rolloffHadTie = true; // Tie detected!
+        _rolloffHadTie = true;
         _updateRolloffResult("It's a tie! Roll again!", 'tie');
         setTimeout(() => {
           _rolloffDone = { p1: false, p2: false };
@@ -118,6 +119,29 @@ const PhaseManager = (() => {
     }
   }
 
+  function _updateRolloffUI() {
+    const rolls = GameState.getRolloffRolls();
+    const el = document.getElementById('overlay-rolloff');
+    if (!el) return;
+
+    const p1Roll = el.querySelector('#rolloff-p1-roll');
+    const p2Roll = el.querySelector('#rolloff-p2-roll');
+    const p1Btn  = el.querySelector('#btn-rolloff-p1');
+    const p2Btn  = el.querySelector('#btn-rolloff-p2');
+
+    if (p1Roll) p1Roll.textContent = rolls.p1 ?? '?';
+    if (p2Roll) p2Roll.textContent = rolls.p2 ?? '?';
+    if (p1Btn)  p1Btn.disabled = _rolloffDone.p1 || (AdventureMode?.isCpuPlayer?.('p1') ?? false);
+    if (p2Btn)  p2Btn.disabled = _rolloffDone.p2 || (AdventureMode?.isCpuPlayer?.('p2') ?? false);
+  }
+
+  function _updateRolloffResult(msg, tone = '') {
+    const el = document.getElementById('rolloff-result');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle('tie', tone === 'tie');
+  }
+
   function _beginEtiquette() {
     GameState.setPhase('etiquette');
     _setStep(STEPS.MAIN);
@@ -141,16 +165,7 @@ const PhaseManager = (() => {
     AdventureMode?.onPhaseStep?.();
   }
 
-  function _updateRolloffResult(msg, tone = '') {
-    const el = document.getElementById('rolloff-result');
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.toggle('tie', tone === 'tie');
-  }
-
   // ── Auto-roll countdown ─────────────────────────────────────────────────────
-  // The roll isn't a decision — it just starts your turn. So it fires
-  // automatically after a short countdown; the Roll button skips the wait.
   let _autoRollTimer = null;
 
   function _startAutoRoll() {
@@ -174,7 +189,7 @@ const PhaseManager = (() => {
     ActionUI?.hideRollCountdown?.();
   }
 
-  // ── Roll Handler (auto-fired by countdown, or Roll Now button) ─────────────
+  // ── Roll Handler ───────────────────────────────────────────────────────────
   function handleRoll() {
     if (_step !== STEPS.AWAIT_ROLL) return;
     _cancelAutoRoll();
@@ -227,7 +242,6 @@ const PhaseManager = (() => {
       }
     }
 
-    // Mana pool carries over, capped by rules. Mana captains can Enchant beyond cap.
     const rollManaGained = GameState.gainMana(roll, activePlayer);
     const roleResults = GameState.currentPhase === 'combat'
       ? _resolveCaptainRollPassives(activePlayer, roll, required)
@@ -255,7 +269,6 @@ const PhaseManager = (() => {
 
     _setStep(STEPS.MAIN);
 
-    // Structured info → dice overlay renders a punchy result readout
     const info = { name: GameState.getPlayerLabel(activePlayer).toUpperCase(), roll, mana: manaGained, damage };
 
     DiceAnimation.roll(roll, info, () => {
@@ -469,7 +482,6 @@ const PhaseManager = (() => {
     if (!defeatedByStatus && nextStep === STEPS.AWAIT_ROLL) _startAutoRoll();
     AdventureMode?.onPhaseStep?.();
 
-    // Report status ticks (poison damage, deaths) that fired on turn change
     ticks.forEach((ev, i) => {
       setTimeout(() => {
         showToast(
@@ -525,15 +537,13 @@ const PhaseManager = (() => {
     _updateUI();
   }
 
-  // ── Win Condition ─────────────────────────────────────────────────────────
-  // Public: call after ANY damage source (combat, abilities, cards, poison)
   function checkWin() { return _checkWinCondition(); }
 
   function _checkWinCondition() {
     for (const pid of ['p1', 'p2']) {
       if (GameState.getPlayerState(pid).hp <= 0) {
         const winner = GameState.getOpponentId(pid);
-        _cancelAutoRoll(); // no countdown over the victory screen
+        _cancelAutoRoll();
         _showWinScreen(GameState.getPlayerLabel(winner));
         _setStep(STEPS.ENDED);
         return true;
@@ -551,7 +561,6 @@ const PhaseManager = (() => {
     }
   }
 
-  // ── UI Helpers ────────────────────────────────────────────────────────────
   function _updateUI() {
     const rollBtn = document.getElementById('btn-roll');
     const endBtn  = document.getElementById('btn-end-turn');
@@ -583,7 +592,6 @@ const PhaseManager = (() => {
   };
 })();
 
-// ─── Toast Helper ─────────────────────────────────────────────────────────────
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -597,3 +605,4 @@ function showToast(message, type = 'info') {
     toast.addEventListener('transitionend', () => toast.remove(), { once: true });
   }, 3000);
 }
+

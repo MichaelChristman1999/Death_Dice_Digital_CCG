@@ -2457,15 +2457,18 @@ const GameState = (() => {
       char.statuses.push(nextStatus());
     }
 
-    // TASK 3 & 4: Statuses on captain share to Player
+// TASK 3 & 4: Statuses on captain share to Player
     const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
     if (isCaptain && (statusOptions.sharePlayer ?? true)) {
       const isNegative = _NEGATIVE_STATUS_IDS.has(statusId);
       const isDurabilitySafeguard = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
 
+      // TASK 4: Buffs and positive statuses always go to the player
       if (!isNegative) {
         applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
-      } else if (!isDurabilitySafeguard) {
+      }
+      // TASK 3: Debuffs go to the player UNLESS Durability Safeguard blocks it
+      else if (!isDurabilitySafeguard) {
         applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
       }
     }
