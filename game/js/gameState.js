@@ -10,12 +10,12 @@ const GameState = (() => {
   let _currentTurn = 'p1';
   let _currentPhase = 'rolloff'; // 'rolloff' | 'etiquette' | 'combat'
   let _phaseStep = 'rolloff';
-  let _mana = 0; // legacy save migration only; live mana lives on each player
+  let _mana = 0;
   let _lastRoll = null;
-  let _actionStack = [];  // for response resolution (LIFO)
+  let _actionStack = [];
   let _instanceCounter = 0;
   let _turnNumber = 1;
-  // Per-turn trackers (reset in advanceTurn)
+
   let _actionCardsPlayedThisTurn = 0;
   let _actionCardsResolvedThisTurn = 0;
   let _heroCardsDeployedThisTurn = 0;
@@ -112,7 +112,7 @@ const GameState = (() => {
       durabilityRegenCounter: 0,
       pendingBomb: null,
       rolloffRoll: null,
-      freeDrawPileCount: 1
+      freeDrawPileCount: 1,
     };
   }
 
@@ -129,9 +129,8 @@ const GameState = (() => {
     return _players[playerId]?.label ?? playerId;
   }
 
-  // Optional custom names entered at game start (party mode)
   function setPlayerLabel(playerId, label) {
-    const clean = (label ?? '').trim().slice(0, 16); // keep names HUD-sized
+    const clean = (label ?? '').trim().slice(0, 16);
     if (_players[playerId] && clean) {
       _players[playerId].label = clean;
       _saveToStorage();
@@ -202,8 +201,6 @@ const GameState = (() => {
     const endingTurn = _currentTurn;
     _tickEvents = [];
 
-    // End-of-turn expiry happens for the player who just acted. This keeps
-    // Cripple/Impede active during the affected player's actual turn.
     [...(_players[endingTurn]?.board ?? [])].forEach(char => expireTurnStatuses(char));
     expirePlayerStatuses(endingTurn);
     clearForceField(endingTurn);
@@ -220,7 +217,6 @@ const GameState = (() => {
     _drawPileDrawsThisTurn = 0;
     _shopPurchasesThisTurn = { hero: 0, action: 0 };
 
-    // Reset per-turn state for new active player
     const p = _players[_currentTurn];
     Object.values(_players).forEach(player => { player.evasiveDodgesThisTurn = 0; });
     p.strengthCritCooldown = Math.max(0, (p.strengthCritCooldown ?? 0) - 1);
@@ -228,7 +224,6 @@ const GameState = (() => {
     p.abstainedThisTurn = false;
     p.enchantSucceededThisTurn = false;
 
-    // Untap all characters for the new player unless a lockout status keeps them tapped.
     p.board.forEach(c => {
       const locked = (c.statuses ?? []).some(s => ['status_frozen'].includes(s.id));
       c.tapped = locked;
@@ -237,8 +232,6 @@ const GameState = (() => {
       c.actionsTakenThisTurn = 0;
     });
 
-    // Tick timed statuses for the new player's board.
-    // Iterate over a COPY — poison deaths splice the live board array.
     applyPlayerTurnStartStatuses(_currentTurn);
     if (p.hp > 0) [...p.board].forEach(char => applyTurnStartStatuses(char));
     resolveTurnStartHeroPassives(_currentTurn);
@@ -248,12 +241,9 @@ const GameState = (() => {
     _saveToStorage();
   }
 
-  // Events produced by the latest status tick (poison damage, expiries, deaths)
-  // — consumed by PhaseManager for toasts + hit effects.
   let _tickEvents = [];
   function consumeTickEvents() { const e = _tickEvents; _tickEvents = []; return e; }
 
-  // ── Roll ───────────────────────────────────────────────────────────────────
   function setLastRoll(value) {
     _lastRoll = value;
     _saveToStorage();
@@ -572,7 +562,7 @@ const GameState = (() => {
     return { gained, currentHp: char.currentHp, maxHp: char.maxHp };
   }
 
-function _cleanseNegativeCharacter(instanceId) {
+  function _cleanseNegativeCharacter(instanceId) {
     const { char, playerId } = _findChar(instanceId);
     if (!char) return 0;
     const stripped = _stripStatusIds(char.statuses ?? [], _NEGATIVE_STATUS_IDS);
@@ -607,13 +597,7 @@ function _cleanseNegativeCharacter(instanceId) {
     const healedPlayer = Math.max(0, (playerHp ?? beforePlayer) - beforePlayer);
     const healedHero = Math.max(0, (heroHp ?? beforeHero) - beforeHero);
     _saveToStorage();
-    return {
-      triggered: true,
-      heroName: hero.name,
-      removed,
-      healedPlayer,
-      healedHero,
-    };
+    return { triggered: true, heroName: hero.name, removed, healedPlayer, healedHero };
   }
 
   function resolveEquinoxPassive(playerId, roll) {
@@ -752,11 +736,7 @@ function _cleanseNegativeCharacter(instanceId) {
     }
 
     const tier = getPlayerHpTier(playerId)?.id;
-    const cadence = {
-      vulnerable: 3,
-      critical: 2,
-      near_death: 1,
-    }[tier];
+    const cadence = { vulnerable: 3, critical: 2, near_death: 1 }[tier];
     if (!cadence) {
       p.durabilityRegenCounter = 0;
       return null;
@@ -767,10 +747,7 @@ function _cleanseNegativeCharacter(instanceId) {
 
     p.durabilityRegenCounter = 0;
     const before = captain.currentHp ?? 0;
-    const hp = healCharacter(captain.instanceId, 4, {
-      overheal: false,
-      ignoreVitalized: true,
-    });
+    const hp = healCharacter(captain.instanceId, 4, { overheal: false, ignoreVitalized: true });
     const healed = Math.max(0, (hp ?? before) - before);
     return healed > 0 ? `Safeguard regen restores ${healed} HP to ${captain.name}.` : null;
   }
@@ -936,27 +913,17 @@ function _cleanseNegativeCharacter(instanceId) {
 
     const card = p.hand.heroes[idx];
     const freeCast = card._freeCast === true;
-    if (hasAbstainedThisTurn(playerId)) {
-      return { ok: false, error: 'Abstaining blocks hero casts this turn' };
-    }
-    if (_playerOrCaptainHasStatus(playerId, 'status_virus')) {
-      return { ok: false, error: 'Virus blocks hero casts' };
-    }
-    if (hasPlayerStatus(playerId, 'status_hypnotized')) {
-      return { ok: false, error: 'Hypnotized blocks hero casts' };
-    }
-    if (_heroCardsDeployedThisTurn >= getHeroCardLimit(playerId)) {
-      return { ok: false, error: 'Only one hero card per turn' };
-    }
+    if (hasAbstainedThisTurn(playerId)) return { ok: false, error: 'Abstaining blocks hero casts this turn' };
+    if (_playerOrCaptainHasStatus(playerId, 'status_virus')) return { ok: false, error: 'Virus blocks hero casts' };
+    if (hasPlayerStatus(playerId, 'status_hypnotized')) return { ok: false, error: 'Hypnotized blocks hero casts' };
+    if (_heroCardsDeployedThisTurn >= getHeroCardLimit(playerId)) return { ok: false, error: 'Only one hero card per turn' };
     if (!freeCast && getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
 
     if (!freeCast && !spendMana(card.manaCost, playerId)) return { ok: false, error: 'Mana spend failed' };
 
     p.hand.heroes.splice(idx, 1);
     const instance = _createCharacterInstance(card);
-    // Preserve full hero data on the instance for ability lookups
     instance._sourceCard = card;
-    // Attach a playable ability (role-based, flavored) — heroes in data have none
     if (!instance.abilities?.length && typeof HeroAbilities !== 'undefined' && _shouldAutoAssignAbility(card)) {
       instance.abilities = HeroAbilities.getFor(card);
     }
@@ -1025,10 +992,7 @@ function _cleanseNegativeCharacter(instanceId) {
       archetype: 'Summon',
       passives: [],
       abilities: [],
-      heroPassive: {
-        name: 'Caretaker',
-        description: 'Heals and cleanses allied heroes and player on friendly turns.',
-      },
+      heroPassive: { name: 'Caretaker', description: 'Heals and cleanses allied heroes and player on friendly turns.' },
     };
     const instance = _createCharacterInstance(babyCard);
     instance._sourceCard = babyCard;
@@ -1121,9 +1085,7 @@ function _cleanseNegativeCharacter(instanceId) {
     }
     captiveIds.forEach(instanceId => {
       const released = _releaseCapturedCharacter(instanceId);
-      if (released.ok) {
-        messages.push(`${released.character.name} is released from Capture.`);
-      }
+      if (released.ok) messages.push(`${released.character.name} is released from Capture.`);
     });
     return messages;
   }
@@ -1148,12 +1110,12 @@ function _cleanseNegativeCharacter(instanceId) {
     return { triggered: messages.length > 0, messages };
   }
 
+  // TASK 1: Deploy starting hero into captain slot
   function deploySetupCaptain(playerId) {
     const p = _players[playerId];
     if (!p) return { ok: false, error: 'Player not found' };
     if (p.captainId) return { ok: false, error: 'Captain slot already occupied' };
     
-    // Case 1: Hero is already deployed on board -> assign it as Captain
     if ((p.board?.length ?? 0) > 0) {
       const firstHero = p.board[0];
       p.captainId = firstHero.instanceId;
@@ -1163,7 +1125,6 @@ function _cleanseNegativeCharacter(instanceId) {
       return { ok: true, instance: firstHero };
     }
 
-    // Case 2: Hero is in hand -> move it from hand to Captain slot
     if ((p.hand.heroes?.length ?? 0) <= 0) return { ok: false, error: 'No hero in hand' };
 
     const [card] = p.hand.heroes.splice(0, 1);
@@ -1294,9 +1255,7 @@ function _cleanseNegativeCharacter(instanceId) {
     const captain = getCaptain(playerId);
     for (const ally of p.board ?? []) {
       if (options.includeCaptain === false && ally.instanceId === captain?.instanceId) continue;
-      const applied = applyStatus(ally.instanceId, 'status_imbued', {
-        sharePlayer: false,
-      });
+      const applied = applyStatus(ally.instanceId, 'status_imbued', { sharePlayer: false });
       if (applied) targets++;
     }
 
@@ -1399,8 +1358,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return gainMana(3, playerId, { source: 'mana_enchant' });
   }
 
-  // Validate an action card WITHOUT spending anything — used by the targeting
-  // flow so a cancelled/invalid play never costs mana or the card.
   function canPlayAction(playerId, cardId) {
     const p = _players[playerId];
     const card = p.hand.actions.find(c => c.id === cardId);
@@ -1411,15 +1368,9 @@ function _cleanseNegativeCharacter(instanceId) {
     const isFree = card._freeCast === true || prepaid || naturallyFree;
     const freeCardsUnlimited = _rules.combat?.freeActionCardsUnlimited !== false;
     const countsAsAction = card._freeCast !== true && !(naturallyFree && freeCardsUnlimited);
-    if (hasAbstainedThisTurn(playerId)) {
-      return { ok: false, error: 'Abstaining blocks action cards this turn' };
-    }
-    if (_playerOrCaptainHasStatus(playerId, 'status_virus')) {
-      return { ok: false, error: 'Virus blocks action cards' };
-    }
-    if (hasPlayerStatus(playerId, 'status_hypnotized')) {
-      return { ok: false, error: 'Hypnotized blocks action cards' };
-    }
+    if (hasAbstainedThisTurn(playerId)) return { ok: false, error: 'Abstaining blocks action cards this turn' };
+    if (_playerOrCaptainHasStatus(playerId, 'status_virus')) return { ok: false, error: 'Virus blocks action cards' };
+    if (hasPlayerStatus(playerId, 'status_hypnotized')) return { ok: false, error: 'Hypnotized blocks action cards' };
     if (card.id === 'action_abstain' && hasTakenMajorActionThisTurn(playerId)) {
       return { ok: false, error: 'Abstain must be played before your major actions' };
     }
@@ -1453,9 +1404,7 @@ function _cleanseNegativeCharacter(instanceId) {
     if (hasPlayerStatus(playerId, 'status_frozen') && card.id !== 'action_accelerate') {
       return { ok: false, error: 'Frozen blocks cards' };
     }
-    if (!isFree) {
-      if (getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
-    }
+    if (!isFree && getMana(playerId) < card.manaCost) return { ok: false, error: 'Not enough mana' };
     return { ok: true, card, isFree, countsAsAction };
   }
 
@@ -1502,24 +1451,20 @@ function _cleanseNegativeCharacter(instanceId) {
 
   const _ROLE_PASSIVE_THRESHOLDS = {
     Agility:   { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Balanced: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Durability: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Passive: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Speed:    { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Strength: { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
-    Legendary:{ robust: 4, vulnerable: 3, critical: 2, near_death: 1 },
-    Mana:     { robust: 5, vulnerable: 4, critical: 3, near_death: 2 },
+    Balanced:  { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Durability:{ robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Passive:   { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Speed:     { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Strength:  { robust: 6, vulnerable: 5, critical: 4, near_death: 3 },
+    Legendary: { robust: 4, vulnerable: 3, critical: 2, near_death: 1 },
+    Mana:      { robust: 5, vulnerable: 4, critical: 3, near_death: 2 },
   };
 
   function getRolePassiveThreshold(playerId = _currentTurn, roleName = '') {
     const key = Object.keys(_ROLE_PASSIVE_THRESHOLDS).find(name => new RegExp(name, 'i').test(roleName));
     if (!key) return null;
     const tier = getPlayerHpTier(playerId);
-    return {
-      role: key,
-      tier,
-      threshold: _ROLE_PASSIVE_THRESHOLDS[key][tier.id] ?? 6,
-    };
+    return { role: key, tier, threshold: _ROLE_PASSIVE_THRESHOLDS[key][tier.id] ?? 6 };
   }
 
   function rollRolePassive(playerId = _currentTurn, roleName = '') {
@@ -1531,14 +1476,10 @@ function _cleanseNegativeCharacter(instanceId) {
   }
 
   function _tryDurabilityCcResist(playerId, statusId, options = {}) {
-    if (options.ignoreDurabilityResist || !_SAFEGUARD_BLOCK_STATUS_IDS.has(statusId)) {
-      return { resisted: false };
-    }
+    if (options.ignoreDurabilityResist || !_SAFEGUARD_BLOCK_STATUS_IDS.has(statusId)) return { resisted: false };
     const captain = getCaptain(playerId);
     if (!captain || !hasCaptainClass(playerId, 'Durability')) return { resisted: false };
-    if ((captain.statuses ?? []).some(s => _SAFEGUARD_BLOCK_STATUS_IDS.has(s.id))) {
-      return { resisted: false };
-    }
+    if ((captain.statuses ?? []).some(s => _SAFEGUARD_BLOCK_STATUS_IDS.has(s.id))) return { resisted: false };
 
     const result = rollRolePassive(playerId, 'Durability');
     const def = _data.statusEffects?.find(s => s.id === statusId);
@@ -1550,27 +1491,18 @@ function _cleanseNegativeCharacter(instanceId) {
     }
 
     const duration = options.duration ?? def?.duration;
-    const reducedDuration = typeof duration === 'number' && duration > 1
-      ? duration - 1
-      : duration;
+    const reducedDuration = typeof duration === 'number' && duration > 1 ? duration - 1 : duration;
     if (reducedDuration !== duration) {
       try { showToast?.(`Safeguard partially resists ${statusName} (${rollText}).`, 'info'); } catch (_) {}
       return { resisted: false, partial: true, duration: reducedDuration, result };
     }
-
-    try { showToast?.(`Safeguard failed to resist ${statusName} (${rollText}).`, 'warn'); } catch (_) {}
     return { resisted: false, partial: false, result };
   }
 
   function getTechniqueDuelBonus(playerId = _currentTurn) {
     if (!hasCaptainClass(playerId, 'Technique') || _captainHasStatus(playerId, 'status_impeded')) return 0;
     const tier = getPlayerHpTier(playerId)?.id;
-    return {
-      robust: 2,
-      vulnerable: 3,
-      critical: 4,
-      near_death: 5,
-    }[tier] ?? 2;
+    return { robust: 2, vulnerable: 3, critical: 4, near_death: 5 }[tier] ?? 2;
   }
 
   function getLoneWolfDamageMultiplier(playerId = _currentTurn, options = {}) {
@@ -1638,8 +1570,7 @@ function _cleanseNegativeCharacter(instanceId) {
     if (hasAbstainedThisTurn(playerId)) return { ok: false, error: 'Abstaining blocks player attack this turn' };
     if ((_players[playerId]?.board?.length ?? 0) > 0) return { ok: false, error: 'Player base attack requires an empty field' };
     if (_playerBaseAttacksThisTurn >= getPlayerBaseAttackLimit(playerId)) return { ok: false, error: 'Base attack already used' };
-    const blocker = (_players[playerId]?.statuses ?? [])
-      .find(s => ['status_frozen', 'status_haunted', 'status_shocked'].includes(s.id));
+    const blocker = (_players[playerId]?.statuses ?? []).find(s => ['status_frozen', 'status_haunted', 'status_shocked'].includes(s.id));
     if (blocker) return { ok: false, error: `${blocker.name} blocks player attack` };
     return {
       ok: true,
@@ -1659,16 +1590,11 @@ function _cleanseNegativeCharacter(instanceId) {
 
   function markPlayerBaseAttackSpent(playerId = _currentTurn) {
     if (playerId !== _currentTurn) return false;
-    _playerBaseAttacksThisTurn = Math.min(
-      getPlayerBaseAttackLimit(playerId),
-      _playerBaseAttacksThisTurn + 1
-    );
+    _playerBaseAttacksThisTurn = Math.min(getPlayerBaseAttackLimit(playerId), _playerBaseAttacksThisTurn + 1);
     _saveToStorage();
     return true;
   }
 
-  // Commit the play: spend mana, remove from hand, count it, graveyard it.
-  // Called by AbilityDispatcher AFTER a target has been confirmed.
   function commitPlayAction(playerId, cardId) {
     const check = canPlayAction(playerId, cardId);
     if (!check.ok) return check;
@@ -1688,7 +1614,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return { ok: true, card };
   }
 
-  // Legacy immediate-play path (admin/testing): commit + resolve with no target.
   function playAction(playerId, cardId, target = null) {
     const r = commitPlayAction(playerId, cardId);
     if (!r.ok) return r;
@@ -1696,7 +1621,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return { ok: true };
   }
 
-  // ── Discard for Mana ───────────────────────────────────────────────────────
   function discardForMana(playerId, cardId, cardType) {
     const p = _players[playerId];
     const limit = getDiscardForManaLimit(cardType, playerId);
@@ -1742,13 +1666,14 @@ function _cleanseNegativeCharacter(instanceId) {
     return cfg.chaosCost ?? 1;
   }
 
+  // TASK 6: Low rolloff grants extra free draw pile uses
   function addFreeDrawPileUses(playerId, count = 1) {
     const p = _players[playerId];
     if (p) p.freeDrawPileCount = (p.freeDrawPileCount ?? 0) + count;
     _saveToStorage();
   }
 
- function hasFreeDrawPileAvailable(playerId = _currentTurn) {
+  function hasFreeDrawPileAvailable(playerId = _currentTurn) {
     return (_players[playerId]?.freeDrawPileCount ?? 0) > 0;
   }
 
@@ -1779,7 +1704,7 @@ function _cleanseNegativeCharacter(instanceId) {
     return { ok: true, cost, drawsRemaining: Math.max(0, getDrawPileLimit(playerId) - _drawPileDrawsThisTurn) };
   }
 
- function commitDrawFromPile(playerId = _currentTurn) {
+  function commitDrawFromPile(playerId = _currentTurn) {
     const check = canDrawFromPile(playerId);
     if (!check.ok) return check;
     const isFree = hasFreeDrawPileAvailable(playerId);
@@ -1999,6 +1924,7 @@ function _cleanseNegativeCharacter(instanceId) {
     return p.hp;
   }
 
+  // TASK 3: Captain damage shares to Player, unless Durability Safeguard
   function damageCharacter(instanceId, amount, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
@@ -2013,6 +1939,22 @@ function _cleanseNegativeCharacter(instanceId) {
     const verglas = _absorbCharacterVerglas(instanceId, incoming, options);
     const dmg = verglas.damage;
     char.currentHp -= dmg;
+
+    // TASK 3: Share captain damage to player unless Durability Safeguarding
+    const isCaptain = captain?.instanceId === instanceId;
+    if (isCaptain && dmg > 0 && !options.splashPlayer && options.source !== 'captain_splash') {
+      const isSafeguardingDurability = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
+      if (!isSafeguardingDurability) {
+        damagePlayer(ownerId, dmg, {
+          source: 'captain_splash',
+          splashPlayer: true,
+          splashCaptain: false,
+          ignoreSidestep: true,
+          roleEvasion: false,
+        });
+      }
+    }
+
     if (incoming > 0) _mirrorLinkedCharmedDamage({ type: 'character', id: instanceId }, incoming, options);
     if (dmg > 0 && options.source !== 'retaliate' && char.id === 'hero_chicki_barstooli' && char.currentHp > 0) {
       applyStatus(instanceId, 'status_damage_boost', { ignoreSidestep: true, sharePlayer: false });
@@ -2029,9 +1971,7 @@ function _cleanseNegativeCharacter(instanceId) {
 
   function _tryChickiRetaliate(chicki, attacker) {
     if (!attacker || Math.random() >= 0.5) return false;
-    const attackerOwner = attacker.type === 'player'
-      ? attacker.id
-      : getCharacterOwner(attacker.id);
+    const attackerOwner = attacker.type === 'player' ? attacker.id : getCharacterOwner(attacker.id);
     if (!attackerOwner) return false;
     const hit = damageTarget({ type: 'player', id: attackerOwner }, 4, {
       source: 'retaliate',
@@ -2039,9 +1979,7 @@ function _cleanseNegativeCharacter(instanceId) {
       splashCaptain: true,
     });
     try {
-      const label = hit?.safeguarded
-        ? getCharacter(hit.id)?.name
-        : getPlayerLabel(attackerOwner);
+      const label = hit?.safeguarded ? getCharacter(hit.id)?.name : getPlayerLabel(attackerOwner);
       showToast?.(`${chicki.name} retaliates against ${label ?? 'the attacker'} for ${hit?.actualDamage ?? 4}.`, 'combat');
     } catch (_) {}
     return true;
@@ -2091,6 +2029,7 @@ function _cleanseNegativeCharacter(instanceId) {
     return true;
   }
 
+  // TASK 4: Captain heal shares to Player
   function healCharacter(instanceId, amount, options = {}) {
     const { char } = _findChar(instanceId);
     if (!char) return null;
@@ -2101,6 +2040,14 @@ function _cleanseNegativeCharacter(instanceId) {
       ? char.maxHp + Math.max(0, Number(options.overhealCap) || 0)
       : (options.overheal ? null : char.maxHp);
     char.currentHp = cap == null ? char.currentHp + healAmount : Math.min(cap, char.currentHp + healAmount);
+
+    // Share heal to player
+    const ownerId = getCharacterOwner(instanceId);
+    const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
+    if (isCaptain && healAmount > 0 && !options.sharePlayer) {
+      healPlayer(ownerId, healAmount, { sharePlayer: true, overheal: false });
+    }
+
     _saveToStorage();
     return char.currentHp;
   }
@@ -2133,7 +2080,6 @@ function _cleanseNegativeCharacter(instanceId) {
       _saveToStorage();
       return Math.max(0, p.hp - before);
     }
-
     return 0;
   }
 
@@ -2195,9 +2141,7 @@ function _cleanseNegativeCharacter(instanceId) {
       );
     }
     const ownerId = target.type === 'player' ? target.id : getCharacterOwner(target.id);
-    const safeguard = options.allowSafeguard !== false
-      ? getSafeguardCaptain(ownerId, target)
-      : null;
+    const safeguard = options.allowSafeguard !== false ? getSafeguardCaptain(ownerId, target) : null;
 
     if (safeguard) {
       const redirected = options.safeguardDamage ?? amount;
@@ -2399,7 +2343,6 @@ function _cleanseNegativeCharacter(instanceId) {
     }
   }
 
-  // ── Tap State ──────────────────────────────────────────────────────────────
   function getCharacterActionLimit(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
     if (!char) return 1;
@@ -2463,13 +2406,10 @@ function _cleanseNegativeCharacter(instanceId) {
     if (char._statusImmune && _NEGATIVE_STATUS_IDS.has(statusId)) return false;
     if (_tryKevLardDeflectStatus(char, ownerId, statusId, options)) return false;
     if (_playerStatusBlocksCharacterStatus(ownerId, statusId)) return false;
-    if (_NEGATIVE_STATUS_IDS.has(statusId)
-      && getCaptain(ownerId)?.instanceId === instanceId) {
+    if (_NEGATIVE_STATUS_IDS.has(statusId) && getCaptain(ownerId)?.instanceId === instanceId) {
       const resist = _tryDurabilityCcResist(ownerId, statusId, options);
       if (resist.resisted) return false;
-      if (resist.duration != null) {
-        statusOptions = { ...options, duration: resist.duration };
-      }
+      if (resist.duration != null) statusOptions = { ...options, duration: resist.duration };
     }
     if (statusId === 'status_accelerated' && char.statuses?.some(s => s.id === 'status_charmed')) return false;
     if (statusId === 'status_sidestep' && char.statuses?.some(s => s.id === 'status_edible' || s.id === 'status_charmed')) return false;
@@ -2517,34 +2457,15 @@ function _cleanseNegativeCharacter(instanceId) {
       char.statuses.push(nextStatus());
     }
 
- const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
-    if (isCaptain && dmg > 0 && !options.splashPlayer && options.source !== 'captain_splash') {
-      const isSafeguardingDurability = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
-      if (!isSafeguardingDurability) {
-        damagePlayer(ownerId, dmg, {
-          source: 'captain_splash',
-          splashPlayer: true,
-          splashCaptain: false,
-          ignoreSidestep: true,
-          roleEvasion: false,
-        });
-      }
-    }
-
-     if (isCaptain && healAmount > 0 && !options.sharePlayer) {
-      healPlayer(ownerId, healAmount, { sharePlayer: true, overheal: false });
-    }
-
-      if (isCaptain && (statusOptions.sharePlayer ?? true)) {
+    // TASK 3 & 4: Statuses on captain share to Player
+    const isCaptain = getCaptain(ownerId)?.instanceId === instanceId;
+    if (isCaptain && (statusOptions.sharePlayer ?? true)) {
       const isNegative = _NEGATIVE_STATUS_IDS.has(statusId);
       const isDurabilitySafeguard = hasDurabilityCaptain(ownerId) && _hasActiveSafeguardCaptain(ownerId);
 
-      // TASK 4: Buffs and positive statuses always go to the player
       if (!isNegative) {
         applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
-      }
-      // TASK 3: Debuffs go to the player UNLESS Durability Safeguard blocks it
-      else if (!isDurabilitySafeguard) {
+      } else if (!isDurabilitySafeguard) {
         applyPlayerStatus(ownerId, statusId, { shareCaptain: false, splashCaptain: false });
       }
     }
@@ -2678,9 +2599,7 @@ function _cleanseNegativeCharacter(instanceId) {
 
   function _rabiesSpreadPool(sourceTarget) {
     if (!sourceTarget) return [];
-    const ownerId = sourceTarget.type === 'player'
-      ? sourceTarget.id
-      : getCharacterOwner(sourceTarget.id);
+    const ownerId = sourceTarget.type === 'player' ? sourceTarget.id : getCharacterOwner(sourceTarget.id);
     if (!ownerId) return [];
 
     const pool = [
@@ -2698,8 +2617,7 @@ function _cleanseNegativeCharacter(instanceId) {
     const chance = options.chance ?? (options.requireVitalized ? 1 : 0.5);
     if (chance < 1 && Math.random() >= chance) return { spread: false, reason: 'missed' };
 
-    const pool = _rabiesSpreadPool(sourceTarget)
-      .filter(t => !targetHasStatus(t, 'status_rabies'));
+    const pool = _rabiesSpreadPool(sourceTarget).filter(t => !targetHasStatus(t, 'status_rabies'));
     if (!pool.length) return { spread: false, reason: 'no_target' };
 
     const target = pool[Math.floor(Math.random() * pool.length)];
@@ -2709,9 +2627,7 @@ function _cleanseNegativeCharacter(instanceId) {
       captainSlotRoutesToPlayer: true,
     });
     if (result?.applied) {
-      const label = result.type === 'player'
-        ? getPlayerLabel(result.id)
-        : getCharacter(result.id)?.name;
+      const label = result.type === 'player' ? getPlayerLabel(result.id) : getCharacter(result.id)?.name;
       try { showToast?.(`Rabies spreads to ${label ?? target.name ?? 'a target'}.`, 'combat'); } catch (_) {}
     }
     return { ...result, spread: !!result?.applied };
@@ -2722,8 +2638,7 @@ function _cleanseNegativeCharacter(instanceId) {
     const chance = options.chance ?? 0.5;
     if (chance < 1 && Math.random() >= chance) return { spread: false, reason: 'missed' };
 
-    const pool = _rabiesSpreadPool(sourceTarget)
-      .filter(t => !targetHasStatus(t, 'status_poisoned'));
+    const pool = _rabiesSpreadPool(sourceTarget).filter(t => !targetHasStatus(t, 'status_poisoned'));
     if (!pool.length) return { spread: false, reason: 'no_target' };
 
     const target = pool[Math.floor(Math.random() * pool.length)];
@@ -2733,9 +2648,7 @@ function _cleanseNegativeCharacter(instanceId) {
       captainSlotRoutesToPlayer: true,
     });
     if (result?.applied) {
-      const label = result.type === 'player'
-        ? getPlayerLabel(result.id)
-        : getCharacter(result.id)?.name;
+      const label = result.type === 'player' ? getPlayerLabel(result.id) : getCharacter(result.id)?.name;
       try { showToast?.(`Poison spreads to ${label ?? target.name ?? 'a target'}.`, 'combat'); } catch (_) {}
     }
     return { ...result, spread: !!result?.applied };
@@ -2746,8 +2659,7 @@ function _cleanseNegativeCharacter(instanceId) {
     const chance = options.chance ?? (1 / 3);
     if (chance < 1 && Math.random() >= chance) return { spread: false, reason: 'missed' };
 
-    const pool = _rabiesSpreadPool(sourceTarget)
-      .filter(t => !targetHasStatus(t, 'status_shocked'));
+    const pool = _rabiesSpreadPool(sourceTarget).filter(t => !targetHasStatus(t, 'status_shocked'));
     if (!pool.length) return { spread: false, reason: 'no_target' };
 
     const target = pool[Math.floor(Math.random() * pool.length)];
@@ -2757,9 +2669,7 @@ function _cleanseNegativeCharacter(instanceId) {
       captainSlotRoutesToPlayer: true,
     });
     if (result?.applied) {
-      const label = result.type === 'player'
-        ? getPlayerLabel(result.id)
-        : getCharacter(result.id)?.name;
+      const label = result.type === 'player' ? getPlayerLabel(result.id) : getCharacter(result.id)?.name;
       try { showToast?.(`Shocked spreads to ${label ?? target.name ?? 'a target'}.`, 'combat'); } catch (_) {}
     }
     return { ...result, spread: !!result?.applied };
@@ -2774,10 +2684,8 @@ function _cleanseNegativeCharacter(instanceId) {
     if (statusId === 'status_sidestep' && _hasActiveSafeguardCaptain(playerId)) return false;
     if (_RABIES_PRECEDENCE_STATUS_IDS.has(statusId) && hasPlayerStatus(playerId, 'status_rabies')) return true;
     const statuses = _players[playerId].statuses ?? [];
-    const exists = statuses.some(s => s.id === statusId);
-    if (exists) return true;
-    if (statuses.length >= (_rules.statusLimits?.player ?? 6)) return false;
-    return true;
+    if (statuses.some(s => s.id === statusId)) return true;
+    return statuses.length < (_rules.statusLimits?.player ?? 6);
   }
 
   function isPlayerImmuneToStatus(playerId, statusId) {
@@ -2865,11 +2773,9 @@ function _cleanseNegativeCharacter(instanceId) {
     return dodged;
   }
 
-  // Damage-over-time statuses: id → damage per stack per tick
   const _DOT_STATUSES = { status_poisoned: 3, status_rabies: 4, status_burning: 4, status_haunted: 2, status_shocked: 2, status_example_timed: 1 };
 
   function applyTurnStartStatuses(char) {
-    // Apply damage-over-time effects at the start of the affected player's turn.
     for (const s of char.statuses) {
       const dot = _DOT_STATUSES[s.id];
       if (!dot) continue;
@@ -2905,7 +2811,7 @@ function _cleanseNegativeCharacter(instanceId) {
         }
         spreadShockFromTarget({ type: 'character', id: char.instanceId }, { chance: 1 / 3 });
       }
-      if (died) return; // dead — stop ticking
+      if (died) return;
     }
   }
 
@@ -2990,7 +2896,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return kept;
   }
 
-  // ── Effective Attack — base attack modified by statuses ───────────────────
   function getEffectiveAttack(charOrId) {
     const char = typeof charOrId === 'string' ? _findChar(charOrId).char : charOrId;
     if (!char) return 0;
@@ -3016,7 +2921,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return Math.max(1, atk);
   }
 
-  // Statuses that prevent a character from attacking / using abilities
   const _NO_ATTACK  = ['status_frozen', 'status_haunted', 'status_shocked', 'status_hypnotized'];
   const _NO_ABILITY = ['status_frozen', 'status_haunted', 'status_shocked', 'status_hypnotized'];
 
@@ -3049,7 +2953,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return char?.statuses.some(s => s.id === statusId) ?? false;
   }
 
-  // ── Shop / Hand ───────────────────────────────────────────────────────────
   function addCardToHand(playerId, card, type) {
     const p = _players[playerId];
     const hand = type === 'hero' ? p.hand.heroes : p.hand.actions;
@@ -3102,14 +3005,13 @@ function _cleanseNegativeCharacter(instanceId) {
     return { phase: 'chaos', round: getChaosRound() };
   }
 
-  // ── Roll-Off ──────────────────────────────────────────────────────────────
   function setRolloffRoll(playerId, roll) {
     _players[playerId].rolloffRoll = roll;
     _saveToStorage();
   }
 
   function getRolloffRolls() {
-    return { p1: _players.p1.rolloffRoll, p2: _players.p2.rolloffRoll };
+    return { p1: _players.p1?.rolloffRoll ?? null, p2: _players.p2?.rolloffRoll ?? null };
   }
 
   function setFirstPlayer(playerId) {
@@ -3117,7 +3019,6 @@ function _cleanseNegativeCharacter(instanceId) {
     _saveToStorage();
   }
 
-  // ── Lookup Helpers ─────────────────────────────────────────────────────────
   function _findChar(instanceId) {
     for (const [pid, p] of Object.entries(_players)) {
       const char = p.board.find(c => c.instanceId === instanceId);
@@ -3153,7 +3054,6 @@ function _cleanseNegativeCharacter(instanceId) {
     return ids;
   }
 
-  // ── Persistence ───────────────────────────────────────────────────────────
   function _saveToStorage() {
     try {
       localStorage.setItem('gameState', JSON.stringify({
@@ -3212,7 +3112,7 @@ function _cleanseNegativeCharacter(instanceId) {
         p.strengthCritCooldown ??= 0;
         p.durabilityRegenCounter ??= 0;
         p.pendingBomb ??= null;
-        p.freeDrawPileUsed ??= false;
+        p.freeDrawPileCount ??= 1;
       });
       _currentTurn = saved.currentTurn;
       _currentPhase = saved.currentPhase;
